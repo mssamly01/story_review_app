@@ -1,0 +1,376 @@
+"""Project creation, editing, validation, and JSON persistence."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
+
+from app.domain.beat import Beat
+from app.domain.character import Character
+from app.domain.episode import ReviewEpisode
+from app.domain.location import Location
+from app.domain.project import Project
+from app.domain.scene import Scene
+from app.domain.source_chapter import SourceChapter
+from app.domain.style_preset import StylePreset
+
+
+class ProjectService:
+    def create_project(
+        self,
+        title: str,
+        *,
+        project_id: str | None = None,
+        author_source_note: str = "",
+        genre: str = "",
+        language: str = "vi",
+        default_narration_style: str = "mysterious",
+        default_art_style: str = "dark fantasy webtoon",
+        retelling_density: str = "full",
+    ) -> Project:
+        return Project(
+            project_id=project_id or "project_001",
+            title=title,
+            author_source_note=author_source_note,
+            genre=genre,
+            language=language,
+            default_narration_style=default_narration_style,
+            default_art_style=default_art_style,
+            retelling_density=retelling_density,
+        )
+
+    def add_source_chapter(
+        self,
+        project: Project,
+        *,
+        title: str,
+        chapter_number: int,
+        raw_text: str,
+        notes: str = "",
+        chapter_id: str | None = None,
+    ) -> SourceChapter:
+        chapter = SourceChapter(
+            chapter_id=chapter_id or self._next_id("ch", project.source_chapters),
+            title=title,
+            chapter_number=chapter_number,
+            raw_text=raw_text,
+            notes=notes,
+        )
+        project.source_chapters.append(chapter)
+        project.touch()
+        return chapter
+
+    def add_character(
+        self,
+        project: Project,
+        *,
+        name: str,
+        character_id: str | None = None,
+        aliases: list[str] | None = None,
+        role: str = "",
+        personality: str = "",
+        appearance: str = "",
+        default_outfit: str = "",
+        voice_notes: str = "",
+        visual_prompt_base: str = "",
+        relationship_notes: str = "",
+    ) -> Character:
+        character = Character(
+            character_id=character_id or self._next_id("char", project.characters),
+            name=name,
+            aliases=aliases or [],
+            role=role,
+            personality=personality,
+            appearance=appearance,
+            default_outfit=default_outfit,
+            voice_notes=voice_notes,
+            visual_prompt_base=visual_prompt_base,
+            relationship_notes=relationship_notes,
+        )
+        project.characters.append(character)
+        project.touch()
+        return character
+
+    def add_location(
+        self,
+        project: Project,
+        *,
+        name: str,
+        location_id: str | None = None,
+        description: str = "",
+        mood: str = "",
+        lighting: str = "",
+        visual_prompt_base: str = "",
+        related_scene_ids: list[str] | None = None,
+    ) -> Location:
+        location = Location(
+            location_id=location_id or self._next_id("loc", project.locations),
+            name=name,
+            description=description,
+            mood=mood,
+            lighting=lighting,
+            visual_prompt_base=visual_prompt_base,
+            related_scene_ids=related_scene_ids or [],
+        )
+        project.locations.append(location)
+        project.touch()
+        return location
+
+    def add_style_preset(
+        self,
+        project: Project,
+        *,
+        name: str,
+        style_id: str | None = None,
+        description: str = "",
+        positive_prompt: str = "",
+        negative_prompt: str = "",
+        lighting: str = "",
+        character_design_rules: str = "",
+        background_detail: str = "",
+    ) -> StylePreset:
+        style_preset = StylePreset(
+            style_id=style_id or self._next_id("style", project.style_presets),
+            name=name,
+            description=description,
+            positive_prompt=positive_prompt,
+            negative_prompt=negative_prompt,
+            lighting=lighting,
+            character_design_rules=character_design_rules,
+            background_detail=background_detail,
+        )
+        project.style_presets.append(style_preset)
+        project.touch()
+        return style_preset
+
+    def add_review_episode(
+        self,
+        project: Project,
+        *,
+        title: str,
+        source_chapter_ids: list[str],
+        episode_id: str | None = None,
+        tone: str | None = None,
+        density: str | None = None,
+        status: str = "draft",
+        summary: str = "",
+        hook: str = "",
+        cliffhanger: str = "",
+    ) -> ReviewEpisode:
+        self._ensure_source_chapters_exist(project, source_chapter_ids)
+        episode = ReviewEpisode(
+            episode_id=episode_id
+            or self._next_id("ep", project.review_episodes),
+            title=title,
+            source_chapter_ids=source_chapter_ids,
+            tone=tone or project.default_narration_style,
+            density=density or project.retelling_density,
+            status=status,
+            summary=summary,
+            hook=hook,
+            cliffhanger=cliffhanger,
+        )
+        project.review_episodes.append(episode)
+        project.touch()
+        return episode
+
+    def add_scene(
+        self,
+        project: Project,
+        *,
+        episode_id: str,
+        title: str,
+        scene_id: str | None = None,
+        summary: str = "",
+        characters: list[str] | None = None,
+        location: str = "",
+        mood: str = "",
+        importance: str = "medium",
+        target_beats: int = 0,
+    ) -> Scene:
+        episode = self.find_episode(project, episode_id)
+        scene = Scene(
+            scene_id=scene_id or self._next_scene_id(project),
+            episode_id=episode.episode_id,
+            title=title,
+            summary=summary,
+            characters=characters or [],
+            location=location,
+            mood=mood,
+            importance=importance,
+            target_beats=target_beats,
+        )
+        episode.scenes.append(scene)
+        project.touch()
+        return scene
+
+    def add_beat(
+        self,
+        project: Project,
+        *,
+        episode_id: str,
+        scene_id: str,
+        beat_id: str | None = None,
+        order_index: int | None = None,
+        source_refs: list[str] | None = None,
+        story_function: str = "",
+        characters: list[str] | None = None,
+        location: str = "",
+        action: str = "",
+        emotion: str = "",
+        shot_type: str = "",
+        review_text: str = "",
+        visual_description: str = "",
+        image_prompt: str = "",
+        negative_prompt: str = "",
+        continuity_tags: list[str] | None = None,
+        status: str = "planned",
+    ) -> Beat:
+        scene = self.find_scene(project, episode_id, scene_id)
+        beat = Beat(
+            beat_id=beat_id or self._next_beat_id(project),
+            scene_id=scene.scene_id,
+            order_index=order_index
+            if order_index is not None
+            else len(scene.beats) + 1,
+            source_refs=source_refs or [],
+            story_function=story_function,
+            characters=characters or [],
+            location=location,
+            action=action,
+            emotion=emotion,
+            shot_type=shot_type,
+            review_text=review_text,
+            visual_description=visual_description,
+            image_prompt=image_prompt,
+            negative_prompt=negative_prompt,
+            continuity_tags=continuity_tags or [],
+            status=status,
+        )
+        scene.beats.append(beat)
+        project.touch()
+        return beat
+
+    def save_project(self, project: Project, path: str | Path) -> None:
+        errors = self.validate_project(project)
+        if errors:
+            raise ValueError("Project validation failed: " + "; ".join(errors))
+
+        project.touch()
+        output_path = Path(path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(
+            json.dumps(project.to_dict(), ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+
+    def load_project(self, path: str | Path) -> Project:
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+        project = Project.from_dict(data)
+        errors = self.validate_project(project)
+        if errors:
+            raise ValueError("Project validation failed: " + "; ".join(errors))
+        return project
+
+    def find_episode(self, project: Project, episode_id: str) -> ReviewEpisode:
+        for episode in project.review_episodes:
+            if episode.episode_id == episode_id:
+                return episode
+        raise LookupError(f"ReviewEpisode not found: {episode_id}")
+
+    def find_scene(
+        self, project: Project, episode_id: str, scene_id: str
+    ) -> Scene:
+        episode = self.find_episode(project, episode_id)
+        for scene in episode.scenes:
+            if scene.scene_id == scene_id:
+                return scene
+        raise LookupError(f"Scene not found: {scene_id}")
+
+    def validate_project(self, project: Project) -> list[str]:
+        errors: list[str] = []
+        chapter_ids = {chapter.chapter_id for chapter in project.source_chapters}
+
+        for episode in project.review_episodes:
+            for chapter_id in episode.source_chapter_ids:
+                if chapter_id not in chapter_ids:
+                    errors.append(
+                        f"{episode.episode_id} references missing source chapter "
+                        f"{chapter_id}"
+                    )
+
+            for scene in episode.scenes:
+                if scene.episode_id != episode.episode_id:
+                    errors.append(
+                        f"{scene.scene_id} has episode_id {scene.episode_id}, "
+                        f"expected {episode.episode_id}"
+                    )
+
+                seen_order_indexes: set[int] = set()
+                for beat in scene.beats:
+                    if beat.scene_id != scene.scene_id:
+                        errors.append(
+                            f"{beat.beat_id} has scene_id {beat.scene_id}, "
+                            f"expected {scene.scene_id}"
+                        )
+                    if beat.order_index in seen_order_indexes:
+                        errors.append(
+                            f"{scene.scene_id} has duplicate beat order "
+                            f"{beat.order_index}"
+                        )
+                    seen_order_indexes.add(beat.order_index)
+
+        return errors
+
+    def _ensure_source_chapters_exist(
+        self, project: Project, source_chapter_ids: list[str]
+    ) -> None:
+        existing_ids = {chapter.chapter_id for chapter in project.source_chapters}
+        missing_ids = [
+            chapter_id
+            for chapter_id in source_chapter_ids
+            if chapter_id not in existing_ids
+        ]
+        if missing_ids:
+            raise LookupError(
+                "SourceChapter not found: " + ", ".join(missing_ids)
+            )
+
+    def _next_scene_id(self, project: Project) -> str:
+        scenes = [
+            scene
+            for episode in project.review_episodes
+            for scene in episode.scenes
+        ]
+        return self._next_id("sc", scenes)
+
+    def _next_beat_id(self, project: Project) -> str:
+        beats = [
+            beat
+            for episode in project.review_episodes
+            for scene in episode.scenes
+            for beat in scene.beats
+        ]
+        return self._next_id("b", beats)
+
+    def _next_id(self, prefix: str, existing_items: list[Any]) -> str:
+        id_attribute_by_prefix = {
+            "b": "beat_id",
+            "ch": "chapter_id",
+            "char": "character_id",
+            "ep": "episode_id",
+            "loc": "location_id",
+            "sc": "scene_id",
+            "style": "style_id",
+        }
+        id_attribute = id_attribute_by_prefix[prefix]
+        max_number = 0
+
+        for item in existing_items:
+            item_id = getattr(item, id_attribute)
+            parts = item_id.rsplit("_", 1)
+            if len(parts) == 2 and parts[0] == prefix and parts[1].isdigit():
+                max_number = max(max_number, int(parts[1]))
+
+        return f"{prefix}_{max_number + 1:03d}"
