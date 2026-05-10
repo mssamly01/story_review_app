@@ -7,10 +7,13 @@ generate beats or rewritten review text yet.
 
 from __future__ import annotations
 
+from typing import Any
+
 from app.domain.episode import ReviewEpisode
 from app.domain.project import Project
 from app.domain.scene import Scene
 from app.domain.source_chapter import SourceChapter
+from app.infrastructure.ai_gateway import AIGateway
 from app.services.project_service import ProjectService
 from app.services.story_parser_service import (
     ImportantEvent,
@@ -39,9 +42,13 @@ class EpisodePlannerService:
         self,
         project_service: ProjectService | None = None,
         story_parser_service: StoryParserService | None = None,
+        ai_gateway: AIGateway | None = None,
+        use_ai: bool = False,
     ) -> None:
         self.project_service = project_service or ProjectService()
         self.story_parser_service = story_parser_service or StoryParserService()
+        self.ai_gateway = ai_gateway
+        self.use_ai = use_ai
 
     def plan_episode(
         self,
@@ -60,6 +67,16 @@ class EpisodePlannerService:
         source_chapters = self._find_source_chapters(
             project, selected_source_chapter_ids
         )
+        if self.use_ai:
+            return self._plan_episode_with_ai(
+                project=project,
+                source_chapters=source_chapters,
+                selected_source_chapter_ids=selected_source_chapter_ids,
+                narration_style=narration_style,
+                retelling_density=retelling_density,
+                episode_title=episode_title,
+            )
+
         parsed_results = [
             self.story_parser_service.parse(source_chapter)
             for source_chapter in source_chapters
@@ -92,6 +109,150 @@ class EpisodePlannerService:
 
         project.touch()
         return episode
+
+    def _plan_episode_with_ai(
+        self,
+        *,
+        project: Project,
+        source_chapters: list[SourceChapter],
+        selected_source_chapter_ids: list[str],
+        narration_style: str,
+        retelling_density: str,
+        episode_title: str | None,
+    ) -> ReviewEpisode:
+        gateway = self._require_ai_gateway()
+        response = gateway.generate_json(
+            "episode_planner",
+            {
+                "project_context": {
+                    "title": project.title,
+                    "genre": project.genre,
+                    "language": project.language,
+                },
+                "source_chapter_ids": list(selected_source_chapter_ids),
+                "source_chapters": [
+                    {
+                        "chapter_id": chapter.chapter_id,
+                        "title": chapter.title,
+                        "chapter_number": chapter.chapter_number,
+                        "raw_text": chapter.raw_text,
+                        "notes": chapter.notes,
+                    }
+                    for chapter in source_chapters
+                ],
+                "narration_style": narration_style,
+                "retelling_density": retelling_density,
+                "character_bible": [
+                    character.to_dict() for character in project.characters
+                ],
+                "location_bible": [
+                    location.to_dict() for location in project.locations
+                ],
+            },
+        )
+        plan = self._normalise_ai_plan(
+            response=response,
+            selected_source_chapter_ids=selected_source_chapter_ids,
+            narration_style=narration_style,
+            retelling_density=retelling_density,
+            fallback_title=episode_title or self._build_episode_title(source_chapters),
+        )
+
+        episode = self.project_service.add_review_episode(
+            project,
+            title=plan["title"],
+            source_chapter_ids=list(selected_source_chapter_ids),
+            tone=plan["tone"],
+            density=plan["density"],
+            status="planned",
+            summary=plan["summary"],
+            hook=plan["hook"],
+            cliffhanger=plan["cliffhanger"],
+        )
+
+        planned_scenes: list[Scene] = []
+        for scene_spec in plan["scenes"]:
+            planned_scenes.append(
+                self.project_service.add_scene(
+                    project,
+                    episode_id=episode.episode_id,
+                    title=scene_spec["title"],
+                    summary=scene_spec["summary"],
+                    characters=scene_spec["characters"],
+                    location=scene_spec["location"],
+                    mood=scene_spec["mood"],
+                    importance=scene_spec["importance"],
+                    target_beats=scene_spec["target_beats"],
+                )
+            )
+
+        for source_chapter in source_chapters:
+            source_chapter.parsed_scene_ids.extend(
+                scene.scene_id for scene in planned_scenes
+            )
+
+        project.touch()
+        return episode
+
+    def _normalise_ai_plan(
+        self,
+        *,
+        response: dict[str, Any],
+        selected_source_chapter_ids: list[str],
+        narration_style: str,
+        retelling_density: str,
+        fallback_title: str,
+    ) -> dict[str, Any]:
+        if not isinstance(response, dict):
+            raise ValueError("episode_planner AI response must be a dict.")
+
+        episode_data = response.get("episode", {})
+        if not isinstance(episode_data, dict):
+            raise ValueError("episode_planner AI response field 'episode' must be a dict.")
+
+        scenes_data = response.get("scenes", [])
+        if not isinstance(scenes_data, list) or not scenes_data:
+            raise ValueError(
+                "episode_planner AI response field 'scenes' must be a non-empty list."
+            )
+
+        scenes = [
+            self._normalise_ai_scene(index, scene_data)
+            for index, scene_data in enumerate(scenes_data, start=1)
+        ]
+        return {
+            "title": str(
+                episode_data.get("episode_title")
+                or response.get("episode_title")
+                or fallback_title
+            ),
+            "summary": str(
+                episode_data.get("episode_summary")
+                or response.get("episode_summary")
+                or ""
+            ),
+            "tone": str(episode_data.get("tone") or narration_style),
+            "density": str(episode_data.get("density") or retelling_density),
+            "hook": str(episode_data.get("hook") or response.get("hook") or ""),
+            "cliffhanger": str(response.get("cliffhanger", "")),
+            "source_chapter_ids": list(selected_source_chapter_ids),
+            "scenes": scenes,
+        }
+
+    def _normalise_ai_scene(
+        self, index: int, scene_data: Any
+    ) -> dict[str, Any]:
+        if not isinstance(scene_data, dict):
+            raise ValueError("episode_planner AI scene items must be dicts.")
+        return {
+            "title": str(scene_data.get("title") or f"Scene {index}"),
+            "summary": str(scene_data.get("summary", "")),
+            "mood": str(scene_data.get("mood", "neutral")),
+            "characters": [str(value) for value in scene_data.get("characters", [])],
+            "location": str(scene_data.get("location", "")),
+            "importance": str(scene_data.get("importance", "medium")),
+            "target_beats": int(scene_data.get("target_beats", 0)),
+        }
 
     def _create_scenes_from_parsed_result(
         self,
@@ -243,6 +404,11 @@ class EpisodePlannerService:
             chapters_by_id[chapter_id]
             for chapter_id in selected_source_chapter_ids
         ]
+
+    def _require_ai_gateway(self) -> AIGateway:
+        if self.ai_gateway is None:
+            raise ValueError("use_ai=True requires an ai_gateway.")
+        return self.ai_gateway
 
     def _validate_plan_request(
         self,

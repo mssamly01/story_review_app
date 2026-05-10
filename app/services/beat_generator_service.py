@@ -7,11 +7,13 @@ write final review narration or image prompts.
 from __future__ import annotations
 
 import re
+from typing import Any
 
 from app.domain.beat import Beat
 from app.domain.project import Project
 from app.domain.scene import Scene
 from app.domain.source_chapter import SourceChapter
+from app.infrastructure.ai_gateway import AIGateway
 from app.services.project_service import ProjectService
 
 
@@ -72,8 +74,15 @@ class BeatGeneratorService:
         "fear": "fearful",
     }
 
-    def __init__(self, project_service: ProjectService | None = None) -> None:
+    def __init__(
+        self,
+        project_service: ProjectService | None = None,
+        ai_gateway: AIGateway | None = None,
+        use_ai: bool = False,
+    ) -> None:
         self.project_service = project_service or ProjectService()
+        self.ai_gateway = ai_gateway
+        self.use_ai = use_ai
 
     def generate_beats_for_scene(
         self,
@@ -93,13 +102,23 @@ class BeatGeneratorService:
             for beat in scene.beats
             if not beat.beat_id.startswith(self._generated_prefix(scene.scene_id))
         ]
-        generated_beats = self._build_beats(
-            episode_id=episode_id,
-            scene=scene,
-            source_chapters=source_chapters,
-            retelling_density=density,
-            starting_order_index=len(preserved_beats) + 1,
-        )
+        if self.use_ai:
+            generated_beats = self._build_beats_with_ai(
+                project=project,
+                episode_id=episode_id,
+                scene=scene,
+                source_chapters=source_chapters,
+                retelling_density=density,
+                starting_order_index=len(preserved_beats) + 1,
+            )
+        else:
+            generated_beats = self._build_beats(
+                episode_id=episode_id,
+                scene=scene,
+                source_chapters=source_chapters,
+                retelling_density=density,
+                starting_order_index=len(preserved_beats) + 1,
+            )
         scene.beats = preserved_beats + generated_beats
         project.touch()
         return generated_beats
@@ -180,6 +199,96 @@ class BeatGeneratorService:
             )
 
         return generated_beats
+
+    def _build_beats_with_ai(
+        self,
+        *,
+        project: Project,
+        episode_id: str,
+        scene: Scene,
+        source_chapters: list[SourceChapter],
+        retelling_density: str,
+        starting_order_index: int,
+    ) -> list[Beat]:
+        gateway = self._require_ai_gateway()
+        response = gateway.generate_json(
+            "beat_generator",
+            {
+                "episode_id": episode_id,
+                "scene_id": scene.scene_id,
+                "scene": scene.to_dict(),
+                "source_chapter_context": [
+                    {
+                        "chapter_id": chapter.chapter_id,
+                        "title": chapter.title,
+                        "raw_text": chapter.raw_text,
+                    }
+                    for chapter in source_chapters
+                ],
+                "retelling_density": retelling_density,
+                "character_bible": [
+                    character.to_dict() for character in project.characters
+                ],
+                "location_bible": [
+                    location.to_dict() for location in project.locations
+                ],
+            },
+        )
+        beats_data = self._ai_beats_data(response)
+        source_refs = [chapter.chapter_id for chapter in source_chapters]
+        generated_beats: list[Beat] = []
+
+        for offset, beat_data in enumerate(beats_data):
+            if not isinstance(beat_data, dict):
+                raise ValueError("beat_generator AI beat items must be dicts.")
+
+            beat_id = str(
+                beat_data.get("beat_id")
+                or f"{self._generated_prefix(scene.scene_id)}{offset + 1:03d}"
+            )
+            if not beat_id.startswith(self._generated_prefix(scene.scene_id)):
+                beat_id = f"{self._generated_prefix(scene.scene_id)}{offset + 1:03d}"
+
+            generated_beats.append(
+                Beat(
+                    beat_id=beat_id,
+                    scene_id=scene.scene_id,
+                    order_index=starting_order_index + offset,
+                    source_refs=source_refs,
+                    story_function=str(beat_data.get("story_function", "")),
+                    characters=[
+                        str(value)
+                        for value in beat_data.get("characters", scene.characters)
+                    ],
+                    location=str(beat_data.get("location", scene.location)),
+                    action=str(beat_data.get("action", "")),
+                    emotion=str(beat_data.get("emotion", "")),
+                    shot_type=str(beat_data.get("shot_type", "")),
+                    visual_description=str(
+                        beat_data.get("visual_description", "")
+                    ),
+                    review_text="",
+                    image_prompt="",
+                    negative_prompt="",
+                    continuity_tags=[
+                        str(value)
+                        for value in beat_data.get("continuity_tags", [])
+                    ],
+                    status="planned",
+                )
+            )
+
+        return generated_beats
+
+    def _ai_beats_data(self, response: dict[str, Any]) -> list[Any]:
+        if not isinstance(response, dict):
+            raise ValueError("beat_generator AI response must be a dict.")
+        beats_data = response.get("beats", [])
+        if not isinstance(beats_data, list) or not beats_data:
+            raise ValueError(
+                "beat_generator AI response field 'beats' must be a non-empty list."
+            )
+        return beats_data
 
     def _beat_count_for_scene(self, scene: Scene, retelling_density: str) -> int:
         importance = scene.importance if scene.importance else "medium"
@@ -290,6 +399,11 @@ class BeatGeneratorService:
             for chapter_id in episode.source_chapter_ids
             if chapter_id in chapters_by_id
         ]
+
+    def _require_ai_gateway(self) -> AIGateway:
+        if self.ai_gateway is None:
+            raise ValueError("use_ai=True requires an ai_gateway.")
+        return self.ai_gateway
 
     def _generated_prefix(self, scene_id: str) -> str:
         return f"beat_{scene_id}_"

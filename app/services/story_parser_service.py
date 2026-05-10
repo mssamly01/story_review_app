@@ -12,6 +12,7 @@ import re
 from typing import Any
 
 from app.domain.source_chapter import SourceChapter
+from app.infrastructure.ai_gateway import AIGateway
 
 
 @dataclass(slots=True)
@@ -161,7 +162,18 @@ class StoryParserService:
         "dramatic": ["máu", "bí mật", "bi kịch", "la hét"],
     }
 
+    def __init__(
+        self,
+        ai_gateway: AIGateway | None = None,
+        use_ai: bool = False,
+    ) -> None:
+        self.ai_gateway = ai_gateway
+        self.use_ai = use_ai
+
     def parse(self, source_chapter: SourceChapter) -> ParsedChapterResult:
+        if self.use_ai:
+            return self._parse_with_ai(source_chapter)
+
         text = source_chapter.raw_text
         sentences = self._split_sentences(text)
         characters = self._detect_characters(sentences)
@@ -184,6 +196,127 @@ class StoryParserService:
             scene_candidates=scene_candidates,
             important_events=important_events,
         )
+
+    def _parse_with_ai(self, source_chapter: SourceChapter) -> ParsedChapterResult:
+        gateway = self._require_ai_gateway()
+        response = gateway.generate_json(
+            "story_parser",
+            {
+                "chapter_id": source_chapter.chapter_id,
+                "chapter_title": source_chapter.title,
+                "chapter_number": source_chapter.chapter_number,
+                "source_text": source_chapter.raw_text,
+                "notes": source_chapter.notes,
+            },
+        )
+        return self._parsed_result_from_ai_response(
+            source_chapter=source_chapter,
+            response=response,
+        )
+
+    def _parsed_result_from_ai_response(
+        self,
+        *,
+        source_chapter: SourceChapter,
+        response: dict[str, Any],
+    ) -> ParsedChapterResult:
+        if not isinstance(response, dict):
+            raise ValueError("story_parser AI response must be a dict.")
+
+        return ParsedChapterResult(
+            chapter_id=str(response.get("chapter_id") or source_chapter.chapter_id),
+            detected_characters=[
+                self._detected_character_from_ai(item)
+                for item in self._list_value(response, "detected_characters")
+            ],
+            detected_locations=[
+                self._detected_location_from_ai(item)
+                for item in self._list_value(response, "detected_locations")
+            ],
+            scene_candidates=[
+                self._scene_candidate_from_ai(index, item)
+                for index, item in enumerate(
+                    self._list_value(response, "scene_candidates"),
+                    start=1,
+                )
+            ],
+            important_events=[
+                self._important_event_from_ai(index, item)
+                for index, item in enumerate(
+                    self._list_value(response, "important_events"),
+                    start=1,
+                )
+            ],
+        )
+
+    def _detected_character_from_ai(self, item: Any) -> DetectedCharacter:
+        if isinstance(item, str):
+            return DetectedCharacter(name=item)
+        if not isinstance(item, dict):
+            raise ValueError("detected_characters items must be dicts or strings.")
+        return DetectedCharacter(
+            name=str(item.get("name", "")),
+            role=str(item.get("role", "unknown")),
+            evidence=str(item.get("evidence", "")),
+            confidence=float(item.get("confidence", 0.5)),
+        )
+
+    def _detected_location_from_ai(self, item: Any) -> DetectedLocation:
+        if isinstance(item, str):
+            return DetectedLocation(name=item)
+        if not isinstance(item, dict):
+            raise ValueError("detected_locations items must be dicts or strings.")
+        return DetectedLocation(
+            name=str(item.get("name", "")),
+            mood=str(item.get("mood", "neutral")),
+            evidence=str(item.get("evidence", "")),
+            confidence=float(item.get("confidence", 0.5)),
+        )
+
+    def _scene_candidate_from_ai(self, index: int, item: Any) -> SceneCandidate:
+        if not isinstance(item, dict):
+            raise ValueError("scene_candidates items must be dicts.")
+        return SceneCandidate(
+            scene_id=str(item.get("scene_id") or f"sc_{index:03d}"),
+            title=str(item.get("title") or f"Scene {index}"),
+            summary=str(item.get("summary", "")),
+            mood=str(item.get("mood", "neutral")),
+            characters=[str(value) for value in item.get("characters", [])],
+            location=str(item.get("location", "")),
+            important_events=[
+                str(value) for value in item.get("important_events", [])
+            ],
+            importance=str(item.get("importance", "medium")),
+        )
+
+    def _important_event_from_ai(self, index: int, item: Any) -> ImportantEvent:
+        if isinstance(item, str):
+            return ImportantEvent(
+                event_id=f"ev_{index:03d}",
+                summary=item,
+                evidence=item,
+            )
+        if not isinstance(item, dict):
+            raise ValueError("important_events items must be dicts or strings.")
+        return ImportantEvent(
+            event_id=str(item.get("event_id") or f"ev_{index:03d}"),
+            summary=str(item.get("summary", "")),
+            characters=[str(value) for value in item.get("characters", [])],
+            location=str(item.get("location", "")),
+            evidence=str(item.get("evidence", "")),
+            importance=str(item.get("importance", "medium")),
+        )
+
+    def _list_value(self, data: dict[str, Any], key: str) -> list[Any]:
+        value = data.get(key, [])
+        if not isinstance(value, list):
+            raise ValueError(f"story_parser AI response field '{key}' must be a list.")
+        return value
+
+    def _require_ai_gateway(self) -> AIGateway:
+        if self.ai_gateway is None:
+            raise ValueError("use_ai=True requires an ai_gateway.")
+        return self.ai_gateway
 
     def _split_sentences(self, text: str) -> list[str]:
         normalized = re.sub(r"\s+", " ", text.strip())

@@ -1,0 +1,367 @@
+"""Deterministic image prompt builder.
+
+This service updates Beat.image_prompt and Beat.negative_prompt only. It does
+not call AI, create images, rewrite review text, or create beats.
+"""
+
+from __future__ import annotations
+
+import re
+from typing import Any
+
+from app.domain.beat import Beat
+from app.domain.character import Character
+from app.domain.episode import ReviewEpisode
+from app.domain.location import Location
+from app.domain.project import Project
+from app.domain.scene import Scene
+from app.domain.style_preset import StylePreset
+from app.infrastructure.ai_gateway import AIGateway
+
+
+class PromptBuilderService:
+    _safe_default_style = "cinematic webtoon style, high quality illustration"
+    _base_negative_terms = [
+        "low quality",
+        "blurry",
+        "distorted anatomy",
+        "extra fingers",
+        "inconsistent face",
+        "wrong outfit",
+        "text",
+        "watermark",
+        "logo",
+    ]
+    _positive_blocked_terms = [
+        "subtitles",
+        "subtitle",
+        "captions",
+        "caption",
+        "speech bubbles",
+        "speech bubble",
+        "watermark",
+        "logo",
+        "text overlay",
+    ]
+
+    def __init__(
+        self,
+        ai_gateway: AIGateway | None = None,
+        use_ai: bool = False,
+    ) -> None:
+        self.ai_gateway = ai_gateway
+        self.use_ai = use_ai
+
+    def build_prompt_for_beat(
+        self,
+        project: Project,
+        beat_id: str,
+        style_preset_id: str | None = None,
+    ) -> Beat:
+        episode, scene, beat = self._find_beat_context(project, beat_id)
+        style_preset = self._select_style_preset(project, style_preset_id)
+        if self.use_ai:
+            image_prompt, negative_prompt = self._build_prompt_with_ai(
+                project=project,
+                episode=episode,
+                scene=scene,
+                beat=beat,
+                style_preset=style_preset,
+            )
+            beat.image_prompt = image_prompt
+            beat.negative_prompt = negative_prompt
+        else:
+            beat.image_prompt = self._build_image_prompt(
+                project=project,
+                scene=scene,
+                beat=beat,
+                style_preset=style_preset,
+            )
+            beat.negative_prompt = self._build_negative_prompt(style_preset)
+        return beat
+
+    def build_prompts_for_scene(
+        self,
+        project: Project,
+        scene_id: str,
+        style_preset_id: str | None = None,
+    ) -> list[Beat]:
+        episode, scene = self._find_scene_context(project, scene_id)
+        style_preset = self._select_style_preset(project, style_preset_id)
+        prompted_beats: list[Beat] = []
+        for beat in scene.ordered_beats():
+            if self.use_ai:
+                image_prompt, negative_prompt = self._build_prompt_with_ai(
+                    project=project,
+                    episode=episode,
+                    scene=scene,
+                    beat=beat,
+                    style_preset=style_preset,
+                )
+                beat.image_prompt = image_prompt
+                beat.negative_prompt = negative_prompt
+            else:
+                beat.image_prompt = self._build_image_prompt(
+                    project=project,
+                    scene=scene,
+                    beat=beat,
+                    style_preset=style_preset,
+                )
+                beat.negative_prompt = self._build_negative_prompt(style_preset)
+            prompted_beats.append(beat)
+        return prompted_beats
+
+    def build_prompts_for_episode(
+        self,
+        project: Project,
+        episode_id: str,
+        style_preset_id: str | None = None,
+    ) -> list[Beat]:
+        episode = self._find_episode(project, episode_id)
+        style_preset = self._select_style_preset(project, style_preset_id)
+        prompted_beats: list[Beat] = []
+        for scene in episode.scenes:
+            for beat in scene.ordered_beats():
+                if self.use_ai:
+                    image_prompt, negative_prompt = self._build_prompt_with_ai(
+                        project=project,
+                        episode=episode,
+                        scene=scene,
+                        beat=beat,
+                        style_preset=style_preset,
+                    )
+                    beat.image_prompt = image_prompt
+                    beat.negative_prompt = negative_prompt
+                else:
+                    beat.image_prompt = self._build_image_prompt(
+                        project=project,
+                        scene=scene,
+                        beat=beat,
+                        style_preset=style_preset,
+                    )
+                    beat.negative_prompt = self._build_negative_prompt(style_preset)
+                prompted_beats.append(beat)
+        return prompted_beats
+
+    def _build_prompt_with_ai(
+        self,
+        *,
+        project: Project,
+        episode: ReviewEpisode,
+        scene: Scene,
+        beat: Beat,
+        style_preset: StylePreset | None,
+    ) -> tuple[str, str]:
+        gateway = self._require_ai_gateway()
+        response = gateway.generate_json(
+            "image_prompt_builder",
+            {
+                "episode": episode.to_dict(),
+                "scene": scene.to_dict(),
+                "beat": beat.to_dict(),
+                "beat_id": beat.beat_id,
+                "character_bible": [
+                    character.to_dict() for character in project.characters
+                ],
+                "location_bible": [
+                    location.to_dict() for location in project.locations
+                ],
+                "style_preset": style_preset.to_dict() if style_preset else {},
+            },
+        )
+        return self._prompts_from_ai_response(response, beat.beat_id)
+
+    def _prompts_from_ai_response(
+        self, response: dict[str, Any], beat_id: str
+    ) -> tuple[str, str]:
+        if not isinstance(response, dict):
+            raise ValueError("image_prompt_builder AI response must be a dict.")
+
+        prompts = response.get("prompts", [])
+        if not isinstance(prompts, list) or not prompts:
+            raise ValueError(
+                "image_prompt_builder AI response field 'prompts' must be a non-empty list."
+            )
+
+        selected_item = prompts[0]
+        for item in prompts:
+            if isinstance(item, dict) and item.get("beat_id") == beat_id:
+                selected_item = item
+                break
+
+        if not isinstance(selected_item, dict):
+            raise ValueError("image_prompt_builder AI prompt items must be dicts.")
+        image_prompt = selected_item.get("image_prompt")
+        negative_prompt = selected_item.get("negative_prompt")
+        if not isinstance(image_prompt, str) or not image_prompt.strip():
+            raise ValueError(
+                "image_prompt_builder AI image_prompt must be a non-empty string."
+            )
+        if not isinstance(negative_prompt, str) or not negative_prompt.strip():
+            raise ValueError(
+                "image_prompt_builder AI negative_prompt must be a non-empty string."
+            )
+        return image_prompt, negative_prompt
+
+    def _build_image_prompt(
+        self,
+        *,
+        project: Project,
+        scene: Scene,
+        beat: Beat,
+        style_preset: StylePreset | None,
+    ) -> str:
+        components = [
+            self._style_positive_prompt(style_preset),
+            self._character_prompt(project, beat),
+            self._location_prompt(project, beat, scene),
+            f"single clear visual moment: {beat.action}",
+            f"emotion: {beat.emotion}",
+            f"camera: {beat.shot_type}",
+            f"visual focus: {beat.visual_description}",
+            f"scene mood: {scene.mood}",
+            "coherent composition",
+        ]
+        if style_preset and style_preset.lighting:
+            components.append(f"lighting: {style_preset.lighting}")
+
+        cleaned_components = [
+            self._sanitize_positive_component(component)
+            for component in components
+            if component and component.strip()
+        ]
+        return ", ".join(cleaned_components)
+
+    def _build_negative_prompt(self, style_preset: StylePreset | None) -> str:
+        terms = list(self._base_negative_terms)
+        if style_preset and style_preset.negative_prompt:
+            terms.extend(
+                term.strip()
+                for term in style_preset.negative_prompt.split(",")
+                if term.strip()
+            )
+        return ", ".join(dict.fromkeys(terms))
+
+    def _style_positive_prompt(self, style_preset: StylePreset | None) -> str:
+        if not style_preset:
+            return self._safe_default_style
+        if style_preset.positive_prompt:
+            return style_preset.positive_prompt
+        return f"{style_preset.name}, high quality illustration"
+
+    def _character_prompt(self, project: Project, beat: Beat) -> str:
+        character_prompts: list[str] = []
+        for character_id in beat.characters:
+            character = self._find_character(project, character_id)
+            if not character:
+                character_prompts.append(character_id)
+                continue
+            if character.visual_prompt_base:
+                character_prompts.append(character.visual_prompt_base)
+            else:
+                fallback_parts = [
+                    character.name,
+                    character.appearance,
+                    character.default_outfit,
+                ]
+                character_prompts.append(
+                    ", ".join(part for part in fallback_parts if part)
+                )
+        return ", ".join(character_prompts)
+
+    def _location_prompt(self, project: Project, beat: Beat, scene: Scene) -> str:
+        location_id = beat.location or scene.location
+        if not location_id:
+            return ""
+        location = self._find_location(project, location_id)
+        if not location:
+            return location_id
+        if location.visual_prompt_base:
+            return location.visual_prompt_base
+        fallback_parts = [
+            location.name,
+            location.description,
+            location.mood,
+            location.lighting,
+        ]
+        return ", ".join(part for part in fallback_parts if part)
+
+    def _select_style_preset(
+        self, project: Project, style_preset_id: str | None
+    ) -> StylePreset | None:
+        if style_preset_id:
+            for style_preset in project.style_presets:
+                if style_preset.style_id == style_preset_id:
+                    return style_preset
+            raise LookupError(f"StylePreset not found: {style_preset_id}")
+
+        default_style_slug = self._slug(project.default_art_style)
+        for style_preset in project.style_presets:
+            if style_preset.style_id == project.default_art_style:
+                return style_preset
+            if self._slug(style_preset.style_id) == default_style_slug:
+                return style_preset
+            if self._slug(style_preset.name) == default_style_slug:
+                return style_preset
+
+        if project.style_presets:
+            return project.style_presets[0]
+        return None
+
+    def _find_character(
+        self, project: Project, character_id: str
+    ) -> Character | None:
+        for character in project.characters:
+            if character.character_id == character_id or character.name == character_id:
+                return character
+        return None
+
+    def _find_location(self, project: Project, location_id: str) -> Location | None:
+        for location in project.locations:
+            if location.location_id == location_id or location.name == location_id:
+                return location
+        return None
+
+    def _find_beat_context(
+        self, project: Project, beat_id: str
+    ) -> tuple[ReviewEpisode, Scene, Beat]:
+        for episode in project.review_episodes:
+            for scene in episode.scenes:
+                for beat in scene.beats:
+                    if beat.beat_id == beat_id:
+                        return episode, scene, beat
+        raise LookupError(f"Beat not found: {beat_id}")
+
+    def _find_scene_context(
+        self, project: Project, scene_id: str
+    ) -> tuple[ReviewEpisode, Scene]:
+        for episode in project.review_episodes:
+            for scene in episode.scenes:
+                if scene.scene_id == scene_id:
+                    return episode, scene
+        raise LookupError(f"Scene not found: {scene_id}")
+
+    def _find_episode(self, project: Project, episode_id: str) -> ReviewEpisode:
+        for episode in project.review_episodes:
+            if episode.episode_id == episode_id:
+                return episode
+        raise LookupError(f"ReviewEpisode not found: {episode_id}")
+
+    def _require_ai_gateway(self) -> AIGateway:
+        if self.ai_gateway is None:
+            raise ValueError("use_ai=True requires an ai_gateway.")
+        return self.ai_gateway
+
+    def _sanitize_positive_component(self, component: str) -> str:
+        cleaned = re.sub(r"\s+", " ", component).strip(" ,")
+        for blocked_term in self._positive_blocked_terms:
+            cleaned = re.sub(
+                rf"\b{re.escape(blocked_term)}\b",
+                "",
+                cleaned,
+                flags=re.IGNORECASE,
+            )
+        return re.sub(r"\s+,", ",", re.sub(r"\s{2,}", " ", cleaned)).strip(" ,")
+
+    def _slug(self, value: str) -> str:
+        return re.sub(r"[^a-zA-Z0-9]+", "_", value.strip().lower()).strip("_")
