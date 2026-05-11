@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
 if TYPE_CHECKING:
     from app.ui.app_state import AppState
     from app.controllers.generation_controller import GenerationController
+    from app.controllers.manual_ai_controller import ManualAIController
     from app.domain.beat import Beat
 
 from app.services.manual_ai_service import ManualAIService
@@ -58,12 +59,14 @@ class BeatStudioTab(QWidget):
         self,
         app_state: AppState,
         generation_controller: GenerationController,
+        manual_ai_controller: ManualAIController,
         refresh_callback: callable,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self.app_state = app_state
         self.generation_controller = generation_controller
+        self.manual_ai_controller = manual_ai_controller
         self.refresh_callback = refresh_callback
         self.fields: dict[str, QWidget] = {}
         self._build_ui()
@@ -181,12 +184,8 @@ class BeatStudioTab(QWidget):
         self.scene_list.currentItemChanged.connect(self._on_scene_select)
         self.beat_table.itemSelectionChanged.connect(self._on_beat_select)
         self.btn_save_beat.clicked.connect(self._on_save_beat)
-        self.btn_gen_package.clicked.connect(self._on_gen_package)
-        self.btn_gen_beats.clicked.connect(self._on_gen_beats)
-        self.btn_gen_review.clicked.connect(self._on_gen_review)
-        self.btn_gen_prompts.clicked.connect(self._on_gen_prompts)
-        self.btn_export_prompt.clicked.connect(self._on_export_prompt)
-        self.btn_import_result.clicked.connect(self._on_import_result)
+        self.btn_export_prompt.clicked.connect(self._on_prompt)
+        self.btn_import_result.clicked.connect(self._on_import)
         self.btn_delete_scene.clicked.connect(self._on_delete_scene)
         self.btn_delete_beat.clicked.connect(self._on_delete_beat)
 
@@ -315,57 +314,8 @@ class BeatStudioTab(QWidget):
         except Exception as exc:
             QMessageBox.critical(self, "Lỗi", str(exc))
 
-    def _on_gen_package(self) -> None:
-        try:
-            self.generation_controller.generate_beat_package(
-                self.app_state.project,
-                self.app_state.selected_episode_id,
-                scene_id=self.app_state.selected_scene_id,
-                ai_mode=self.app_state.ai_mode,
-                model=self.app_state.model,
-            )
-            QMessageBox.information(self, "Thông báo", "Đã tạo gói Beat thành công.")
-            self.refresh_callback()
-        except Exception as exc:
-            QMessageBox.critical(self, "Lỗi", str(exc))
 
-    def _on_gen_beats(self) -> None:
-        try:
-            self.generation_controller.generate_beats(
-                self.app_state.project,
-                self.app_state.selected_episode_id,
-                ai_mode=self.app_state.ai_mode,
-                model=self.app_state.model,
-            )
-            self.refresh_callback()
-        except Exception as exc:
-            QMessageBox.critical(self, "Lỗi", str(exc))
-
-    def _on_gen_review(self) -> None:
-        try:
-            self.generation_controller.rewrite_review(
-                self.app_state.project,
-                self.app_state.selected_episode_id,
-                ai_mode=self.app_state.ai_mode,
-                model=self.app_state.model,
-            )
-            self.refresh_callback()
-        except Exception as exc:
-            QMessageBox.critical(self, "Lỗi", str(exc))
-
-    def _on_gen_prompts(self) -> None:
-        try:
-            self.generation_controller.build_prompts(
-                self.app_state.project,
-                self.app_state.selected_episode_id,
-                ai_mode=self.app_state.ai_mode,
-                model=self.app_state.model,
-            )
-            self.refresh_callback()
-        except Exception as exc:
-            QMessageBox.critical(self, "Lỗi", str(exc))
-
-    def _on_export_prompt(self) -> None:
+    def _on_prompt(self) -> None:
         """Hiện cửa sổ prompt cho step đã chọn từ dropdown."""
         if not self.app_state.project or not self.app_state.selected_episode_id:
             QMessageBox.warning(self, "Cảnh báo", "Hãy chọn tập truyện trước.")
@@ -375,22 +325,18 @@ class BeatStudioTab(QWidget):
         step_label = self.manual_step_combo.currentText()
 
         try:
-            ps = self.generation_controller.project_service
-            service = ManualAIService(ps)
-            exported = service.export_prompt(
+            prompt_text = self.manual_ai_controller.export_prompt(
                 self.app_state.project,
                 step=step,
                 episode_id=self.app_state.selected_episode_id,
-                chapter_id=self.app_state.selected_scene_id, # Re-using as scene_id if appropriate
+                chapter_id=self.app_state.selected_scene_id,
             )
-            prompt_text = service.format_prompt_for_clipboard(exported)
-
             dialog = PromptExportDialog(prompt_text, step_label, self)
             dialog.exec()
         except Exception as exc:
             QMessageBox.critical(self, "Lỗi", str(exc))
 
-    def _on_import_result(self) -> None:
+    def _on_import(self) -> None:
         """Hiện cửa sổ paste JSON result cho step đã chọn từ dropdown."""
         if not self.app_state.project or not self.app_state.selected_episode_id:
             QMessageBox.warning(self, "Cảnh báo", "Hãy chọn tập truyện trước.")
@@ -399,24 +345,19 @@ class BeatStudioTab(QWidget):
         step = self.manual_step_combo.currentData()
         step_label = self.manual_step_combo.currentText()
 
-        dialog = ResultImportDialog(step_label, self)
-        if dialog.exec() == QDialog.Accepted:
-            result_data = dialog.get_result_data()
-            if result_data is None:
-                return
-            try:
-                ps = self.generation_controller.project_service
-                service = ManualAIService(ps)
-                message = service.import_result(
+        try:
+            dialog = ResultImportDialog(step_label, self)
+            if dialog.exec() and dialog.result_data is not None:
+                message = self.manual_ai_controller.import_result(
                     self.app_state.project,
                     step=step,
-                    result_data=result_data,
+                    result_data=dialog.result_data,
                     episode_id=self.app_state.selected_episode_id,
                 )
                 QMessageBox.information(self, "Thông báo", message)
                 self.refresh_callback()
-            except Exception as exc:
-                QMessageBox.critical(self, "Lỗi", str(exc))
+        except Exception as exc:
+            QMessageBox.critical(self, "Lỗi", str(exc))
 
     def _on_delete_scene(self) -> None:
         """Xóa phân cảnh đang chọn khỏi episode."""

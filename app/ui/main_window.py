@@ -20,7 +20,6 @@ from app.ui.beat_studio_tab import BeatStudioTab
 from app.ui.bible_style_tab import BibleStyleTab
 from app.ui.quality_repair_tab import QualityRepairTab
 from app.ui.export_tab import ExportTab
-from app.ui.manual_ai_tab import ManualAITab
 
 from app.controllers.project_controller import ProjectController
 from app.controllers.generation_controller import GenerationController
@@ -32,6 +31,7 @@ from app.controllers.repair_controller import RepairController
 from app.controllers.batch_workflow_controller import BatchWorkflowController
 from app.controllers.production_readiness_controller import ProductionReadinessController
 from app.controllers.prompt_quality_controller import PromptQualityController
+from app.controllers.manual_ai_controller import ManualAIController
 
 
 class MainWindow(QMainWindow):
@@ -55,6 +55,7 @@ class MainWindow(QMainWindow):
         self.batch_controller = BatchWorkflowController(ps)
         self.readiness_controller = ProductionReadinessController(ps)
         self.quality_controller = PromptQualityController(ps)
+        self.manual_ai_controller = ManualAIController(ps)
 
         # 3. Build UI
         self._build_ui()
@@ -74,14 +75,16 @@ class MainWindow(QMainWindow):
             self.app_state, self.project_controller, self.refresh_all_tabs
         )
         self.source_tab = SourceTab(
-            self.app_state, self.project_controller, self.generation_controller, self.refresh_all_tabs
+            self.app_state, self.project_controller, self.generation_controller,
+            self.manual_ai_controller, self.refresh_all_tabs
         )
         self.planner_tab = EpisodePlannerTab(
             self.app_state, self.project_controller, self.generation_controller, 
-            self.batch_controller, self.refresh_all_tabs
+            self.batch_controller, self.manual_ai_controller, self.refresh_all_tabs
         )
         self.studio_tab = BeatStudioTab(
-            self.app_state, self.generation_controller, self.refresh_all_tabs
+            self.app_state, self.generation_controller, self.manual_ai_controller, 
+            self.refresh_all_tabs
         )
         self.bible_tab = BibleStyleTab(
             self.app_state, self.bible_controller, self.refresh_all_tabs
@@ -97,9 +100,6 @@ class MainWindow(QMainWindow):
         self.export_tab = ExportTab(
             self.app_state, self.export_controller, self.export_profile_controller, self.refresh_all_tabs
         )
-        self.manual_ai_tab = ManualAITab(
-            self.app_state, self.project_controller, self.refresh_all_tabs
-        )
 
         # Add to TabWidget
         self.tabs.addTab(self.project_tab, "Dự án")
@@ -109,7 +109,6 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.bible_tab, "Bible / Style")
         self.tabs.addTab(self.quality_tab, "Chất lượng")
         self.tabs.addTab(self.export_tab, "Xuất bản")
-        self.tabs.addTab(self.manual_ai_tab, "AI Thủ Công")
 
         layout.addWidget(self.tabs)
         self.tabs.currentChanged.connect(self._on_tab_changed)
@@ -138,7 +137,6 @@ class MainWindow(QMainWindow):
         self.bible_tab.refresh()
         self.quality_tab.refresh()
         self.export_tab.refresh()
-        self.manual_ai_tab.refresh()
         
         self.set_status("Đã cập nhật")
 

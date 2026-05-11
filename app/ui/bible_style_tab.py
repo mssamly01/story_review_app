@@ -328,10 +328,18 @@ class BibleStyleTab(QWidget):
 
     def _on_del_char(self) -> None:
         current = self.char_list.currentItem()
-        if not current or not self.app_state.project: return
+        if not current or not self.app_state.project:
+            return
         name = current.text()
-        if QMessageBox.question(self, "Xóa", f"Xóa '{name}'?") == QMessageBox.StandardButton.Yes:
-            self.app_state.project.characters = [c for c in self.app_state.project.characters if c.name != name]
+        reply = QMessageBox.question(
+            self, "Xác nhận xóa",
+            f"Bạn có chắc muốn xóa nhân vật '{name}'?\nHành động này không thể hoàn tác.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            self.app_state.project.characters = [
+                c for c in self.app_state.project.characters if c.name != name
+            ]
             self.app_state.project.touch()
             self.refresh_callback()
 
@@ -394,10 +402,18 @@ class BibleStyleTab(QWidget):
 
     def _on_del_loc(self) -> None:
         current = self.loc_list.currentItem()
-        if not current or not self.app_state.project: return
+        if not current or not self.app_state.project:
+            return
         name = current.text()
-        if QMessageBox.question(self, "Xóa", f"Xóa '{name}'?") == QMessageBox.StandardButton.Yes:
-            self.app_state.project.locations = [l for l in self.app_state.project.locations if l.name != name]
+        reply = QMessageBox.question(
+            self, "Xác nhận xóa",
+            f"Bạn có chắc muốn xóa địa điểm '{name}'?\nHành động này không thể hoàn tác.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            self.app_state.project.locations = [
+                l for l in self.app_state.project.locations if l.name != name
+            ]
             self.app_state.project.touch()
             self.refresh_callback()
 

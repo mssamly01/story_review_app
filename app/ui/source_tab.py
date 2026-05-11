@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from app.ui.app_state import AppState
     from app.controllers.project_controller import ProjectController
     from app.controllers.generation_controller import GenerationController
+    from app.controllers.manual_ai_controller import ManualAIController
 
 from app.services.manual_ai_service import ManualAIService
 from app.ui.manual_ai_dialogs import PromptExportDialog, ResultImportDialog
@@ -40,6 +41,7 @@ class SourceTab(QWidget):
         app_state: AppState,
         project_controller: ProjectController,
         generation_controller: GenerationController,
+        manual_ai_controller: ManualAIController,
         refresh_callback: callable,
         parent: QWidget | None = None,
     ) -> None:
@@ -47,6 +49,7 @@ class SourceTab(QWidget):
         self.app_state = app_state
         self.project_controller = project_controller
         self.generation_controller = generation_controller
+        self.manual_ai_controller = manual_ai_controller
         self.refresh_callback = refresh_callback
         self._build_ui()
 
@@ -61,10 +64,12 @@ class SourceTab(QWidget):
         self.chapter_list = QListWidget()
         left_layout.addWidget(self.chapter_list)
         
+        btn_list_layout = QHBoxLayout()
         self.btn_add = QPushButton("Thêm từ tệp")
         self.btn_delete_chapter = QPushButton("Xóa chương")
-        left_layout.addWidget(self.btn_add)
-        left_layout.addWidget(self.btn_delete_chapter)
+        btn_list_layout.addWidget(self.btn_add)
+        btn_list_layout.addWidget(self.btn_delete_chapter)
+        left_layout.addLayout(btn_list_layout)
         splitter.addWidget(left_widget)
 
         # --- Right: Editor ---
@@ -88,18 +93,15 @@ class SourceTab(QWidget):
 
         action_layout = QHBoxLayout()
         self.btn_save = QPushButton("Lưu thay đổi")
-        self.btn_parse = QPushButton("Phân tích truyện (AI)")
         action_layout.addWidget(self.btn_save)
-        action_layout.addWidget(self.btn_parse)
+        
+        action_layout.addWidget(QLabel("<b>Manual AI:</b>"))
+        self.btn_prompt_parse = QPushButton("Lấy Prompt Parse")
+        self.btn_import_parse = QPushButton("Dán kết quả Parse")
+        action_layout.addWidget(self.btn_prompt_parse)
+        action_layout.addWidget(self.btn_import_parse)
         right_layout.addLayout(action_layout)
 
-        # Manual AI Section
-        manual_layout = QHBoxLayout()
-        self.btn_export_parse = QPushButton("Lấy Prompt Parse")
-        self.btn_import_parse = QPushButton("Dán kết quả Parse")
-        manual_layout.addWidget(self.btn_export_parse)
-        manual_layout.addWidget(self.btn_import_parse)
-        right_layout.addLayout(manual_layout)
         
         splitter.addWidget(right_widget)
         splitter.setStretchFactor(1, 1)
@@ -109,9 +111,8 @@ class SourceTab(QWidget):
         self.chapter_list.currentItemChanged.connect(self._on_chapter_select)
         self.btn_add.clicked.connect(self._on_add_chapter)
         self.btn_save.clicked.connect(self._on_save_edits)
-        self.btn_parse.clicked.connect(self._on_parse)
         self.btn_delete_chapter.clicked.connect(self._on_delete_chapter)
-        self.btn_export_parse.clicked.connect(self._on_export_parse)
+        self.btn_prompt_parse.clicked.connect(self._on_prompt_parse)
         self.btn_import_parse.clicked.connect(self._on_import_parse)
 
     def refresh(self) -> None:
@@ -195,21 +196,6 @@ class SourceTab(QWidget):
         except Exception as exc:
             QMessageBox.critical(self, "Lỗi", str(exc))
 
-    def _on_parse(self) -> None:
-        if not self.app_state.selected_chapter_id:
-            return
-        
-        try:
-            self.generation_controller.parse_story(
-                self.app_state.project,
-                self.app_state.selected_chapter_id,
-                ai_mode=self.app_state.ai_mode,
-                model=self.app_state.model,
-            )
-            QMessageBox.information(self, "Thông báo", "Phân tích chương thành công.")
-            self.refresh_callback()
-        except Exception as exc:
-            QMessageBox.critical(self, "Lỗi", str(exc))
 
     def _on_delete_chapter(self) -> None:
         """Xóa chương đang chọn khỏi project."""
@@ -241,22 +227,18 @@ class SourceTab(QWidget):
         self._clear_editor()
         self.refresh_callback()
 
-    def _on_export_parse(self) -> None:
+    def _on_prompt_parse(self) -> None:
         """Hiện cửa sổ prompt Parse Story để user copy."""
         if not self.app_state.project or not self.app_state.selected_chapter_id:
-            QMessageBox.warning(self, "Cảnh báo", "Hãy chọn chương trước.")
+            QMessageBox.warning(self, "Cảnh báo", "Hãy chọn một chương trước.")
             return
-
         try:
-            service = ManualAIService(self.project_controller.project_service)
-            exported = service.export_prompt(
+            prompt_text = self.manual_ai_controller.export_prompt(
                 self.app_state.project,
-                step="parse-story",
+                "parse-story",
                 chapter_id=self.app_state.selected_chapter_id,
             )
-            prompt_text = service.format_prompt_for_clipboard(exported)
-
-            dialog = PromptExportDialog(prompt_text, "Phân tích truyện", self)
+            dialog = PromptExportDialog(prompt_text, "Parse Story", self)
             dialog.exec()
         except Exception as exc:
             QMessageBox.critical(self, "Lỗi", str(exc))
@@ -264,23 +246,18 @@ class SourceTab(QWidget):
     def _on_import_parse(self) -> None:
         """Hiện cửa sổ để user paste JSON result Parse Story."""
         if not self.app_state.project or not self.app_state.selected_chapter_id:
-            QMessageBox.warning(self, "Cảnh báo", "Hãy chọn chương trước.")
+            QMessageBox.warning(self, "Cảnh báo", "Hãy chọn một chương trước.")
             return
-
-        dialog = ResultImportDialog("Phân tích truyện", self)
-        if dialog.exec() == QDialog.Accepted:
-            result_data = dialog.get_result_data()
-            if result_data is None:
-                return
-            try:
-                service = ManualAIService(self.project_controller.project_service)
-                message = service.import_result(
+        try:
+            dialog = ResultImportDialog("Parse Story", self)
+            if dialog.exec() and dialog.result_data is not None:
+                summary = self.manual_ai_controller.import_result(
                     self.app_state.project,
-                    step="parse-story",
-                    result_data=result_data,
+                    "parse-story",
+                    dialog.result_data,
                     chapter_id=self.app_state.selected_chapter_id,
                 )
-                QMessageBox.information(self, "Thông báo", message)
+                QMessageBox.information(self, "Thành công", summary)
                 self.refresh_callback()
-            except Exception as exc:
-                QMessageBox.critical(self, "Lỗi", str(exc))
+        except Exception as exc:
+            QMessageBox.critical(self, "Lỗi", str(exc))

@@ -129,11 +129,13 @@ class ManualAIService:
             return self._import_beats(project, result_data, episode_id, density)
         if step == "rewrite-review":
             return self._import_rewrite(
-                project, result_data, episode_id, tone, density,
+                project, self._flatten_grouped_result(result_data, "rewritten_beats"), 
+                episode_id, tone, density,
             )
         if step == "build-prompts":
             return self._import_prompts(
-                project, result_data, episode_id, style_preset_id,
+                project, self._flatten_grouped_result(result_data, "prompts"), 
+                episode_id, style_preset_id,
             )
         if step == "generate-unified-package":
             return self._import_unified_package(
@@ -256,22 +258,26 @@ class ManualAIService:
         source_chapters = self._chapters_for_episode(
             project, episode.source_chapter_ids,
         )
-        
-        all_beats = []
+        scenes_input = []
         for scene in episode.scenes:
-            for beat in scene.ordered_beats():
-                # Include minimal scene info with beat
-                b_dict = beat.to_dict()
-                b_dict["scene_title"] = scene.title
-                b_dict["scene_summary"] = scene.summary
-                all_beats.append(b_dict)
-
+            scenes_input.append({
+                "scene": scene.to_dict(),
+                "beats": [beat.to_dict() for beat in scene.ordered_beats()],
+                "narration_style": tone or episode.tone,
+                "retelling_density": density or episode.density,
+            })
         return {
-            "episode": episode.to_dict(),
-            "source_chapters": [ch.to_dict() for ch in source_chapters],
-            "beats": all_beats,
-            "narration_style": tone or episode.tone,
-            "retelling_density": density or episode.density,
+            "episode_id": episode.episode_id,
+            "episode_title": episode.title,
+            "source_chapter_context": [
+                {
+                    "chapter_id": ch.chapter_id,
+                    "title": ch.title,
+                    "raw_text": ch.raw_text,
+                }
+                for ch in source_chapters
+            ],
+            "scenes": scenes_input,
         }
 
     def _input_prompts(
@@ -282,20 +288,19 @@ class ManualAIService:
     ) -> dict[str, Any]:
         episode = self._require_episode(project, episode_id)
         style_preset = self._find_style_preset(project, style_preset_id)
-
-        all_beats = []
+        scenes_input = []
         for scene in episode.scenes:
-            for beat in scene.ordered_beats():
-                b_dict = beat.to_dict()
-                b_dict["scene_title"] = scene.title
-                all_beats.append(b_dict)
-
+            scenes_input.append({
+                "scene": scene.to_dict(),
+                "beats": [beat.to_dict() for beat in scene.ordered_beats()],
+            })
         return {
-            "episode": episode.to_dict(),
-            "beats": all_beats,
+            "episode_id": episode.episode_id,
+            "episode_title": episode.title,
             "character_bible": [c.to_dict() for c in project.characters],
             "location_bible": [loc.to_dict() for loc in project.locations],
-            "style_preset": (style_preset.to_dict() if style_preset else {}),
+            "style_preset": style_preset.to_dict() if style_preset else {},
+            "scenes": scenes_input,
         }
 
     def _input_unified_package(
@@ -519,6 +524,21 @@ class ManualAIService:
         return f"Imported unified package: {total_beats} beats applied across scenes."
 
     # ── Helpers ───────────────────────────────────────────────────
+
+    def _flatten_grouped_result(
+        self, result: dict[str, Any], target_key: str
+    ) -> dict[str, Any]:
+        """Convert grouped scene beats into a flat list for legacy services."""
+        if target_key in result:
+            return result
+        
+        flat_list = []
+        if "scenes" in result and isinstance(result["scenes"], list):
+            for scene in result["scenes"]:
+                if "beats" in scene and isinstance(scene["beats"], list):
+                    flat_list.extend(scene["beats"])
+        
+        return {target_key: flat_list}
 
     def _require_chapter(
         self, project: Project, chapter_id: str | None,

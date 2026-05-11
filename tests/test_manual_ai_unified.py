@@ -196,14 +196,16 @@ def test_apply_unified_ai_result_rejects_invalid_json(project):
 def test_beat_studio_no_primary_offline_generate_package_button():
     from app.ui.beat_studio_tab import BeatStudioTab
     from app.controllers.generation_controller import GenerationController
+    from app.controllers.manual_ai_controller import ManualAIController
     from app.ui.app_state import AppState
     from PySide6.QtWidgets import QApplication
     import sys
     
     app = QApplication.instance() or QApplication(sys.argv)
     gc = GenerationController()
+    mc = ManualAIController()
     state = AppState()
-    tab = BeatStudioTab(state, gc, lambda: None)
+    tab = BeatStudioTab(state, gc, mc, lambda: None)
     
     # Check that advanced buttons are hidden
     assert tab.advanced_action_widget.isHidden()
