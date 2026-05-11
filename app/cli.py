@@ -22,6 +22,7 @@ from app.domain.project import Project
 from app.infrastructure.ai_gateway import AIGateway
 from app.infrastructure.ai_gateway_factory import create_ai_gateway
 from app.services.batch_workflow_service import BatchWorkflowService
+from app.services.beat_image_service import BeatImageService
 from app.services.bible_service import BibleService
 from app.services.beat_generator_service import BeatGeneratorService
 from app.services.episode_planner_service import EpisodePlannerService
@@ -174,6 +175,40 @@ def build_parser() -> argparse.ArgumentParser:
     export.add_argument("--format", required=True)
     export.add_argument("--output", required=True)
     export.set_defaults(handler=handle_export)
+
+    import_image = subparsers.add_parser(
+        "import-image",
+        help="Attach an externally-rendered image file to a beat.",
+    )
+    import_image.add_argument("--project", required=True)
+    import_image.add_argument("--beat-id", required=True)
+    import_image.add_argument("--path", required=True)
+    import_image.add_argument("--model", default="")
+    import_image.add_argument("--seed", default="")
+    import_image.add_argument("--notes", default="")
+    import_image.add_argument(
+        "--no-select",
+        action="store_true",
+        help="Attach without marking this variant as selected.",
+    )
+    import_image.set_defaults(handler=handle_import_image)
+
+    select_image = subparsers.add_parser(
+        "select-image",
+        help="Mark an attached image variant as the selected one for its beat.",
+    )
+    select_image.add_argument("--project", required=True)
+    select_image.add_argument("--beat-id", required=True)
+    select_image.add_argument("--image-id", required=True)
+    select_image.set_defaults(handler=handle_select_image)
+
+    list_images = subparsers.add_parser(
+        "list-images",
+        help="List all image variants attached to a beat.",
+    )
+    list_images.add_argument("--project", required=True)
+    list_images.add_argument("--beat-id", required=True)
+    list_images.set_defaults(handler=handle_list_images)
 
     list_export_profiles = subparsers.add_parser("list-export-profiles")
     list_export_profiles.set_defaults(handler=handle_list_export_profiles)
@@ -586,6 +621,60 @@ def handle_export(args: argparse.Namespace) -> int:
     project = load_project(project_service, args.project)
     write_export(project_service, project, args.episode_id, args.format, args.output)
     print(f"Exported {args.format}: {args.output}")
+    return 0
+
+
+def handle_import_image(args: argparse.Namespace) -> int:
+    project_service = ProjectService()
+    project = load_project(project_service, args.project)
+    variant = BeatImageService(project_service).attach_image(
+        project,
+        args.beat_id,
+        args.path,
+        model=args.model,
+        seed=args.seed,
+        notes=args.notes,
+        select=not args.no_select,
+    )
+    project_service.save_project(project, args.project)
+    print(
+        f"Attached image {variant.image_id} to beat {args.beat_id}: "
+        f"{variant.image_path}"
+        + (" [selected]" if variant.selected else "")
+    )
+    return 0
+
+
+def handle_select_image(args: argparse.Namespace) -> int:
+    project_service = ProjectService()
+    project = load_project(project_service, args.project)
+    variant = BeatImageService(project_service).select_image(
+        project, args.beat_id, args.image_id
+    )
+    project_service.save_project(project, args.project)
+    print(f"Selected image {variant.image_id} for beat {args.beat_id}.")
+    return 0
+
+
+def handle_list_images(args: argparse.Namespace) -> int:
+    project_service = ProjectService()
+    project = load_project(project_service, args.project)
+    variants = BeatImageService(project_service).list_images(project, args.beat_id)
+    if not variants:
+        print(f"(no images attached to beat {args.beat_id})")
+        return 0
+    for variant in variants:
+        marker = "*" if variant.selected else "-"
+        meta = " ".join(
+            part
+            for part in (
+                f"model={variant.model}" if variant.model else "",
+                f"seed={variant.seed}" if variant.seed else "",
+                f"at={variant.generated_at}" if variant.generated_at else "",
+            )
+            if part
+        )
+        print(f"{marker} {variant.image_id}  {variant.image_path}  {meta}")
     return 0
 
 
