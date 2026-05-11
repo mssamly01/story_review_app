@@ -4,3 +4,4 @@
 #   pip install -r requirements-ai.txt
 #
 openai>=1.40,<2
+tenacity>=8,<10
