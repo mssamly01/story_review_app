@@ -1,0 +1,6 @@
+# Optional AI dependencies. Install only when using real AI mode
+# (set OPENAI_API_KEY and call services with use_ai=True).
+#
+#   pip install -r requirements-ai.txt
+#
+openai>=1.40,<2

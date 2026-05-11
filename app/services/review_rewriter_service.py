@@ -441,11 +441,15 @@ class ReviewRewriterService:
         return self.ai_gateway
 
     def _validate_style(self, narration_style: str) -> None:
-        """Kiểm tra style, nếu lạ thì dùng neutral nhưng không báo lỗi."""
         if narration_style not in self._allowed_styles:
-            # Fallback thầm lặng để không làm hỏng workflow AI
-            pass
+            raise ValueError(
+                f"Unknown narration_style '{narration_style}'. "
+                f"Allowed: {sorted(self._allowed_styles)}"
+            )
 
     def _validate_density(self, retelling_density: str) -> None:
         if retelling_density not in self._allowed_densities:
-            pass
+            raise ValueError(
+                f"Unknown retelling_density '{retelling_density}'. "
+                f"Allowed: {sorted(self._allowed_densities)}"
+            )
