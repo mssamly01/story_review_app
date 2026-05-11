@@ -12,6 +12,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from app.domain.dialogue import Dialogue
+
 
 @dataclass(slots=True)
 class BeatImageVariant:
@@ -74,6 +76,7 @@ class Beat:
     source_refs: list[str] = field(default_factory=list)
     status: str = "planned"
     images: list[BeatImageVariant] = field(default_factory=list)
+    dialogues: list[Dialogue] = field(default_factory=list)
 
     @property
     def selected_image(self) -> BeatImageVariant | None:
@@ -107,6 +110,7 @@ class Beat:
             "continuity_tags": list(self.continuity_tags),
             "status": self.status,
             "images": [image.to_dict() for image in self.images],
+            "dialogues": [dialogue.to_dict() for dialogue in self.dialogues],
         }
 
     @classmethod
@@ -129,4 +133,5 @@ class Beat:
             continuity_tags=list(data.get("continuity_tags", [])),
             status=data.get("status", "planned"),
             images=[BeatImageVariant.from_dict(img) for img in data.get("images", [])],
+            dialogues=[Dialogue.from_dict(d) for d in data.get("dialogues", [])],
         )

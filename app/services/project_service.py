@@ -341,6 +341,12 @@ class ProjectService:
             # subsequent saves persist it explicitly.
             data["schema_version"] = 2
             version = 2
+        if version < 3:
+            # v2 → v3: ``Beat.dialogues`` introduced. Beat.from_dict already
+            # defaults missing ``dialogues`` to ``[]``, so the only thing we
+            # need to do at the data layer is stamp the version field.
+            data["schema_version"] = 3
+            version = 3
         return data
 
     def _atomic_write_text(self, path: Path, text: str) -> None:

@@ -3,6 +3,7 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from app.domain.project import SCHEMA_VERSION
 from app.services.project_service import ProjectService
 
 
@@ -90,7 +91,7 @@ class ProjectRoundtripTests(unittest.TestCase):
 
         self.assertTrue(saved_text.startswith("{\n  "))
         saved_data = json.loads(saved_text)
-        self.assertEqual(saved_data["schema_version"], 2)
+        self.assertEqual(saved_data["schema_version"], SCHEMA_VERSION)
         self.assertEqual(
             list(saved_data.keys())[:8],
             [

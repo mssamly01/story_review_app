@@ -90,6 +90,123 @@ class ProjectSchemaVersionTests(unittest.TestCase):
         self.assertIn(str(SCHEMA_VERSION + 1), str(ctx.exception))
 
 
+class ProjectSchemaV3MigrationTests(unittest.TestCase):
+    """Migration from v2 → v3 (the introduction of ``Beat.dialogues``)."""
+
+    def test_load_v2_project_upgrades_to_current_version(self) -> None:
+        service = ProjectService()
+        payload = _minimal_project_payload(schema_version=2)
+
+        with TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "v2.json"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            project = service.load_project(path)
+
+        self.assertEqual(project.schema_version, SCHEMA_VERSION)
+        self.assertGreaterEqual(SCHEMA_VERSION, 3)
+
+    def test_load_v2_beat_without_dialogues_defaults_to_empty_list(self) -> None:
+        """A beat saved before v3 has no ``dialogues`` key. It must load with []."""
+        service = ProjectService()
+        payload = _minimal_project_payload(schema_version=2)
+        # Embed a single chapter, episode, scene, and beat without ``dialogues``.
+        payload["source_chapters"] = [
+            {
+                "chapter_id": "ch_001",
+                "title": "Ch 1",
+                "chapter_number": 1,
+                "raw_text": "x",
+                "notes": "",
+            }
+        ]
+        payload["review_episodes"] = [
+            {
+                "episode_id": "ep_001",
+                "title": "Ep 1",
+                "episode_number": 1,
+                "source_chapter_ids": ["ch_001"],
+                "synopsis": "",
+                "narration_style": "mysterious",
+                "art_style": "dark fantasy webtoon",
+                "scenes": [
+                    {
+                        "scene_id": "sc_001",
+                        "episode_id": "ep_001",
+                        "title": "Scene 1",
+                        "order_index": 0,
+                        "location": "",
+                        "time_of_day": "",
+                        "beats": [
+                            {
+                                "beat_id": "bt_001",
+                                "scene_id": "sc_001",
+                                "order_index": 0,
+                                # Notably no "dialogues" field.
+                            }
+                        ],
+                    }
+                ],
+            }
+        ]
+
+        with TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "v2_with_beat.json"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            project = service.load_project(path)
+
+        beat = project.review_episodes[0].scenes[0].beats[0]
+        self.assertEqual(beat.dialogues, [])
+
+    def test_v3_save_preserves_dialogues_round_trip(self) -> None:
+        """A beat with ``dialogues`` must survive save → load unchanged."""
+        from app.domain.dialogue import Dialogue
+
+        service = ProjectService()
+        project = service.create_project("Dialogue project", project_id="p1")
+        chapter = service.add_source_chapter(
+            project,
+            chapter_id="ch_001",
+            title="Ch 1",
+            chapter_number=1,
+            raw_text="x",
+        )
+        episode = service.add_review_episode(
+            project,
+            title="Ep 1",
+            source_chapter_ids=[chapter.chapter_id],
+            episode_id="ep_001",
+        )
+        scene = service.add_scene(
+            project,
+            episode_id=episode.episode_id,
+            title="Scene 1",
+            scene_id="sc_001",
+        )
+        beat = service.add_beat(
+            project,
+            episode_id=episode.episode_id,
+            scene_id=scene.scene_id,
+            beat_id="bt_001",
+        )
+        beat.dialogues = [
+            Dialogue(speaker_id="char_hero", line="Xin chào", style="speech"),
+            Dialogue(speaker_id="", line="Đêm đó, bóng tối phủ xuống.", style="narration"),
+        ]
+
+        with TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "with_dialogues.json"
+            service.save_project(project, path)
+            loaded = service.load_project(path)
+
+        loaded_beat = loaded.review_episodes[0].scenes[0].beats[0]
+        self.assertEqual(len(loaded_beat.dialogues), 2)
+        self.assertEqual(loaded_beat.dialogues[0].speaker_id, "char_hero")
+        self.assertEqual(loaded_beat.dialogues[0].line, "Xin chào")
+        self.assertEqual(loaded_beat.dialogues[0].style, "speech")
+        self.assertEqual(loaded_beat.dialogues[1].speaker_id, "")
+        self.assertEqual(loaded_beat.dialogues[1].style, "narration")
+
+
 class ProjectAtomicSaveTests(unittest.TestCase):
     def test_save_uses_tmp_file_then_replace(self) -> None:
         """save_project must write via a sibling .tmp file and os.replace, not direct write_text."""
