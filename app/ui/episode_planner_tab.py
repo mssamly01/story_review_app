@@ -16,6 +16,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
     QMessageBox,
+    QFileDialog,
+    QDialog,
 )
 
 if TYPE_CHECKING:
@@ -23,6 +25,9 @@ if TYPE_CHECKING:
     from app.controllers.project_controller import ProjectController
     from app.controllers.generation_controller import GenerationController
     from app.controllers.batch_workflow_controller import BatchWorkflowController
+
+from app.services.manual_ai_service import ManualAIService
+from app.ui.manual_ai_dialogs import PromptExportDialog, ResultImportDialog
 
 ITEM_ROLE = Qt.ItemDataRole.UserRole
 
@@ -96,6 +101,15 @@ class EpisodePlannerTab(QWidget):
         mid_layout.addWidget(self.btn_plan)
         mid_layout.addWidget(self.btn_batch)
         mid_layout.addWidget(self.btn_pipeline)
+
+        # Manual AI Section
+        manual_layout = QHBoxLayout()
+        self.btn_export_plan = QPushButton("Lấy Prompt Plan")
+        self.btn_import_plan = QPushButton("Dán kết quả Plan")
+        manual_layout.addWidget(self.btn_export_plan)
+        manual_layout.addWidget(self.btn_import_plan)
+        mid_layout.addLayout(manual_layout)
+
         mid_layout.addStretch()
         main_layout.addWidget(mid_widget, 1)
 
@@ -105,12 +119,17 @@ class EpisodePlannerTab(QWidget):
         right_layout.addWidget(QLabel("Danh sách tập truyện:"))
         self.episode_list = QListWidget()
         right_layout.addWidget(self.episode_list)
+        self.btn_delete_episode = QPushButton("Xóa tập")
+        right_layout.addWidget(self.btn_delete_episode)
         main_layout.addWidget(right_widget, 1)
 
         # Connect signals
         self.btn_plan.clicked.connect(self._on_plan)
         self.btn_batch.clicked.connect(self._on_batch)
         self.btn_pipeline.clicked.connect(self._on_full_pipeline)
+        self.btn_delete_episode.clicked.connect(self._on_delete_episode)
+        self.btn_export_plan.clicked.connect(self._on_export_plan)
+        self.btn_import_plan.clicked.connect(self._on_import_plan)
         self.episode_list.currentItemChanged.connect(self._on_episode_select)
 
     def refresh(self) -> None:
@@ -139,6 +158,37 @@ class EpisodePlannerTab(QWidget):
             self.app_state.selected_episode_id = current.data(ITEM_ROLE)
         else:
             self.app_state.selected_episode_id = None
+
+    def _on_delete_episode(self) -> None:
+        """Xóa tập truyện đang chọn khỏi project."""
+        if not self.app_state.project or not self.app_state.selected_episode_id:
+            QMessageBox.warning(self, "Cảnh báo", "Hãy chọn tập cần xóa.")
+            return
+
+        episode_id = self.app_state.selected_episode_id
+        episode_name = episode_id
+        for ep in self.app_state.project.review_episodes:
+            if ep.episode_id == episode_id:
+                episode_name = ep.title
+                break
+
+        reply = QMessageBox.question(
+            self, "Xác nhận xóa",
+            f"Bạn có chắc muốn xóa tập '{episode_name}'?\nTất cả scenes và beats trong tập này sẽ bị xóa.\nHành động này không thể hoàn tác.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
+        self.app_state.project.review_episodes = [
+            ep for ep in self.app_state.project.review_episodes
+            if ep.episode_id != episode_id
+        ]
+        self.app_state.project.touch()
+        self.app_state.selected_episode_id = None
+        self.app_state.selected_scene_id = None
+        self.app_state.selected_beat_id = None
+        self.refresh_callback()
 
     def _on_plan(self) -> None:
         selected_items = self.chapter_list.selectedItems()
@@ -224,3 +274,55 @@ class EpisodePlannerTab(QWidget):
             self.refresh_callback()
         except Exception as exc:
             QMessageBox.critical(self, "Lỗi", str(exc))
+
+    def _on_export_plan(self) -> None:
+        """Hiện cửa sổ prompt Plan Episode để user copy."""
+        selected_items = self.chapter_list.selectedItems()
+        if not selected_items or not self.app_state.project:
+            QMessageBox.warning(self, "Cảnh báo", "Hãy chọn ít nhất một chương.")
+            return
+
+        try:
+            chapter_id = selected_items[0].data(ITEM_ROLE)
+            service = ManualAIService(self.project_controller.project_service)
+            exported = service.export_prompt(
+                self.app_state.project,
+                step="plan-episode",
+                chapter_id=chapter_id,
+                tone=self._tone_map[self.tone_combo.currentText()],
+                density=self._density_map[self.density_combo.currentText()],
+            )
+            prompt_text = service.format_prompt_for_clipboard(exported)
+
+            dialog = PromptExportDialog(prompt_text, "Lập kế hoạch tập", self)
+            dialog.exec()
+        except Exception as exc:
+            QMessageBox.critical(self, "Lỗi", str(exc))
+
+    def _on_import_plan(self) -> None:
+        """Hiện cửa sổ paste JSON Plan Episode result."""
+        selected_items = self.chapter_list.selectedItems()
+        if not selected_items or not self.app_state.project:
+            QMessageBox.warning(self, "Cảnh báo", "Hãy chọn ít nhất một chương.")
+            return
+
+        dialog = ResultImportDialog("Lập kế hoạch tập", self)
+        if dialog.exec() == QDialog.Accepted:
+            result_data = dialog.get_result_data()
+            if result_data is None:
+                return
+            try:
+                chapter_id = selected_items[0].data(ITEM_ROLE)
+                service = ManualAIService(self.project_controller.project_service)
+                message = service.import_result(
+                    self.app_state.project,
+                    step="plan-episode",
+                    result_data=result_data,
+                    chapter_id=chapter_id,
+                    tone=self._tone_map[self.tone_combo.currentText()],
+                    density=self._density_map[self.density_combo.currentText()],
+                )
+                QMessageBox.information(self, "Thông báo", message)
+                self.refresh_callback()
+            except Exception as exc:
+                QMessageBox.critical(self, "Lỗi", str(exc))

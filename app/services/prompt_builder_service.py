@@ -230,15 +230,13 @@ class PromptBuilderService:
             self._style_positive_prompt(style_preset),
             self._character_prompt(project, beat),
             self._location_prompt(project, beat, scene),
-            f"visual focus: {beat.visual_description}",
-            f"single clear visual moment: {beat.action}",
-            f"emotion: {beat.emotion}",
-            f"camera: {beat.shot_type}",
-            f"scene mood: {scene.mood}",
-            "coherent composition",
+            f"visual focus: {beat.visual_description}" if beat.visual_description else "",
+            f"action: {beat.action}" if beat.action else "",
+            f"emotion: {beat.emotion}" if beat.emotion else "",
+            f"camera: {beat.shot_type}" if beat.shot_type else "",
+            f"mood: {scene.mood}" if scene.mood else "",
+            "coherent composition, masterpiece, high details",
         ]
-        if style_preset and style_preset.lighting:
-            components.append(f"lighting: {style_preset.lighting}")
 
         cleaned_components = [
             self._sanitize_positive_component(component)
@@ -278,7 +276,7 @@ class PromptBuilderService:
             style_preset.lighting_style,
             style_preset.rendering_style,
             style_preset.character_design_rules,
-            style_preset.background_detail_level or style_preset.background_detail,
+            style_preset.background_detail_level,
             style_preset.camera_style,
             ", ".join(style_preset.mood_keywords),
         ]
@@ -291,9 +289,15 @@ class PromptBuilderService:
             if not character:
                 character_prompts.append(character_id)
                 continue
+            
+            # Smart concatenation to avoid repeating name if visual_prompt_base already has it
+            name_part = character.name
+            if character.visual_prompt_base and character.name.lower() in character.visual_prompt_base.lower():
+                name_part = ""
+
             parts = [
                 character.visual_prompt_base,
-                character.name if not character.visual_prompt_base else "",
+                name_part,
                 character.gender,
                 character.age_description,
                 character.appearance,
@@ -301,7 +305,7 @@ class PromptBuilderService:
                 character.hair,
                 character.eyes,
                 character.body_type,
-                character.default_outfit,
+                f"wearing {character.default_outfit}" if character.default_outfit else "",
                 ", ".join(character.outfit_variants),
                 character.personality,
                 ", ".join(character.continuity_tags),
@@ -412,12 +416,15 @@ class PromptBuilderService:
         return [term.strip() for term in value.split(",") if term.strip()]
 
     def _join_unique_parts(self, parts: list[str]) -> str:
-        cleaned_parts = [
-            re.sub(r"\s+", " ", part).strip(" ,")
-            for part in parts
-            if part and part.strip()
-        ]
-        return ", ".join(dict.fromkeys(cleaned_parts))
+        seen = set()
+        cleaned_parts = []
+        for part in parts:
+            if not part: continue
+            cleaned = re.sub(r"\s+", " ", part).strip(" ,")
+            if cleaned and cleaned.lower() not in seen:
+                cleaned_parts.append(cleaned)
+                seen.add(cleaned.lower())
+        return ", ".join(cleaned_parts)
 
     def _slug(self, value: str) -> str:
         return re.sub(r"[^a-zA-Z0-9]+", "_", value.strip().lower()).strip("_")

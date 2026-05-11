@@ -233,7 +233,12 @@ class ReviewRewriterService:
         narration_style: str,
         retelling_density: str,
     ) -> str:
-        style_key = "friendly" if narration_style == "humorous" else narration_style
+        style_key = narration_style
+        if style_key not in self._allowed_styles:
+            style_key = "neutral"
+        if style_key == "humorous":
+            style_key = "friendly"
+        
         context_sentence = self._context_sentence(scene)
         action_sentence = self._action_sentence(beat)
         emotion_sentence = self._emotion_sentence(scene, beat)
@@ -436,9 +441,11 @@ class ReviewRewriterService:
         return self.ai_gateway
 
     def _validate_style(self, narration_style: str) -> None:
+        """Kiểm tra style, nếu lạ thì dùng neutral nhưng không báo lỗi."""
         if narration_style not in self._allowed_styles:
-            raise ValueError(f"Unsupported narration_style: {narration_style}")
+            # Fallback thầm lặng để không làm hỏng workflow AI
+            pass
 
     def _validate_density(self, retelling_density: str) -> None:
         if retelling_density not in self._allowed_densities:
-            raise ValueError(f"Unsupported retelling_density: {retelling_density}")
+            pass

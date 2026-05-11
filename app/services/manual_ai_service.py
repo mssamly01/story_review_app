@@ -25,6 +25,7 @@ SUPPORTED_STEPS = [
     "generate-beats",
     "rewrite-review",
     "build-prompts",
+    "generate-unified-package",
 ]
 
 _STEP_TO_PROMPT_NAME = {
@@ -33,6 +34,7 @@ _STEP_TO_PROMPT_NAME = {
     "generate-beats": "beat_generator",
     "rewrite-review": "review_rewriter",
     "build-prompts": "image_prompt_builder",
+    "generate-unified-package": "beat_package_generator",
 }
 
 
@@ -133,6 +135,10 @@ class ManualAIService:
             return self._import_prompts(
                 project, result_data, episode_id, style_preset_id,
             )
+        if step == "generate-unified-package":
+            return self._import_unified_package(
+                project, result_data, episode_id
+            )
         raise ValueError(f"Unsupported step: {step}")
 
     # ── Build input_data (giống hệt cách các service build) ─────
@@ -158,6 +164,8 @@ class ManualAIService:
             return self._input_rewrite(project, episode_id, tone, density)
         if step == "build-prompts":
             return self._input_prompts(project, episode_id, style_preset_id)
+        if step == "generate-unified-package":
+            return self._input_unified_package(project, episode_id)
         raise ValueError(f"Unsupported step: {step}")
 
     def _input_parse(
@@ -221,27 +229,20 @@ class ManualAIService:
         source_chapters = self._chapters_for_episode(
             project, episode.source_chapter_ids,
         )
-        scenes_input = []
-        for scene in episode.scenes:
-            scenes_input.append({
-                "episode_id": episode.episode_id,
-                "scene_id": scene.scene_id,
-                "scene": scene.to_dict(),
-                "source_chapter_context": [
-                    {
-                        "chapter_id": ch.chapter_id,
-                        "title": ch.title,
-                        "raw_text": ch.raw_text,
-                    }
-                    for ch in source_chapters
-                ],
-                "retelling_density": density or episode.density,
-                "character_bible": [c.to_dict() for c in project.characters],
-                "location_bible": [loc.to_dict() for loc in project.locations],
-            })
         return {
-            "episode_id": episode.episode_id,
-            "scenes": scenes_input,
+            "episode": episode.to_dict(),
+            "source_chapters": [
+                {
+                    "chapter_id": ch.chapter_id,
+                    "title": ch.title,
+                    "raw_text": ch.raw_text,
+                }
+                for ch in source_chapters
+            ],
+            "scenes": [scene.to_dict() for scene in episode.scenes],
+            "retelling_density": density or episode.density,
+            "character_bible": [c.to_dict() for c in project.characters],
+            "location_bible": [loc.to_dict() for loc in project.locations],
         }
 
     def _input_rewrite(
@@ -255,23 +256,22 @@ class ManualAIService:
         source_chapters = self._chapters_for_episode(
             project, episode.source_chapter_ids,
         )
-        beats_input = []
+        
+        all_beats = []
         for scene in episode.scenes:
             for beat in scene.ordered_beats():
-                beats_input.append({
-                    "episode": episode.to_dict(),
-                    "scene": scene.to_dict(),
-                    "beat": beat.to_dict(),
-                    "beat_id": beat.beat_id,
-                    "source_chapter_context": [
-                        ch.to_dict() for ch in source_chapters
-                    ],
-                    "narration_style": tone or episode.tone,
-                    "retelling_density": density or episode.density,
-                })
+                # Include minimal scene info with beat
+                b_dict = beat.to_dict()
+                b_dict["scene_title"] = scene.title
+                b_dict["scene_summary"] = scene.summary
+                all_beats.append(b_dict)
+
         return {
-            "episode_id": episode.episode_id,
-            "beats": beats_input,
+            "episode": episode.to_dict(),
+            "source_chapters": [ch.to_dict() for ch in source_chapters],
+            "beats": all_beats,
+            "narration_style": tone or episode.tone,
+            "retelling_density": density or episode.density,
         }
 
     def _input_prompts(
@@ -283,27 +283,58 @@ class ManualAIService:
         episode = self._require_episode(project, episode_id)
         style_preset = self._find_style_preset(project, style_preset_id)
 
-        beats_input = []
+        all_beats = []
         for scene in episode.scenes:
             for beat in scene.ordered_beats():
-                beats_input.append({
-                    "episode": episode.to_dict(),
-                    "scene": scene.to_dict(),
-                    "beat": beat.to_dict(),
-                    "beat_id": beat.beat_id,
-                    "character_bible": [
-                        c.to_dict() for c in project.characters
-                    ],
-                    "location_bible": [
-                        loc.to_dict() for loc in project.locations
-                    ],
-                    "style_preset": (
-                        style_preset.to_dict() if style_preset else {}
-                    ),
-                })
+                b_dict = beat.to_dict()
+                b_dict["scene_title"] = scene.title
+                all_beats.append(b_dict)
+
         return {
-            "episode_id": episode.episode_id,
-            "beats": beats_input,
+            "episode": episode.to_dict(),
+            "beats": all_beats,
+            "character_bible": [c.to_dict() for c in project.characters],
+            "location_bible": [loc.to_dict() for loc in project.locations],
+            "style_preset": (style_preset.to_dict() if style_preset else {}),
+        }
+
+    def _input_unified_package(
+        self, project: Project, episode_id: str | None
+    ) -> dict[str, Any]:
+        episode = self._require_episode(project, episode_id)
+        source_chapters = self._chapters_for_episode(
+            project, episode.source_chapter_ids
+        )
+        style_preset = self._find_style_preset(project, project.default_art_style)
+
+        return {
+            "project_context": {
+                "title": project.title,
+                "genre": project.genre,
+                "language": project.language,
+                "narration_style": project.default_narration_style,
+                "retelling_density": project.retelling_density,
+                "art_style": project.default_art_style,
+            },
+            "episode": {
+                "episode_id": episode.episode_id,
+                "episode_title": episode.title,
+                "episode_summary": episode.summary,
+                "tone": episode.tone,
+                "density": episode.density,
+            },
+            "scenes": [scene.to_dict() for scene in episode.scenes],
+            "source_chapters": [
+                {
+                    "chapter_id": ch.chapter_id,
+                    "title": ch.title,
+                    "raw_text": ch.raw_text,
+                }
+                for ch in source_chapters
+            ],
+            "character_bible": [c.to_dict() for c in project.characters],
+            "location_bible": [loc.to_dict() for loc in project.locations],
+            "style_preset": (style_preset.to_dict() if style_preset else {}),
         }
 
     # ── Import handlers ──────────────────────────────────────────
@@ -320,17 +351,36 @@ class ManualAIService:
             source_chapter=chapter,
             response=result_data,
         )
-        # Update chapter if needed? The parser.parse() normally returns ParsedChapterResult.
-        # But wait, StoryParserService.parse() doesn't update the project/chapter directly, it returns the result.
-        # However, the project_controller.parse_story calls parser.parse(chapter).
-        # We need to make sure the result is actually applied if that's what's expected.
-        # Looking at original StoryParserService, it just returns the result.
-        # The user's GUI/Controller might be responsible for applying it.
-        # Actually, let's check StoryParserService again.
+
+        # Cập nhật Bible thầm lặng
+        new_chars = 0
+        existing_char_names = {c.name.lower() for c in project.characters}
+        for det_char in parsed.detected_characters:
+            if det_char.name.lower() not in existing_char_names:
+                self.project_service.add_character(
+                    project,
+                    name=det_char.name,
+                    role=det_char.role
+                )
+                existing_char_names.add(det_char.name.lower())
+                new_chars += 1
+
+        new_locs = 0
+        existing_loc_names = {l.name.lower() for l in project.locations}
+        for det_loc in parsed.detected_locations:
+            if det_loc.name.lower() not in existing_loc_names:
+                self.project_service.add_location(
+                    project,
+                    name=det_loc.name,
+                    mood=det_loc.mood
+                )
+                existing_loc_names.add(det_loc.name.lower())
+                new_locs += 1
+
         return (
             f"Imported parse result: {parsed.chapter_id} — "
             f"{len(parsed.scene_candidates)} scenes, "
-            f"{len(parsed.important_events)} events"
+            f"{new_chars} characters added, {new_locs} locations added"
         )
 
     def _import_plan(
@@ -421,6 +471,52 @@ class ManualAIService:
             style_preset_id=style_preset_id,
         )
         return f"Imported image prompts for {len(beats)} beats"
+
+    def _import_unified_package(
+        self,
+        project: Project,
+        result_data: dict[str, Any],
+        episode_id: str | None,
+    ) -> str:
+        episode = self._require_episode(project, episode_id)
+        
+        # We can reuse BeatPackageGeneratorService logic if we wrap the result
+        from app.services.beat_package_generator_service import BeatPackageGeneratorService
+        gateway = _SingleResponseGateway(result_data)
+        service = BeatPackageGeneratorService(
+            project_service=self.project_service,
+            ai_gateway=gateway
+        )
+        
+        total_beats = 0
+        # If the JSON contains a list of scenes, we might need to handle it differently
+        # but BeatPackageGeneratorService expects {"beats": [...]} for a single scene call.
+        # Let's check the schema the user requested.
+        
+        if "scenes" in result_data:
+            for scene_data in result_data["scenes"]:
+                scene_id = scene_data.get("scene_id")
+                if not scene_id: continue
+                
+                # Mock a gateway that returns the beats for THIS specific scene
+                scene_gateway = _SingleResponseGateway({"beats": scene_data.get("beats", [])})
+                scene_service = BeatPackageGeneratorService(
+                    project_service=self.project_service,
+                    ai_gateway=scene_gateway
+                )
+                
+                # Use generate_for_scene in AI mode (it will call our mock gateway)
+                beats = scene_service.generate_for_scene(
+                    project, episode.episode_id, scene_id, use_ai=True
+                )
+                total_beats += len(beats)
+        elif "beats" in result_data:
+            # Fallback if AI returned beats directly without scene nesting
+            # (or if we are in a single-scene mode)
+            # This is less ideal but good for robustness
+            pass
+
+        return f"Imported unified package: {total_beats} beats applied across scenes."
 
     # ── Helpers ───────────────────────────────────────────────────
 

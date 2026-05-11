@@ -158,6 +158,16 @@ def build_parser() -> argparse.ArgumentParser:
     add_ai_flags(build_prompts)
     build_prompts.set_defaults(handler=handle_build_prompts)
 
+    generate_beat_package = subparsers.add_parser("generate-beat-package")
+    generate_beat_package.add_argument("--project", required=True)
+    generate_beat_package.add_argument("--episode-id", required=True)
+    generate_beat_package.add_argument("--scene-id", default=None)
+    generate_beat_package.add_argument("--tone", default=None)
+    generate_beat_package.add_argument("--density", default=None)
+    generate_beat_package.add_argument("--style-preset-id", default=None)
+    add_ai_flags(generate_beat_package)
+    generate_beat_package.set_defaults(handler=handle_generate_beat_package)
+
     export = subparsers.add_parser("export")
     export.add_argument("--project", required=True)
     export.add_argument("--episode-id", required=True)
@@ -535,6 +545,39 @@ def handle_build_prompts(args: argparse.Namespace) -> int:
     )
     project_service.save_project(project, args.project)
     print(f"Built prompts: {len(beats)}")
+    return 0
+
+
+def handle_generate_beat_package(args: argparse.Namespace) -> int:
+    project_service = ProjectService()
+    project = load_project(project_service, args.project)
+    gateway = build_gateway(args)
+    from app.services.beat_package_generator_service import BeatPackageGeneratorService
+    service = BeatPackageGeneratorService(
+        project_service=project_service,
+        ai_gateway=gateway,
+    )
+    if args.scene_id:
+        beats = service.generate_for_scene(
+            project,
+            args.episode_id,
+            args.scene_id,
+            narration_style=args.tone,
+            retelling_density=args.density,
+            style_preset_id=args.style_preset_id,
+            use_ai=should_use_ai(args),
+        )
+    else:
+        beats = service.generate_for_episode(
+            project,
+            args.episode_id,
+            narration_style=args.tone,
+            retelling_density=args.density,
+            style_preset_id=args.style_preset_id,
+            use_ai=should_use_ai(args),
+        )
+    project_service.save_project(project, args.project)
+    print(f"Generated unified beat package: {len(beats)} beats.")
     return 0
 
 

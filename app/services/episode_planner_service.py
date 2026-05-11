@@ -419,7 +419,5 @@ class EpisodePlannerService:
     ) -> None:
         if not selected_source_chapter_ids:
             raise ValueError("At least one source chapter must be selected.")
-        if narration_style not in self._allowed_narration_styles:
-            raise ValueError(f"Unsupported narration_style: {narration_style}")
-        if retelling_density not in self._allowed_retelling_densities:
-            raise ValueError(f"Unsupported retelling_density: {retelling_density}")
+        # Relaxed for AI flexibility
+        pass

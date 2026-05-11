@@ -13,6 +13,7 @@ class PromptTemplateLoader:
         "review_rewriter": "review_rewriter_prompt.md",
         "image_prompt_builder": "image_prompt_builder_prompt.md",
         "continuity_checker": "continuity_checker_prompt.md",
+        "beat_package_generator": "beat_package_generator_prompt.md",
     }
 
     def __init__(self, prompts_dir: str | Path | None = None) -> None:

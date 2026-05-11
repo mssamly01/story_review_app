@@ -22,12 +22,16 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QMessageBox,
     QComboBox,
+    QDialog,
 )
 
 if TYPE_CHECKING:
     from app.ui.app_state import AppState
     from app.controllers.generation_controller import GenerationController
     from app.domain.beat import Beat
+
+from app.services.manual_ai_service import ManualAIService
+from app.ui.manual_ai_dialogs import PromptExportDialog, ResultImportDialog
 
 ITEM_ROLE = Qt.ItemDataRole.UserRole
 
@@ -74,15 +78,42 @@ class BeatStudioTab(QWidget):
         )
         main_layout.addWidget(self.context_label)
 
-        # Action Bar
-        action_layout = QHBoxLayout()
-        self.btn_gen_beats = QPushButton("Tạo nhịp truyện (Generate Beats)")
-        self.btn_gen_review = QPushButton("Viết lại Review")
-        self.btn_gen_prompts = QPushButton("Xây dựng Prompt")
+        # Action Bar (Hidden by default, used for advanced/dev mode)
+        self.advanced_action_widget = QWidget()
+        action_layout = QHBoxLayout(self.advanced_action_widget)
+        self.btn_gen_package = QPushButton("Tạo Gói Beat (Offline)")
+        self.btn_gen_beats = QPushButton("Chỉ tạo nhịp (Plan Only)")
+        self.btn_gen_review = QPushButton("Chỉ viết Review")
+        self.btn_gen_prompts = QPushButton("Chỉ xây dựng Prompt")
+        action_layout.addWidget(self.btn_gen_package)
         action_layout.addWidget(self.btn_gen_beats)
         action_layout.addWidget(self.btn_gen_review)
         action_layout.addWidget(self.btn_gen_prompts)
-        main_layout.addLayout(action_layout)
+        main_layout.addWidget(self.advanced_action_widget)
+        self.advanced_action_widget.setVisible(False) # Hide offline buttons
+
+        # Primary Workflow: Manual AI Section
+        manual_group = QWidget()
+        manual_group.setStyleSheet("background: #e1f5fe; border-radius: 8px; padding: 10px;")
+        manual_layout = QHBoxLayout(manual_group)
+        
+        self.manual_step_combo = QComboBox()
+        self.manual_step_combo.addItem("Tạo gói nhịp truyện đầy đủ (Khuyên dùng)", "generate-unified-package")
+        self.manual_step_combo.addItem("Chỉ tạo nhịp truyện", "generate-beats")
+        self.manual_step_combo.addItem("Chỉ viết lại Review", "rewrite-review")
+        self.manual_step_combo.addItem("Chỉ xây dựng Prompt ảnh", "build-prompts")
+        
+        self.btn_export_prompt = QPushButton("1. Lấy Prompt")
+        self.btn_export_prompt.setStyleSheet("background-color: #0288d1; color: white; font-weight: bold; padding: 6px;")
+        
+        self.btn_import_result = QPushButton("2. Dán kết quả / Áp dụng")
+        self.btn_import_result.setStyleSheet("background-color: #388e3c; color: white; font-weight: bold; padding: 6px;")
+        
+        manual_layout.addWidget(QLabel("<b>Quy trình AI:</b>"))
+        manual_layout.addWidget(self.manual_step_combo, 1)
+        manual_layout.addWidget(self.btn_export_prompt)
+        manual_layout.addWidget(self.btn_import_result)
+        main_layout.addWidget(manual_group)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
 
@@ -92,6 +123,8 @@ class BeatStudioTab(QWidget):
         scene_layout.addWidget(QLabel("Phân cảnh (Scenes)"))
         self.scene_list = QListWidget()
         scene_layout.addWidget(self.scene_list)
+        self.btn_delete_scene = QPushButton("Xóa phân cảnh")
+        scene_layout.addWidget(self.btn_delete_scene)
         splitter.addWidget(scene_widget)
 
         # 2. Beat Table
@@ -103,6 +136,8 @@ class BeatStudioTab(QWidget):
         self.beat_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
         self.beat_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         beat_layout.addWidget(self.beat_table)
+        self.btn_delete_beat = QPushButton("Xóa nhịp truyện")
+        beat_layout.addWidget(self.btn_delete_beat)
         splitter.addWidget(beat_widget)
 
         # 3. Beat Editor Form
@@ -146,9 +181,14 @@ class BeatStudioTab(QWidget):
         self.scene_list.currentItemChanged.connect(self._on_scene_select)
         self.beat_table.itemSelectionChanged.connect(self._on_beat_select)
         self.btn_save_beat.clicked.connect(self._on_save_beat)
+        self.btn_gen_package.clicked.connect(self._on_gen_package)
         self.btn_gen_beats.clicked.connect(self._on_gen_beats)
         self.btn_gen_review.clicked.connect(self._on_gen_review)
         self.btn_gen_prompts.clicked.connect(self._on_gen_prompts)
+        self.btn_export_prompt.clicked.connect(self._on_export_prompt)
+        self.btn_import_result.clicked.connect(self._on_import_result)
+        self.btn_delete_scene.clicked.connect(self._on_delete_scene)
+        self.btn_delete_beat.clicked.connect(self._on_delete_beat)
 
     def refresh(self) -> None:
         self.scene_list.clear()
@@ -172,7 +212,12 @@ class BeatStudioTab(QWidget):
             self.context_label.setText("Chưa chọn tập truyện — chọn tại tab 'Kế hoạch tập'")
 
         has_ep = self.app_state.selected_episode_id is not None
-        self.btn_gen_beats.setEnabled(has_ep)
+        self.btn_export_prompt.setEnabled(has_ep)
+        self.btn_import_result.setEnabled(has_ep)
+        
+        # Keep advanced buttons disabled if they were visible
+        self.btn_gen_package.setEnabled(False)
+        self.btn_gen_beats.setEnabled(False)
         
         has_beats = self.beat_table.rowCount() > 0
         self.btn_gen_review.setEnabled(has_beats)
@@ -215,7 +260,7 @@ class BeatStudioTab(QWidget):
             else: widget.setText("")
 
     def _on_scene_select(self, current: QListWidgetItem | None, previous: object) -> None:
-        if current:
+        if current and self.app_state.selected_episode_id:
             scene_id = current.data(ITEM_ROLE)
             self.app_state.selected_scene_id = scene_id
             scene = self.generation_controller.find_scene(
@@ -270,6 +315,20 @@ class BeatStudioTab(QWidget):
         except Exception as exc:
             QMessageBox.critical(self, "Lỗi", str(exc))
 
+    def _on_gen_package(self) -> None:
+        try:
+            self.generation_controller.generate_beat_package(
+                self.app_state.project,
+                self.app_state.selected_episode_id,
+                scene_id=self.app_state.selected_scene_id,
+                ai_mode=self.app_state.ai_mode,
+                model=self.app_state.model,
+            )
+            QMessageBox.information(self, "Thông báo", "Đã tạo gói Beat thành công.")
+            self.refresh_callback()
+        except Exception as exc:
+            QMessageBox.critical(self, "Lỗi", str(exc))
+
     def _on_gen_beats(self) -> None:
         try:
             self.generation_controller.generate_beats(
@@ -305,3 +364,115 @@ class BeatStudioTab(QWidget):
             self.refresh_callback()
         except Exception as exc:
             QMessageBox.critical(self, "Lỗi", str(exc))
+
+    def _on_export_prompt(self) -> None:
+        """Hiện cửa sổ prompt cho step đã chọn từ dropdown."""
+        if not self.app_state.project or not self.app_state.selected_episode_id:
+            QMessageBox.warning(self, "Cảnh báo", "Hãy chọn tập truyện trước.")
+            return
+
+        step = self.manual_step_combo.currentData()
+        step_label = self.manual_step_combo.currentText()
+
+        try:
+            ps = self.generation_controller.project_service
+            service = ManualAIService(ps)
+            exported = service.export_prompt(
+                self.app_state.project,
+                step=step,
+                episode_id=self.app_state.selected_episode_id,
+                chapter_id=self.app_state.selected_scene_id, # Re-using as scene_id if appropriate
+            )
+            prompt_text = service.format_prompt_for_clipboard(exported)
+
+            dialog = PromptExportDialog(prompt_text, step_label, self)
+            dialog.exec()
+        except Exception as exc:
+            QMessageBox.critical(self, "Lỗi", str(exc))
+
+    def _on_import_result(self) -> None:
+        """Hiện cửa sổ paste JSON result cho step đã chọn từ dropdown."""
+        if not self.app_state.project or not self.app_state.selected_episode_id:
+            QMessageBox.warning(self, "Cảnh báo", "Hãy chọn tập truyện trước.")
+            return
+
+        step = self.manual_step_combo.currentData()
+        step_label = self.manual_step_combo.currentText()
+
+        dialog = ResultImportDialog(step_label, self)
+        if dialog.exec() == QDialog.Accepted:
+            result_data = dialog.get_result_data()
+            if result_data is None:
+                return
+            try:
+                ps = self.generation_controller.project_service
+                service = ManualAIService(ps)
+                message = service.import_result(
+                    self.app_state.project,
+                    step=step,
+                    result_data=result_data,
+                    episode_id=self.app_state.selected_episode_id,
+                )
+                QMessageBox.information(self, "Thông báo", message)
+                self.refresh_callback()
+            except Exception as exc:
+                QMessageBox.critical(self, "Lỗi", str(exc))
+
+    def _on_delete_scene(self) -> None:
+        """Xóa phân cảnh đang chọn khỏi episode."""
+        if (
+            not self.app_state.project
+            or not self.app_state.selected_episode_id
+            or not self.app_state.selected_scene_id
+        ):
+            QMessageBox.warning(self, "Cảnh báo", "Hãy chọn phân cảnh cần xóa.")
+            return
+
+        scene_id = self.app_state.selected_scene_id
+        reply = QMessageBox.question(
+            self, "Xác nhận xóa",
+            f"Bạn có chắc muốn xóa phân cảnh '{scene_id}'?\nTất cả beats trong phân cảnh này sẽ bị xóa.\nHành động này không thể hoàn tác.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
+        episode = self.generation_controller.find_episode(
+            self.app_state.project, self.app_state.selected_episode_id
+        )
+        episode.scenes = [sc for sc in episode.scenes if sc.scene_id != scene_id]
+        self.app_state.project.touch()
+        self.app_state.selected_scene_id = None
+        self.app_state.selected_beat_id = None
+        self.refresh_callback()
+
+    def _on_delete_beat(self) -> None:
+        """Xóa nhịp truyện đang chọn khỏi scene."""
+        if (
+            not self.app_state.project
+            or not self.app_state.selected_episode_id
+            or not self.app_state.selected_scene_id
+            or not self.app_state.selected_beat_id
+        ):
+            QMessageBox.warning(self, "Cảnh báo", "Hãy chọn nhịp truyện cần xóa.")
+            return
+
+        beat_id = self.app_state.selected_beat_id
+        reply = QMessageBox.question(
+            self, "Xác nhận xóa",
+            f"Bạn có chắc muốn xóa nhịp truyện '{beat_id}'?\nHành động này không thể hoàn tác.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
+        scene = self.generation_controller.find_scene(
+            self.app_state.project,
+            self.app_state.selected_episode_id,
+            self.app_state.selected_scene_id,
+        )
+        scene.beats = [b for b in scene.beats if b.beat_id != beat_id]
+        self.app_state.project.touch()
+        self.app_state.selected_beat_id = None
+        self._clear_editor()
+        self.refresh_callback()

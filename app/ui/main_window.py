@@ -20,6 +20,7 @@ from app.ui.beat_studio_tab import BeatStudioTab
 from app.ui.bible_style_tab import BibleStyleTab
 from app.ui.quality_repair_tab import QualityRepairTab
 from app.ui.export_tab import ExportTab
+from app.ui.manual_ai_tab import ManualAITab
 
 from app.controllers.project_controller import ProjectController
 from app.controllers.generation_controller import GenerationController
@@ -96,6 +97,9 @@ class MainWindow(QMainWindow):
         self.export_tab = ExportTab(
             self.app_state, self.export_controller, self.export_profile_controller, self.refresh_all_tabs
         )
+        self.manual_ai_tab = ManualAITab(
+            self.app_state, self.project_controller, self.refresh_all_tabs
+        )
 
         # Add to TabWidget
         self.tabs.addTab(self.project_tab, "Dự án")
@@ -105,13 +109,14 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.bible_tab, "Bible / Style")
         self.tabs.addTab(self.quality_tab, "Chất lượng")
         self.tabs.addTab(self.export_tab, "Xuất bản")
+        self.tabs.addTab(self.manual_ai_tab, "AI Thủ Công")
 
         layout.addWidget(self.tabs)
         self.tabs.currentChanged.connect(self._on_tab_changed)
 
     def _on_tab_changed(self, index: int) -> None:
         """Auto-save project when switching tabs."""
-        if self.app_state.project and self.app_state.project_path:
+        if self.app_state.project and self.project_controller.project_path:
             try:
                 self.project_controller.save_project()
             except Exception:
@@ -133,6 +138,7 @@ class MainWindow(QMainWindow):
         self.bible_tab.refresh()
         self.quality_tab.refresh()
         self.export_tab.refresh()
+        self.manual_ai_tab.refresh()
         
         self.set_status("Đã cập nhật")
 

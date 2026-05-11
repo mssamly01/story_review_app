@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QPlainTextEdit,
     QPushButton,
+    QScrollArea,
     QTabWidget,
     QVBoxLayout,
     QWidget,
@@ -51,11 +52,16 @@ class BibleStyleTab(QWidget):
         
         layout.addWidget(self.tabs)
 
+    def _add_row(self, layout: QGridLayout, row: int, label_text: str, widget: QWidget) -> int:
+        layout.addWidget(QLabel(label_text), row, 0)
+        layout.addWidget(widget, row, 1)
+        return row + 1
+
     def _build_character_bible(self) -> QWidget:
         widget = QWidget()
         layout = QHBoxLayout(widget)
         
-        # Left: List and basic buttons
+        # Left: List
         left_widget = QWidget()
         left_layout = QVBoxLayout(left_widget)
         self.char_list = QListWidget()
@@ -69,31 +75,59 @@ class BibleStyleTab(QWidget):
         left_layout.addLayout(char_btn_layout)
         layout.addWidget(left_widget, 1)
         
-        # Right: Form
-        form = QWidget()
-        form_layout = QGridLayout(form)
+        # Right: Scrollable Form
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        form_container = QWidget()
+        form_layout = QGridLayout(form_container)
+        
+        self.char_id = QLineEdit(); self.char_id.setReadOnly(True)
         self.char_name = QLineEdit()
+        self.char_aliases = QLineEdit()
         self.char_role = QLineEdit()
-        self.char_appearance = QPlainTextEdit()
-        self.char_appearance.setMaximumHeight(80)
-        self.char_prompt_base = QPlainTextEdit()
-        self.char_prompt_base.setMaximumHeight(80)
-        
-        form_layout.addWidget(QLabel("Tên:"), 0, 0)
-        form_layout.addWidget(self.char_name, 0, 1)
-        form_layout.addWidget(QLabel("Vai trò:"), 1, 0)
-        form_layout.addWidget(self.char_role, 1, 1)
-        form_layout.addWidget(QLabel("Ngoại hình:"), 2, 0)
-        form_layout.addWidget(self.char_appearance, 2, 1)
-        form_layout.addWidget(QLabel("Visual Prompt Base:"), 3, 0)
-        form_layout.addWidget(self.char_prompt_base, 3, 1)
-        
+        self.char_gender = QLineEdit()
+        self.char_age = QLineEdit()
+        self.char_personality = QLineEdit()
+        self.char_appearance = QPlainTextEdit(); self.char_appearance.setMaximumHeight(60)
+        self.char_face = QLineEdit()
+        self.char_hair = QLineEdit()
+        self.char_eyes = QLineEdit()
+        self.char_body = QLineEdit()
+        self.char_outfit = QLineEdit()
+        self.char_outfit_variants = QLineEdit()
+        self.char_prompt_base = QPlainTextEdit(); self.char_prompt_base.setMaximumHeight(60)
+        self.char_neg_terms = QLineEdit()
+        self.char_voice = QLineEdit()
+        self.char_rel = QLineEdit()
+        self.char_tags = QLineEdit()
+
+        r = 0
+        r = self._add_row(form_layout, r, "ID:", self.char_id)
+        r = self._add_row(form_layout, r, "Tên:", self.char_name)
+        r = self._add_row(form_layout, r, "Bí danh:", self.char_aliases)
+        r = self._add_row(form_layout, r, "Vai trò:", self.char_role)
+        r = self._add_row(form_layout, r, "Giới tính:", self.char_gender)
+        r = self._add_row(form_layout, r, "Tuổi:", self.char_age)
+        r = self._add_row(form_layout, r, "Tính cách:", self.char_personality)
+        r = self._add_row(form_layout, r, "Ngoại hình:", self.char_appearance)
+        r = self._add_row(form_layout, r, "Khuôn mặt:", self.char_face)
+        r = self._add_row(form_layout, r, "Tóc:", self.char_hair)
+        r = self._add_row(form_layout, r, "Mắt:", self.char_eyes)
+        r = self._add_row(form_layout, r, "Dáng người:", self.char_body)
+        r = self._add_row(form_layout, r, "Trang phục:", self.char_outfit)
+        r = self._add_row(form_layout, r, "Biến thể đồ:", self.char_outfit_variants)
+        r = self._add_row(form_layout, r, "Prompt Base:", self.char_prompt_base)
+        r = self._add_row(form_layout, r, "Negative:", self.char_neg_terms)
+        r = self._add_row(form_layout, r, "Giọng nói:", self.char_voice)
+        r = self._add_row(form_layout, r, "Quan hệ:", self.char_rel)
+        r = self._add_row(form_layout, r, "Tags:", self.char_tags)
+
         self.btn_save_char = QPushButton("Lưu nhân vật")
-        form_layout.addWidget(self.btn_save_char, 4, 0, 1, 2)
+        form_layout.addWidget(self.btn_save_char, r, 0, 1, 2)
         
-        layout.addWidget(form, 2)
+        scroll.setWidget(form_container)
+        layout.addWidget(scroll, 2)
         
-        # Connect signals
         self.char_list.currentItemChanged.connect(self._on_char_select)
         self.btn_add_char.clicked.connect(self._on_add_char)
         self.btn_del_char.clicked.connect(self._on_del_char)
@@ -105,7 +139,6 @@ class BibleStyleTab(QWidget):
         widget = QWidget()
         layout = QHBoxLayout(widget)
         
-        # Left: List and basic buttons
         left_widget = QWidget()
         left_layout = QVBoxLayout(left_widget)
         self.loc_list = QListWidget()
@@ -119,27 +152,48 @@ class BibleStyleTab(QWidget):
         left_layout.addLayout(loc_btn_layout)
         layout.addWidget(left_widget, 1)
         
-        # Right: Form
-        form = QWidget()
-        form_layout = QGridLayout(form)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        form_container = QWidget()
+        form_layout = QGridLayout(form_container)
+        
+        self.loc_id = QLineEdit(); self.loc_id.setReadOnly(True)
         self.loc_name = QLineEdit()
+        self.loc_aliases = QLineEdit()
+        self.loc_type = QLineEdit()
+        self.loc_desc = QPlainTextEdit(); self.loc_desc.setMaximumHeight(60)
         self.loc_mood = QLineEdit()
-        self.loc_prompt_base = QPlainTextEdit()
-        self.loc_prompt_base.setMaximumHeight(80)
-        
-        form_layout.addWidget(QLabel("Tên:"), 0, 0)
-        form_layout.addWidget(self.loc_name, 0, 1)
-        form_layout.addWidget(QLabel("Tâm trạng (Mood):"), 1, 0)
-        form_layout.addWidget(self.loc_mood, 1, 1)
-        form_layout.addWidget(QLabel("Visual Prompt Base:"), 2, 0)
-        form_layout.addWidget(self.loc_prompt_base, 2, 1)
-        
+        self.loc_time = QLineEdit()
+        self.loc_lighting = QLineEdit()
+        self.loc_palette = QLineEdit()
+        self.loc_arch = QLineEdit()
+        self.loc_props = QLineEdit()
+        self.loc_prompt_base = QPlainTextEdit(); self.loc_prompt_base.setMaximumHeight(60)
+        self.loc_neg_terms = QLineEdit()
+        self.loc_tags = QLineEdit()
+
+        r = 0
+        r = self._add_row(form_layout, r, "ID:", self.loc_id)
+        r = self._add_row(form_layout, r, "Tên:", self.loc_name)
+        r = self._add_row(form_layout, r, "Bí danh:", self.loc_aliases)
+        r = self._add_row(form_layout, r, "Loại:", self.loc_type)
+        r = self._add_row(form_layout, r, "Mô tả:", self.loc_desc)
+        r = self._add_row(form_layout, r, "Tâm trạng:", self.loc_mood)
+        r = self._add_row(form_layout, r, "Thời gian:", self.loc_time)
+        r = self._add_row(form_layout, r, "Ánh sáng:", self.loc_lighting)
+        r = self._add_row(form_layout, r, "Bảng màu:", self.loc_palette)
+        r = self._add_row(form_layout, r, "Kiến trúc:", self.loc_arch)
+        r = self._add_row(form_layout, r, "Đạo cụ:", self.loc_props)
+        r = self._add_row(form_layout, r, "Prompt Base:", self.loc_prompt_base)
+        r = self._add_row(form_layout, r, "Negative:", self.loc_neg_terms)
+        r = self._add_row(form_layout, r, "Tags:", self.loc_tags)
+
         self.btn_save_loc = QPushButton("Lưu địa điểm")
-        form_layout.addWidget(self.btn_save_loc, 3, 0, 1, 2)
+        form_layout.addWidget(self.btn_save_loc, r, 0, 1, 2)
         
-        layout.addWidget(form, 2)
+        scroll.setWidget(form_container)
+        layout.addWidget(scroll, 2)
         
-        # Connect signals
         self.loc_list.currentItemChanged.connect(self._on_loc_select)
         self.btn_add_loc.clicked.connect(self._on_add_loc)
         self.btn_del_loc.clicked.connect(self._on_del_loc)
@@ -150,17 +204,74 @@ class BibleStyleTab(QWidget):
     def _build_style_presets(self) -> QWidget:
         widget = QWidget()
         layout = QHBoxLayout(widget)
+        
+        left_widget = QWidget()
+        left_layout = QVBoxLayout(left_widget)
         self.style_list = QListWidget()
-        layout.addWidget(self.style_list, 1)
+        left_layout.addWidget(self.style_list)
         
-        form = QWidget()
-        form_layout = QVBoxLayout(form)
+        style_btn_layout = QHBoxLayout()
+        self.btn_add_style = QPushButton("Thêm")
+        self.btn_del_style = QPushButton("Xóa")
+        style_btn_layout.addWidget(self.btn_add_style)
+        style_btn_layout.addWidget(self.btn_del_style)
+        left_layout.addLayout(style_btn_layout)
+        layout.addWidget(left_widget, 1)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        form_container = QWidget()
+        form_layout = QGridLayout(form_container)
+
+        self.style_id = QLineEdit(); self.style_id.setReadOnly(True)
+        self.style_name = QLineEdit()
+        self.style_desc = QPlainTextEdit(); self.style_desc.setMaximumHeight(40)
+        self.style_genre = QLineEdit()
+        self.style_pos = QPlainTextEdit(); self.style_pos.setMaximumHeight(60)
+        self.style_neg = QPlainTextEdit(); self.style_neg.setMaximumHeight(60)
+        self.style_line = QLineEdit()
+        self.style_palette = QLineEdit()
+        self.style_lighting = QLineEdit()
+        self.style_rendering = QLineEdit()
+        self.style_char_rules = QLineEdit()
+        self.style_bg_detail = QLineEdit()
+        self.style_camera = QLineEdit()
+        self.style_mood_keys = QLineEdit()
+        self.style_forbidden = QLineEdit()
+
+        r = 0
+        r = self._add_row(form_layout, r, "ID:", self.style_id)
+        r = self._add_row(form_layout, r, "Tên:", self.style_name)
+        r = self._add_row(form_layout, r, "Mô tả:", self.style_desc)
+        r = self._add_row(form_layout, r, "Thể loại:", self.style_genre)
+        r = self._add_row(form_layout, r, "Positive:", self.style_pos)
+        r = self._add_row(form_layout, r, "Negative:", self.style_neg)
+        r = self._add_row(form_layout, r, "Line Style:", self.style_line)
+        r = self._add_row(form_layout, r, "Palette:", self.style_palette)
+        r = self._add_row(form_layout, r, "Lighting:", self.style_lighting)
+        r = self._add_row(form_layout, r, "Rendering:", self.style_rendering)
+        r = self._add_row(form_layout, r, "Char Rules:", self.style_char_rules)
+        r = self._add_row(form_layout, r, "BG Detail:", self.style_bg_detail)
+        r = self._add_row(form_layout, r, "Camera:", self.style_camera)
+        r = self._add_row(form_layout, r, "Mood Keys:", self.style_mood_keys)
+        r = self._add_row(form_layout, r, "Forbidden:", self.style_forbidden)
+
+        self.btn_save_style = QPushButton("Lưu Style")
+        self.btn_set_default_style = QPushButton("Đặt làm mặc định")
         self.btn_gen_default_styles = QPushButton("Tạo các Style mặc định")
-        form_layout.addWidget(self.btn_gen_default_styles)
-        form_layout.addStretch()
         
-        layout.addWidget(form, 2)
+        form_layout.addWidget(self.btn_save_style, r, 0, 1, 2); r += 1
+        form_layout.addWidget(self.btn_set_default_style, r, 0, 1, 2); r += 1
+        form_layout.addWidget(self.btn_gen_default_styles, r, 0, 1, 2); r += 1
+
+        scroll.setWidget(form_container)
+        layout.addWidget(scroll, 2)
         
+        self.style_list.currentItemChanged.connect(self._on_style_select)
+        self.btn_add_style.clicked.connect(self._on_add_style)
+        self.btn_del_style.clicked.connect(self._on_del_style)
+        self.btn_save_style.clicked.connect(self._on_save_style)
+        self.btn_set_default_style.clicked.connect(self._on_set_default_style)
         self.btn_gen_default_styles.clicked.connect(self._on_gen_default_styles)
         
         return widget
@@ -187,102 +298,204 @@ class BibleStyleTab(QWidget):
         name = current.text()
         for char in self.app_state.project.characters:
             if char.name == name:
+                self.char_id.setText(char.character_id)
                 self.char_name.setText(char.name)
-                self.char_role.setText(getattr(char, "role", "") or "")
-                self.char_appearance.setPlainText(getattr(char, "appearance", "") or "")
-                self.char_prompt_base.setPlainText(getattr(char, "visual_prompt_base", "") or "")
+                self.char_aliases.setText(", ".join(char.aliases))
+                self.char_role.setText(char.role)
+                self.char_gender.setText(char.gender)
+                self.char_age.setText(char.age_description)
+                self.char_personality.setText(char.personality)
+                self.char_appearance.setPlainText(char.appearance)
+                self.char_face.setText(char.face_details)
+                self.char_hair.setText(char.hair)
+                self.char_eyes.setText(char.eyes)
+                self.char_body.setText(char.body_type)
+                self.char_outfit.setText(char.default_outfit)
+                self.char_outfit_variants.setText(", ".join(char.outfit_variants))
+                self.char_prompt_base.setPlainText(char.visual_prompt_base)
+                self.char_neg_terms.setText(", ".join(char.negative_prompt_terms))
+                self.char_voice.setText(char.voice_notes)
+                self.char_rel.setText(char.relationship_notes)
+                self.char_tags.setText(", ".join(char.continuity_tags))
                 break
 
     def _on_add_char(self) -> None:
-        if not self.app_state.project:
-            return
+        if not self.app_state.project: return
         name, ok = QInputDialog.getText(self, "Thêm nhân vật", "Tên nhân vật:")
         if ok and name:
-            try:
-                self.bible_controller.add_character(self.app_state.project, name=name)
-                self.refresh_callback()
-            except Exception as exc:
-                QMessageBox.critical(self, "Lỗi", str(exc))
+            self.bible_controller.add_character(self.app_state.project, name=name)
+            self.refresh_callback()
 
     def _on_del_char(self) -> None:
         current = self.char_list.currentItem()
-        if not current or not self.app_state.project:
-            return
+        if not current or not self.app_state.project: return
         name = current.text()
-        self.app_state.project.characters = [
-            c for c in self.app_state.project.characters if c.name != name
-        ]
-        self.app_state.project.touch()
-        self.refresh_callback()
+        if QMessageBox.question(self, "Xóa", f"Xóa '{name}'?") == QMessageBox.StandardButton.Yes:
+            self.app_state.project.characters = [c for c in self.app_state.project.characters if c.name != name]
+            self.app_state.project.touch()
+            self.refresh_callback()
 
     def _on_save_char(self) -> None:
         current = self.char_list.currentItem()
-        if not current or not self.app_state.project:
-            return
-        old_name = current.text()
+        if not current or not self.app_state.project: return
+        char_id = self.char_id.text()
         for char in self.app_state.project.characters:
-            if char.name == old_name:
+            if char.character_id == char_id:
                 char.name = self.char_name.text()
-                if hasattr(char, "role"): char.role = self.char_role.text()
+                char.aliases = [s.strip() for s in self.char_aliases.text().split(",") if s.strip()]
+                char.role = self.char_role.text()
+                char.gender = self.char_gender.text()
+                char.age_description = self.char_age.text()
+                char.personality = self.char_personality.text()
                 char.appearance = self.char_appearance.toPlainText()
+                char.face_details = self.char_face.text()
+                char.hair = self.char_hair.text()
+                char.eyes = self.char_eyes.text()
+                char.body_type = self.char_body.text()
+                char.default_outfit = self.char_outfit.text()
+                char.outfit_variants = [s.strip() for s in self.char_outfit_variants.text().split(",") if s.strip()]
                 char.visual_prompt_base = self.char_prompt_base.toPlainText()
+                char.negative_prompt_terms = [s.strip() for s in self.char_neg_terms.text().split(",") if s.strip()]
+                char.voice_notes = self.char_voice.text()
+                char.relationship_notes = self.char_rel.text()
+                char.continuity_tags = [s.strip() for s in self.char_tags.text().split(",") if s.strip()]
                 break
         self.app_state.project.touch()
         self.refresh_callback()
 
     # ── Location handlers ──
     def _on_loc_select(self, current, previous) -> None:
-        if not current or not self.app_state.project:
-            return
+        if not current or not self.app_state.project: return
         name = current.text()
         for loc in self.app_state.project.locations:
             if loc.name == name:
+                self.loc_id.setText(loc.location_id)
                 self.loc_name.setText(loc.name)
-                self.loc_mood.setText(getattr(loc, "mood", "") or "")
-                self.loc_prompt_base.setPlainText(getattr(loc, "visual_prompt_base", "") or "")
+                self.loc_aliases.setText(", ".join(loc.aliases))
+                self.loc_type.setText(loc.location_type)
+                self.loc_desc.setPlainText(loc.description)
+                self.loc_mood.setText(loc.mood)
+                self.loc_time.setText(loc.time_period)
+                self.loc_lighting.setText(loc.lighting)
+                self.loc_palette.setText(loc.color_palette)
+                self.loc_arch.setText(loc.architecture_style)
+                self.loc_props.setText(", ".join(loc.recurring_props))
+                self.loc_prompt_base.setPlainText(loc.visual_prompt_base)
+                self.loc_neg_terms.setText(", ".join(loc.negative_prompt_terms))
+                self.loc_tags.setText(", ".join(loc.continuity_tags))
                 break
 
     def _on_add_loc(self) -> None:
-        if not self.app_state.project:
-            return
+        if not self.app_state.project: return
         name, ok = QInputDialog.getText(self, "Thêm địa điểm", "Tên địa điểm:")
         if ok and name:
-            try:
-                self.bible_controller.add_location(self.app_state.project, name=name)
-                self.refresh_callback()
-            except Exception as exc:
-                QMessageBox.critical(self, "Lỗi", str(exc))
+            self.bible_controller.add_location(self.app_state.project, name=name)
+            self.refresh_callback()
 
     def _on_del_loc(self) -> None:
         current = self.loc_list.currentItem()
-        if not current or not self.app_state.project:
-            return
+        if not current or not self.app_state.project: return
         name = current.text()
-        self.app_state.project.locations = [
-            loc for loc in self.app_state.project.locations if loc.name != name
-        ]
-        self.app_state.project.touch()
-        self.refresh_callback()
+        if QMessageBox.question(self, "Xóa", f"Xóa '{name}'?") == QMessageBox.StandardButton.Yes:
+            self.app_state.project.locations = [l for l in self.app_state.project.locations if l.name != name]
+            self.app_state.project.touch()
+            self.refresh_callback()
 
     def _on_save_loc(self) -> None:
         current = self.loc_list.currentItem()
-        if not current or not self.app_state.project:
-            return
-        old_name = current.text()
+        if not current or not self.app_state.project: return
+        loc_id = self.loc_id.text()
         for loc in self.app_state.project.locations:
-            if loc.name == old_name:
+            if loc.location_id == loc_id:
                 loc.name = self.loc_name.text()
-                if hasattr(loc, "mood"): loc.mood = self.loc_mood.text()
+                loc.aliases = [s.strip() for s in self.loc_aliases.text().split(",") if s.strip()]
+                loc.location_type = self.loc_type.text()
+                loc.description = self.loc_description = self.loc_desc.toPlainText()
+                loc.mood = self.loc_mood.text()
+                loc.time_period = self.loc_time.text()
+                loc.lighting = self.loc_lighting.text()
+                loc.color_palette = self.loc_palette.text()
+                loc.architecture_style = self.loc_arch.text()
+                loc.recurring_props = [s.strip() for s in self.loc_props.text().split(",") if s.strip()]
                 loc.visual_prompt_base = self.loc_prompt_base.toPlainText()
+                loc.negative_prompt_terms = [s.strip() for s in self.loc_neg_terms.text().split(",") if s.strip()]
+                loc.continuity_tags = [s.strip() for s in self.loc_tags.text().split(",") if s.strip()]
                 break
         self.app_state.project.touch()
         self.refresh_callback()
 
-    def _on_gen_default_styles(self) -> None:
-        if not self.app_state.project:
-            return
-        try:
-            self.bible_controller.create_default_style_presets(self.app_state.project)
+    # ── Style handlers ──
+    def _on_style_select(self, current, previous) -> None:
+        if not current or not self.app_state.project: return
+        name = current.text()
+        for style in self.app_state.project.style_presets:
+            if style.name == name:
+                self.style_id.setText(style.style_id)
+                self.style_name.setText(style.name)
+                self.style_desc.setPlainText(style.description)
+                self.style_genre.setText(style.genre)
+                self.style_pos.setPlainText(style.positive_prompt)
+                self.style_neg.setPlainText(style.negative_prompt)
+                self.style_line.setText(style.line_style)
+                self.style_palette.setText(style.color_palette)
+                self.style_lighting.setText(style.lighting_style)
+                self.style_rendering.setText(style.rendering_style)
+                self.style_char_rules.setText(style.character_design_rules)
+                self.style_bg_detail.setText(style.background_detail_level)
+                self.style_camera.setText(style.camera_style)
+                self.style_mood_keys.setText(", ".join(style.mood_keywords))
+                self.style_forbidden.setText(", ".join(style.forbidden_terms))
+                break
+
+    def _on_add_style(self) -> None:
+        if not self.app_state.project: return
+        name, ok = QInputDialog.getText(self, "Thêm Style", "Tên Style:")
+        if ok and name:
+            self.bible_controller.add_style_preset(self.app_state.project, name=name)
             self.refresh_callback()
-        except Exception as exc:
-            QMessageBox.critical(self, "Lỗi", str(exc))
+
+    def _on_del_style(self) -> None:
+        current = self.style_list.currentItem()
+        if not current or not self.app_state.project: return
+        name = current.text()
+        if QMessageBox.question(self, "Xóa", f"Xóa '{name}'?") == QMessageBox.StandardButton.Yes:
+            self.app_state.project.style_presets = [s for s in self.app_state.project.style_presets if s.name != name]
+            self.app_state.project.touch()
+            self.refresh_callback()
+
+    def _on_save_style(self) -> None:
+        current = self.style_list.currentItem()
+        if not current or not self.app_state.project: return
+        style_id = self.style_id.text()
+        for style in self.app_state.project.style_presets:
+            if style.style_id == style_id:
+                style.name = self.style_name.text()
+                style.description = self.style_desc.toPlainText()
+                style.genre = self.style_genre.text()
+                style.positive_prompt = self.style_pos.toPlainText()
+                style.negative_prompt = self.style_neg.toPlainText()
+                style.line_style = self.style_line.text()
+                style.color_palette = self.style_palette.text()
+                style.lighting_style = self.style_lighting.text()
+                style.rendering_style = self.style_rendering.text()
+                style.character_design_rules = self.style_char_rules.text()
+                style.background_detail_level = self.style_bg_detail.text()
+                style.camera_style = self.style_camera.text()
+                style.mood_keywords = [s.strip() for s in self.style_mood_keys.text().split(",") if s.strip()]
+                style.forbidden_terms = [s.strip() for s in self.style_forbidden.text().split(",") if s.strip()]
+                break
+        self.app_state.project.touch()
+        self.refresh_callback()
+
+    def _on_set_default_style(self) -> None:
+        current = self.style_list.currentItem()
+        if not current or not self.app_state.project: return
+        style_id = self.style_id.text()
+        self.app_state.project.default_art_style = style_id
+        self.app_state.project.touch()
+        QMessageBox.information(self, "Thông báo", f"Đã đặt '{current.text()}' làm Style mặc định.")
+
+    def _on_gen_default_styles(self) -> None:
+        if not self.app_state.project: return
+        self.bible_controller.create_default_style_presets(self.app_state.project)
+        self.refresh_callback()

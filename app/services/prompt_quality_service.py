@@ -320,6 +320,20 @@ class PromptQualityService:
                     suggestion="Include the character default outfit for continuity.",
                     penalty=10,
                 )
+            
+            # High Fidelity Checks
+            for field_name in ["hair", "eyes", "body_type"]:
+                val = getattr(character, field_name, "")
+                if val and not self._contains_visual_terms(image_prompt, val):
+                    penalty += self._add_issue(
+                        issues,
+                        beat.beat_id,
+                        severity="info",
+                        category="missing_character_detail",
+                        message=f"Prompt omits {field_name} for {character_id}.",
+                        suggestion=f"Add character {field_name} details for better consistency.",
+                        penalty=4,
+                    )
         return penalty
 
     def _score_location_terms(
@@ -373,16 +387,30 @@ class PromptQualityService:
                 suggestion="Include the location lighting in the image prompt.",
                 penalty=6,
             )
-        if location.mood and not self._contains_visual_terms(image_prompt, location.mood):
-            penalty += self._add_issue(
-                issues,
-                beat.beat_id,
-                severity="info",
-                category="missing_location_detail",
-                message=f"Prompt omits mood for {location_id}.",
-                suggestion="Add the location mood if it matters visually.",
-                penalty=4,
-            )
+        penalty += self._add_issue(
+            issues,
+            beat.beat_id,
+            severity="info",
+            category="missing_location_detail",
+            message=f"Prompt omits mood for {location_id}.",
+            suggestion="Add the location mood if it matters visually.",
+            penalty=4,
+        )
+    
+        # High Fidelity Checks
+        for field_name in ["architecture_style", "recurring_props"]:
+            val = getattr(location, field_name, "")
+            if isinstance(val, list): val = ", ".join(val)
+            if val and not self._contains_visual_terms(image_prompt, val):
+                penalty += self._add_issue(
+                    issues,
+                    beat.beat_id,
+                    severity="info",
+                    category="missing_location_detail",
+                    message=f"Prompt omits {field_name.replace('_', ' ')} for {location_id}.",
+                    suggestion=f"Include {field_name.replace('_', ' ')} for a richer environment.",
+                    penalty=3,
+                )
         return penalty
 
     def _score_story_terms(

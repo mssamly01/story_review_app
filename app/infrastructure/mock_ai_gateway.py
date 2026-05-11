@@ -17,6 +17,7 @@ class MockAIGateway(AIGateway):
         "review_rewriter",
         "image_prompt_builder",
         "continuity_checker",
+        "beat_package_generator",
     }
 
     def generate_text(
@@ -44,6 +45,7 @@ class MockAIGateway(AIGateway):
             "review_rewriter": self._review_rewriter_response,
             "image_prompt_builder": self._image_prompt_builder_response,
             "continuity_checker": self._continuity_checker_response,
+            "beat_package_generator": self._beat_package_generator_response,
         }
 
         if prompt_name not in builders:
@@ -197,5 +199,40 @@ class MockAIGateway(AIGateway):
                 "relationship_logic",
                 "emotional_continuity",
             ],
+        }
+    def _beat_package_generator_response(
+        self, input_data: dict[str, Any]
+    ) -> dict[str, Any]:
+        return {
+            "beats": [
+                {
+                    "order_index": 1,
+                    "story_function": "discovery",
+                    "characters": ["mock_protagonist"],
+                    "location": "mock_location",
+                    "action": "finds a clue on the floor",
+                    "emotion": "curious",
+                    "shot_type": "detail shot",
+                    "visual_description": "a small clue lying on a dusty floor",
+                    "review_text": "Ngay lúc này, nhân vật chính chậm lại và nhận ra một chi tiết quan trọng.",
+                    "image_prompt": "cinematic webtoon style, mock protagonist finding a small clue on a dusty floor, high quality",
+                    "negative_prompt": "low quality, blurry, text, watermark, logo",
+                    "continuity_tags": ["mock_protagonist", "mock_location"]
+                },
+                {
+                    "order_index": 2,
+                    "story_function": "reaction",
+                    "characters": ["mock_protagonist"],
+                    "location": "mock_location",
+                    "action": "examines the clue closely",
+                    "emotion": "surprised",
+                    "shot_type": "close-up",
+                    "visual_description": "close up of eyes reflecting the light from the clue",
+                    "review_text": "Sự ngạc nhiên hiện rõ trên khuôn mặt khi sự thật bắt đầu hé lộ.",
+                    "image_prompt": "cinematic webtoon style, close up of mock protagonist eyes reflecting light, high quality",
+                    "negative_prompt": "low quality, blurry, text, watermark, logo",
+                    "continuity_tags": ["mock_protagonist"]
+                }
+            ]
         }
 
