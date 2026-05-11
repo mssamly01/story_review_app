@@ -69,10 +69,7 @@ class Project:
             "characters": [character.to_dict() for character in self.characters],
             "locations": [location.to_dict() for location in self.locations],
             "style_presets": [style_preset.to_dict() for style_preset in self.style_presets],
-<<<<<<< HEAD
             "world_style_notes": dict(self.world_style_notes),
-=======
->>>>>>> 47bda6f0371b0fd52f46f1d8d37803bb701dfc21
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }

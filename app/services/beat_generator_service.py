@@ -287,7 +287,7 @@ class BeatGeneratorService:
 
         new_beats: list[Beat] = []
         for i, b_data in enumerate(beats_data):
-            beat_id = f"beat_{scene.scene_id}_{i + 1:03d}"
+            beat_id = b_data.get("beat_id") or f"beat_{scene.scene_id}_{i + 1:03d}"
             new_beats.append(
                 Beat(
                     beat_id=beat_id,
@@ -416,8 +416,8 @@ class BeatGeneratorService:
                 beat_data.get("beat_id")
                 or f"{self._generated_prefix(scene.scene_id)}{offset + 1:03d}"
             )
-            if not beat_id.startswith(self._generated_prefix(scene.scene_id)):
-                beat_id = f"{self._generated_prefix(scene.scene_id)}{offset + 1:03d}"
+            # We used to force the prefix here, but that prevents custom IDs.
+            # We'll allow custom IDs but ensure they are strings.
 
             generated_beats.append(
                 Beat(

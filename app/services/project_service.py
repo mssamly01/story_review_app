@@ -479,3 +479,49 @@ class ProjectService:
                 max_number = max(max_number, int(parts[1]))
 
         return f"{prefix}_{max_number + 1:03d}"
+
+    def character_display_name(self, project: Project, character_id: str) -> str:
+        for char in project.characters:
+            if char.character_id == character_id:
+                return char.name
+        return f"{character_id} (missing)"
+
+    def resolve_character_id(self, project: Project, name_or_id: str) -> str:
+        name_or_id = name_or_id.strip()
+        # 1. Check if it's already a valid ID
+        for char in project.characters:
+            if char.character_id == name_or_id:
+                return char.character_id
+        # 2. Check if it's a name
+        for char in project.characters:
+            if char.name.lower() == name_or_id.lower():
+                return char.character_id
+        # 3. Check aliases
+        for char in project.characters:
+            if any(a.lower() == name_or_id.lower() for a in char.aliases):
+                return char.character_id
+        return name_or_id
+
+    def location_display_name(self, project: Project, location_id: str) -> str:
+        for loc in project.locations:
+            if loc.location_id == location_id:
+                return loc.name
+        return f"{location_id} (missing)" if location_id else ""
+
+    def resolve_location_id(self, project: Project, name_or_id: str) -> str:
+        name_or_id = name_or_id.strip()
+        if not name_or_id:
+            return ""
+        # 1. Check ID
+        for loc in project.locations:
+            if loc.location_id == name_or_id:
+                return loc.location_id
+        # 2. Check Name
+        for loc in project.locations:
+            if loc.name.lower() == name_or_id.lower():
+                return loc.location_id
+        # 3. Check Aliases
+        for loc in project.locations:
+            if any(a.lower() == name_or_id.lower() for a in loc.aliases):
+                return loc.location_id
+        return name_or_id

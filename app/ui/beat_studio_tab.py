@@ -49,6 +49,7 @@ from app.ui.beat_card_delegate import (
     BeatCardDelegate,
 )
 from app.ui.manual_ai_dialogs import PromptExportDialog, ResultImportDialog
+from app.services.continuity_tag_service import ContinuityTagService
 
 ITEM_ROLE = Qt.ItemDataRole.UserRole
 
@@ -103,6 +104,7 @@ class BeatStudioTab(QWidget):
         self.fields: dict[str, QWidget] = {}
         self.view_mode: str = self.VIEW_GRID
         self._current_beats: list[Beat] = []
+        self.tag_service = ContinuityTagService()
         self._build_ui()
 
     # =========================================================================
@@ -113,12 +115,14 @@ class BeatStudioTab(QWidget):
         main_layout.setContentsMargins(12, 12, 12, 12)
         main_layout.setSpacing(10)
 
-        # Header (context label + view toggle)
+        # Header (Episode selector + view toggle)
         header_row = QHBoxLayout()
-        self.context_label = QLabel("Chưa chọn tập truyện — chọn tại tab 'Kế hoạch tập'")
-        self.context_label.setObjectName("context-bar")
-        self.context_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        header_row.addWidget(self.context_label, 1)
+        
+        self.episode_combo = QComboBox()
+        self.episode_combo.setObjectName("episode-selector")
+        self.episode_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.episode_combo.setMinimumHeight(32)
+        header_row.addWidget(self.episode_combo, 1)
 
         self.btn_view_grid = QPushButton("⊞  Grid")
         self.btn_view_grid.setObjectName("view-toggle")
@@ -200,8 +204,8 @@ class BeatStudioTab(QWidget):
         self.btn_import_result.clicked.connect(self._on_import)
         self.btn_delete_scene.clicked.connect(self._on_delete_scene)
         self.btn_delete_beat.clicked.connect(self._on_delete_beat)
-        self.btn_view_grid.clicked.connect(lambda: self.set_view_mode(self.VIEW_GRID))
         self.btn_view_table.clicked.connect(lambda: self.set_view_mode(self.VIEW_TABLE))
+        self.episode_combo.currentIndexChanged.connect(self._on_episode_combo_changed)
 
     def _build_scene_pane(self) -> QWidget:
         wrapper = QFrame()
@@ -299,6 +303,9 @@ class BeatStudioTab(QWidget):
                     widget.addItems(
                         ["neutral", "happy", "sad", "angry", "surprised", "tense", "mysterious"]
                     )
+                elif name == "location":
+                    widget = QComboBox()
+                    widget.setEditable(True)
                 else:
                     widget = QLineEdit()
 
@@ -333,26 +340,61 @@ class BeatStudioTab(QWidget):
     # Refresh / data binding
     # =========================================================================
     def refresh(self) -> None:
+        # 1. Update Episode Combo
+        self._block_signals(True)
+        self.episode_combo.clear()
+        
+        project = self.app_state.project
+        if not project:
+            self.episode_combo.addItem("Chưa mở dự án", None)
+            self.episode_combo.setEnabled(False)
+        elif not project.review_episodes:
+            self.episode_combo.addItem("Chưa có tập truyện — hãy tạo tại tab 'Kế hoạch tập'", None)
+            self.episode_combo.setEnabled(False)
+        else:
+            self.episode_combo.setEnabled(True)
+            selected_idx = -1
+            for i, ep in enumerate(project.review_episodes):
+                text = f"Tập: {ep.title} | Scenes: {len(ep.scenes)}"
+                self.episode_combo.addItem(text, ep.episode_id)
+                if ep.episode_id == self.app_state.selected_episode_id:
+                    selected_idx = i
+            
+            if selected_idx >= 0:
+                self.episode_combo.setCurrentIndex(selected_idx)
+            else:
+                # Fallback to first episode if current selection invalid
+                self.episode_combo.setCurrentIndex(0)
+                self.app_state.selected_episode_id = self.episode_combo.currentData()
+        
+        self._block_signals(False)
+
+        # 2. Refresh lists based on selection
         self.scene_list.clear()
         self._clear_beats_views()
         self._clear_editor()
 
-        if self.app_state.selected_episode_id and self.app_state.project:
-            episode = self.generation_controller.find_episode(
-                self.app_state.project, self.app_state.selected_episode_id
-            )
-            self.context_label.setText(f"Tập: {episode.title} | Scenes: {len(episode.scenes)}")
-
-            for scene in episode.scenes:
-                count = len(scene.beats) if hasattr(scene, "beats") else 0
-                item = QListWidgetItem(f"{scene.title}\n{count} nhịp")
-                item.setData(ITEM_ROLE, scene.scene_id)
-                self.scene_list.addItem(item)
-                if scene.scene_id == self.app_state.selected_scene_id:
-                    self.scene_list.setCurrentItem(item)
-                    self._load_beats(scene)
-        else:
-            self.context_label.setText("Chưa chọn tập truyện — chọn tại tab 'Kế hoạch tập'")
+        if self.app_state.selected_episode_id and project:
+            try:
+                episode = self.generation_controller.find_episode(
+                    project, self.app_state.selected_episode_id
+                )
+                
+                # Populate scene list
+                for scene in episode.scenes:
+                    count = len(scene.beats) if hasattr(scene, "beats") else 0
+                    item = QListWidgetItem(f"{scene.title}\n{count} nhịp")
+                    item.setData(ITEM_ROLE, scene.scene_id)
+                    self.scene_list.addItem(item)
+                    if scene.scene_id == self.app_state.selected_scene_id:
+                        self.scene_list.setCurrentItem(item)
+                        self._load_beats(scene)
+                
+                # If no scene selected but we have scenes, pick first one
+                if not self.app_state.selected_scene_id and episode.scenes:
+                    self.scene_list.setCurrentRow(0)
+            except LookupError:
+                self.app_state.selected_episode_id = None
 
         has_ep = self.app_state.selected_episode_id is not None
         self.btn_export_prompt.setEnabled(has_ep)
@@ -366,6 +408,16 @@ class BeatStudioTab(QWidget):
         self.btn_gen_review.setEnabled(has_beats)
         self.btn_gen_prompts.setEnabled(has_beats)
         self.btn_save_beat.setEnabled(self.app_state.selected_beat_id is not None)
+
+        # Refresh location combo box items
+        if self.app_state.project:
+            loc_combo = self.fields.get("location")
+            if isinstance(loc_combo, QComboBox):
+                current_text = loc_combo.currentText()
+                loc_combo.clear()
+                loc_names = [l.name for l in self.app_state.project.locations]
+                loc_combo.addItems(loc_names)
+                loc_combo.setCurrentText(current_text)
 
     def _beat_count(self) -> int:
         return (
@@ -423,9 +475,27 @@ class BeatStudioTab(QWidget):
                 break
 
     def _load_beat_data(self, beat: Beat) -> None:
+        project = self.app_state.project
+        ps = self.generation_controller.project_service # Access project service for resolution
+
         for name in self.FIELD_NAMES:
             value = getattr(beat, name)
-            display_value = ", ".join(value) if isinstance(value, list) else str(value or "")
+            
+            # Resolve ID to Name for display
+            display_value = ""
+            if name == "characters" and project:
+                char_ids = value if isinstance(value, list) else []
+                names = [ps.character_display_name(project, cid) for cid in char_ids]
+                display_value = ", ".join(names)
+            elif name == "location" and project:
+                display_value = ps.location_display_name(project, value)
+            elif name == "continuity_tags" and project:
+                tags = value if isinstance(value, list) else []
+                names = self.tag_service.to_display_names(project, tags)
+                display_value = ", ".join(names)
+            else:
+                display_value = ", ".join(value) if isinstance(value, list) else str(value or "")
+
             widget = self.fields[name]
             if isinstance(widget, QPlainTextEdit):
                 widget.setPlainText(display_value)
@@ -474,6 +544,15 @@ class BeatStudioTab(QWidget):
             return
         self._set_selected_beat(current.data(ITEM_ROLE))
 
+    def _on_episode_combo_changed(self, index: int) -> None:
+        if index < 0: return
+        ep_id = self.episode_combo.itemData(index)
+        if ep_id != self.app_state.selected_episode_id:
+            self.app_state.selected_episode_id = ep_id
+            self.app_state.selected_scene_id = None # Reset scene when changing episode
+            self.app_state.selected_beat_id = None
+            self.refresh()
+
     def _set_selected_beat(self, beat_id: str | None) -> None:
         if not beat_id:
             self.app_state.selected_beat_id = None
@@ -512,6 +591,21 @@ class BeatStudioTab(QWidget):
         try:
             beat = self._find_beat(self.app_state.selected_beat_id)
             if beat:
+                project = self.app_state.project
+                ps = self.generation_controller.project_service
+
+                # Resolve Name back to ID before saving
+                if "characters" in values and project:
+                    names = [n.strip() for n in values["characters"].split(",") if n.strip()]
+                    ids = [ps.resolve_character_id(project, n) for n in names]
+                    values["characters"] = ids
+                
+                if "location" in values and project:
+                    values["location"] = ps.resolve_location_id(project, values["location"])
+
+                if "continuity_tags" in values and project:
+                    values["continuity_tags"] = self.tag_service.resolve_display_names(project, values["continuity_tags"])
+
                 self.generation_controller.update_beat_fields(beat, **values)
                 self.app_state.project.touch()
                 QMessageBox.information(self, "Thông báo", "Đã lưu nhịp truyện.")
@@ -550,6 +644,11 @@ class BeatStudioTab(QWidget):
         step_label = self.manual_step_combo.currentText()
 
         try:
+            # Store current selection to restore after refresh
+            prev_ep = self.app_state.selected_episode_id
+            prev_sc = self.app_state.selected_scene_id
+            prev_beat = self.app_state.selected_beat_id
+
             dialog = ResultImportDialog(step_label, self)
             if dialog.exec() and dialog.result_data is not None:
                 message = self.manual_ai_controller.import_result(
@@ -559,6 +658,12 @@ class BeatStudioTab(QWidget):
                     episode_id=self.app_state.selected_episode_id,
                     chapter_id=self.app_state.selected_scene_id,
                 )
+                
+                # Restore selection if still valid
+                self.app_state.selected_episode_id = prev_ep
+                self.app_state.selected_scene_id = prev_sc
+                self.app_state.selected_beat_id = prev_beat
+                
                 QMessageBox.information(self, "Thông báo", message)
                 self.refresh_callback()
         except Exception as exc:
@@ -625,6 +730,12 @@ class BeatStudioTab(QWidget):
         self.app_state.selected_beat_id = None
         self._clear_editor()
         self.refresh_callback()
+
+    def _block_signals(self, block: bool) -> None:
+        self.episode_combo.blockSignals(block)
+        self.scene_list.blockSignals(block)
+        self.beat_table.blockSignals(block)
+        self.beat_grid.blockSignals(block)
 
 
 # ---------------------------------------------------------------------------

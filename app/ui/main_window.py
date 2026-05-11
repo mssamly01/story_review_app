@@ -30,8 +30,6 @@ from PySide6.QtWidgets import (
 
 from app.controllers.batch_workflow_controller import BatchWorkflowController
 from app.controllers.bible_controller import BibleController
-from app.controllers.export_controller import ExportController
-from app.controllers.export_profile_controller import ExportProfileController
 from app.controllers.generation_controller import GenerationController
 from app.controllers.manual_ai_controller import ManualAIController
 from app.controllers.production_readiness_controller import ProductionReadinessController
@@ -40,12 +38,13 @@ from app.controllers.prompt_quality_controller import PromptQualityController
 from app.controllers.repair_controller import RepairController
 from app.controllers.validation_controller import ValidationController
 from app.ui.app_state import AppState
+from app.ui.beat_preview_tab import BeatPreviewTab
 from app.ui.beat_studio_tab import BeatStudioTab
 from app.ui.bible_style_tab import BibleStyleTab
 from app.ui.episode_planner_tab import EpisodePlannerTab
-from app.ui.export_tab import ExportTab
 from app.ui.project_tab import ProjectTab
 from app.ui.quality_repair_tab import QualityRepairTab
+from app.ui.settings_tab import SettingsTab
 from app.ui.sidebar_tabs import SidebarTabWidget
 from app.ui.source_tab import SourceTab
 from app.ui.theme import (
@@ -70,8 +69,6 @@ class MainWindow(QMainWindow):
         self.project_controller = ProjectController()
         ps = self.project_controller.project_service
         self.generation_controller = GenerationController(ps)
-        self.export_controller = ExportController(ps)
-        self.export_profile_controller = ExportProfileController(ps)
         self.bible_controller = BibleController(ps)
         self.validation_controller = ValidationController(ps)
         self.repair_controller = RepairController(ps)
@@ -187,6 +184,9 @@ class MainWindow(QMainWindow):
             self.manual_ai_controller,
             self.refresh_all_tabs,
         )
+        self.preview_tab = BeatPreviewTab(
+            self.app_state, self.generation_controller, self.refresh_all_tabs
+        )
         self.bible_tab = BibleStyleTab(self.app_state, self.bible_controller, self.refresh_all_tabs)
         self.quality_tab = QualityRepairTab(
             self.app_state,
@@ -196,12 +196,7 @@ class MainWindow(QMainWindow):
             self.quality_controller,
             self.refresh_all_tabs,
         )
-        self.export_tab = ExportTab(
-            self.app_state,
-            self.export_controller,
-            self.export_profile_controller,
-            self.refresh_all_tabs,
-        )
+        self.settings_tab = SettingsTab(self.app_state, self.refresh_all_tabs)
 
         # Wrap each tab so it gets a consistent inner margin without each tab
         # having to repeat that layout.
@@ -219,31 +214,21 @@ class MainWindow(QMainWindow):
         self._ordered_tabs: list[QWidget] = [
             self.project_tab,
             self.source_tab,
-<<<<<<< HEAD
             self.bible_tab,
             self.planner_tab,
             self.studio_tab,
-=======
-            self.planner_tab,
-            self.studio_tab,
-            self.bible_tab,
->>>>>>> 47bda6f0371b0fd52f46f1d8d37803bb701dfc21
+            self.preview_tab,
             self.quality_tab,
-            self.export_tab,
+            self.settings_tab,
         ]
         self.tabs.addTab(_wrap(self.project_tab), "Dự án")
         self.tabs.addTab(_wrap(self.source_tab), "Nguồn")
-<<<<<<< HEAD
         self.tabs.addTab(_wrap(self.bible_tab), "Bible / Style")
         self.tabs.addTab(_wrap(self.planner_tab), "Kế hoạch tập")
         self.tabs.addTab(_wrap(self.studio_tab), "Beat Studio")
-=======
-        self.tabs.addTab(_wrap(self.planner_tab), "Kế hoạch tập")
-        self.tabs.addTab(_wrap(self.studio_tab), "Beat Studio")
-        self.tabs.addTab(_wrap(self.bible_tab), "Bible / Style")
->>>>>>> 47bda6f0371b0fd52f46f1d8d37803bb701dfc21
+        self.tabs.addTab(_wrap(self.preview_tab), "Xem Beat")
         self.tabs.addTab(_wrap(self.quality_tab), "Chất lượng")
-        self.tabs.addTab(_wrap(self.export_tab), "Xuất bản")
+        self.tabs.addTab(_wrap(self.settings_tab), "Cài đặt")
 
         layout.addWidget(self.tabs)
         self.tabs.currentChanged.connect(self._on_tab_changed)
@@ -273,9 +258,10 @@ class MainWindow(QMainWindow):
         self.source_tab.refresh()
         self.planner_tab.refresh()
         self.studio_tab.refresh()
+        self.preview_tab.refresh()
         self.bible_tab.refresh()
         self.quality_tab.refresh()
-        self.export_tab.refresh()
+        self.settings_tab.refresh()
 
         self._update_header()
         self.set_status("Đã cập nhật")

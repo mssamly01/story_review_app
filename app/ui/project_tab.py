@@ -81,20 +81,6 @@ class ProjectTab(QWidget):
         info_layout.addWidget(self.path_label, 6, 0, 1, 2)
         layout.addWidget(info_group)
 
-        # --- AI Settings Group ---
-        ai_group = QGroupBox("Cấu hình AI")
-        ai_layout = QGridLayout(ai_group)
-
-        self.ai_mode_combo = QComboBox()
-        self.ai_mode_combo.addItems(["deterministic", "mock", "real"])
-        self.model_edit = QLineEdit()
-
-        ai_layout.addWidget(QLabel("Chế độ AI:"), 0, 0)
-        ai_layout.addWidget(self.ai_mode_combo, 0, 1)
-        ai_layout.addWidget(QLabel("Model (nếu có):"), 1, 0)
-        ai_layout.addWidget(self.model_edit, 1, 1)
-        layout.addWidget(ai_group)
-
         layout.addStretch()
 
         # Connect signals
@@ -102,8 +88,6 @@ class ProjectTab(QWidget):
         self.btn_open.clicked.connect(self._on_open)
         self.btn_save.clicked.connect(self._on_save)
         self.btn_save_as.clicked.connect(self._on_save_as)
-        self.ai_mode_combo.currentTextChanged.connect(self._on_ai_mode_changed)
-        self.model_edit.textChanged.connect(self._on_model_changed)
 
         # Sync metadata
         self.title_edit.textChanged.connect(self._sync_project_metadata)
@@ -123,9 +107,6 @@ class ProjectTab(QWidget):
             self.path_label.setText(str(self.app_state.project_path or ""))
         else:
             self.path_label.setText("Chưa mở dự án nào")
-
-        self.ai_mode_combo.setCurrentText(self.app_state.ai_mode)
-        self.model_edit.setText(self.app_state.model or "")
 
     def _sync_project_metadata(self) -> None:
         if not self.app_state.project:
@@ -178,9 +159,3 @@ class ProjectTab(QWidget):
                 self.refresh_callback()
             except Exception as exc:
                 QMessageBox.critical(self, "Lỗi", str(exc))
-
-    def _on_ai_mode_changed(self, mode: str) -> None:
-        self.app_state.ai_mode = mode
-
-    def _on_model_changed(self, model: str) -> None:
-        self.app_state.model = model if model.strip() else None

@@ -27,7 +27,6 @@ class Character:
     visual_prompt_base: str = ""
     relationship_notes: str = ""
     continuity_tags: list[str] = field(default_factory=list)
-<<<<<<< HEAD
     
     # --- New Fields for Layer 1: Beat Prompt Character Data ---
     signature_features: str = ""
@@ -49,13 +48,6 @@ class Character:
     reference_sheet_notes: str = ""
 
     # Visual reference fields for image-model character consistency.
-=======
-    # Visual reference fields for image-model character consistency.
-    # These are NEVER used to generate images inside the app — they are
-    # metadata that downstream renderers (Midjourney IP-Adapter, SD WebUI
-    # LoRA, ComfyUI FaceID, etc.) can consume to keep a character's face /
-    # outfit consistent across panels.
->>>>>>> 47bda6f0371b0fd52f46f1d8d37803bb701dfc21
     reference_image_paths: list[str] = field(default_factory=list)
     sd_lora_name: str = ""
     ip_adapter_image_path: str = ""
@@ -82,7 +74,6 @@ class Character:
             "visual_prompt_base": self.visual_prompt_base,
             "relationship_notes": self.relationship_notes,
             "continuity_tags": list(self.continuity_tags),
-<<<<<<< HEAD
             "signature_features": self.signature_features,
             "continuity_must_keep": self.continuity_must_keep,
             "continuity_forbidden": self.continuity_forbidden,
@@ -98,8 +89,6 @@ class Character:
             "color_palette": self.color_palette,
             "sheet_layout_style": self.sheet_layout_style,
             "reference_sheet_notes": self.reference_sheet_notes,
-=======
->>>>>>> 47bda6f0371b0fd52f46f1d8d37803bb701dfc21
             "reference_image_paths": list(self.reference_image_paths),
             "sd_lora_name": self.sd_lora_name,
             "ip_adapter_image_path": self.ip_adapter_image_path,
@@ -128,7 +117,6 @@ class Character:
             visual_prompt_base=data.get("visual_prompt_base", ""),
             relationship_notes=data.get("relationship_notes", ""),
             continuity_tags=list(data.get("continuity_tags", [])),
-<<<<<<< HEAD
             signature_features=data.get("signature_features", ""),
             continuity_must_keep=data.get("continuity_must_keep", ""),
             continuity_forbidden=data.get("continuity_forbidden", ""),
@@ -144,8 +132,6 @@ class Character:
             color_palette=data.get("color_palette", ""),
             sheet_layout_style=data.get("sheet_layout_style", ""),
             reference_sheet_notes=data.get("reference_sheet_notes", ""),
-=======
->>>>>>> 47bda6f0371b0fd52f46f1d8d37803bb701dfc21
             reference_image_paths=list(data.get("reference_image_paths", [])),
             sd_lora_name=data.get("sd_lora_name", ""),
             ip_adapter_image_path=data.get("ip_adapter_image_path", ""),

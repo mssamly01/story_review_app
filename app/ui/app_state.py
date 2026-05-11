@@ -21,8 +21,10 @@ class AppState:
     selected_episode_id: str | None = None
     selected_scene_id: str | None = None
     selected_beat_id: str | None = None
-    ai_mode: str = "deterministic"
-    model: str | None = None
+    ai_mode: str = "deterministic"  # deterministic, mock, real
+    model: str = "gpt-4o"
+    theme: str = "dark"
+    default_manual_ai_task: str = "generate-unified-package"
 
     def has_project(self) -> bool:
         return self.project is not None

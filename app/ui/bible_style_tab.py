@@ -14,10 +14,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QListWidget,
-<<<<<<< HEAD
     QListWidgetItem,
-=======
->>>>>>> 47bda6f0371b0fd52f46f1d8d37803bb701dfc21
     QMessageBox,
     QPlainTextEdit,
     QPushButton,
@@ -55,10 +52,7 @@ class BibleStyleTab(QWidget):
         self.tabs.addTab(self._build_character_bible(), "Nhân vật")
         self.tabs.addTab(self._build_location_bible(), "Địa điểm")
         self.tabs.addTab(self._build_style_presets(), "Style Presets")
-<<<<<<< HEAD
         self.tabs.addTab(self._build_ai_analysis(), "Phân tích AI")
-=======
->>>>>>> 47bda6f0371b0fd52f46f1d8d37803bb701dfc21
 
         layout.addWidget(self.tabs)
 
@@ -89,19 +83,12 @@ class BibleStyleTab(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         form_container = QWidget()
-<<<<<<< HEAD
         form_main_layout = QVBoxLayout(form_container)
 
         # 1. Core Identity Section
         core_group = QGroupBox("Core Identity")
         core_layout = QGridLayout(core_group)
         self.char_id = QLineEdit(); self.char_id.setReadOnly(True)
-=======
-        form_layout = QGridLayout(form_container)
-
-        self.char_id = QLineEdit()
-        self.char_id.setReadOnly(True)
->>>>>>> 47bda6f0371b0fd52f46f1d8d37803bb701dfc21
         self.char_name = QLineEdit()
         self.char_aliases = QLineEdit()
         self.char_role = QLineEdit()
@@ -114,14 +101,6 @@ class BibleStyleTab(QWidget):
         self.char_hair = QLineEdit()
         self.char_eyes = QLineEdit()
         self.char_body = QLineEdit()
-<<<<<<< HEAD
-=======
-        self.char_outfit = QLineEdit()
-        self.char_outfit_variants = QLineEdit()
-        self.char_prompt_base = QPlainTextEdit()
-        self.char_prompt_base.setMaximumHeight(60)
-        self.char_neg_terms = QLineEdit()
->>>>>>> 47bda6f0371b0fd52f46f1d8d37803bb701dfc21
         self.char_voice = QLineEdit()
         self.char_rel = QLineEdit()
         self.char_tags = QLineEdit()
@@ -197,13 +176,10 @@ class BibleStyleTab(QWidget):
         form_main_layout.addWidget(ref_group)
 
         self.btn_save_char = QPushButton("Lưu nhân vật")
-<<<<<<< HEAD
-        self.btn_build_ref_prompt = QPushButton("Build Reference Sheet Prompt")
+        self.btn_build_ref_prompt = QPushButton("Copy Prompt Ảnh Tham Chiếu")
+        self.btn_build_ref_prompt.setObjectName("secondary-button")
         form_main_layout.addWidget(self.btn_save_char)
         form_main_layout.addWidget(self.btn_build_ref_prompt)
-=======
-        form_layout.addWidget(self.btn_save_char, r, 0, 1, 2)
->>>>>>> 47bda6f0371b0fd52f46f1d8d37803bb701dfc21
 
         scroll.setWidget(form_container)
         layout.addWidget(scroll, 2)
@@ -212,12 +188,9 @@ class BibleStyleTab(QWidget):
         self.btn_add_char.clicked.connect(self._on_add_char)
         self.btn_del_char.clicked.connect(self._on_del_char)
         self.btn_save_char.clicked.connect(self._on_save_char)
-<<<<<<< HEAD
         self.btn_build_ref_prompt.clicked.connect(self._on_build_ref_prompt)
 
         return widget
-=======
->>>>>>> 47bda6f0371b0fd52f46f1d8d37803bb701dfc21
 
         return widget
 
@@ -370,7 +343,6 @@ class BibleStyleTab(QWidget):
         self.btn_set_default_style.clicked.connect(self._on_set_default_style)
         self.btn_gen_default_styles.clicked.connect(self._on_gen_default_styles)
 
-<<<<<<< HEAD
         return widget
 
     def _build_ai_analysis(self) -> QWidget:
@@ -434,18 +406,13 @@ class BibleStyleTab(QWidget):
         self.btn_copy_ai_prompt.clicked.connect(self._on_copy_ai_prompt)
         self.btn_apply_ai_result.clicked.connect(self._on_apply_bible_style_result)
 
-=======
->>>>>>> 47bda6f0371b0fd52f46f1d8d37803bb701dfc21
         return widget
 
     def refresh(self) -> None:
         self.char_list.clear()
         self.loc_list.clear()
         self.style_list.clear()
-<<<<<<< HEAD
         self.ai_source_list.clear()
-=======
->>>>>>> 47bda6f0371b0fd52f46f1d8d37803bb701dfc21
 
         if not self.app_state.project:
             return
@@ -568,7 +535,6 @@ class BibleStyleTab(QWidget):
                 char.continuity_tags = [
                     s.strip() for s in self.char_tags.text().split(",") if s.strip()
                 ]
-<<<<<<< HEAD
                 
                 # New fields
                 char.signature_features = self.char_sig_features.text()
@@ -587,8 +553,6 @@ class BibleStyleTab(QWidget):
                 char.color_palette = self.char_ref_palette.text()
                 char.sheet_layout_style = self.char_ref_layout.text()
                 char.reference_sheet_notes = self.char_ref_notes.toPlainText()
-=======
->>>>>>> 47bda6f0371b0fd52f46f1d8d37803bb701dfc21
                 break
         self.app_state.project.touch()
         self.refresh_callback()
@@ -772,7 +736,14 @@ class BibleStyleTab(QWidget):
             char_id
         )
         
-        # Show in dialog or copy to clipboard
+        # Copy to clipboard
+        from PySide6.QtGui import QGuiApplication
+        clipboard = QGuiApplication.clipboard()
+        clipboard.setText(prompt)
+        
+        QMessageBox.information(self, "Thành công", "Đã copy prompt tạo ảnh tham chiếu nhân vật vào Clipboard.")
+        
+        # Optional: Show in dialog for review
         from PySide6.QtWidgets import QDialog, QTextEdit, QVBoxLayout
         dialog = QDialog(self)
         dialog.setWindowTitle("Character Reference Sheet Prompt")
@@ -783,9 +754,9 @@ class BibleStyleTab(QWidget):
         edit.setReadOnly(True)
         d_layout.addWidget(edit)
         
-        copy_btn = QPushButton("Copy to Clipboard")
-        copy_btn.clicked.connect(lambda: [edit.selectAll(), edit.copy(), dialog.accept()])
-        d_layout.addWidget(copy_btn)
+        close_btn = QPushButton("Đóng")
+        close_btn.clicked.connect(dialog.accept)
+        d_layout.addWidget(close_btn)
         
         dialog.exec()
 

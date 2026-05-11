@@ -27,8 +27,9 @@ def test_main_window_tab_order(app_and_window):
         "Bible / Style",
         "Kế hoạch tập",
         "Beat Studio",
+        "Xem Beat",
         "Chất lượng",
-        "Xuất bản"
+        "Cài đặt"
     ]
     
     tab_widget = window.tabs
