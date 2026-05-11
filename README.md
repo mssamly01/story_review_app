@@ -48,9 +48,18 @@ python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
-# 3. (Tuỳ chọn) Cài AI dependency để gọi OpenAI thật
+# 3. (Tuỳ chọn) Cài AI dependency để gọi provider thật
 pip install -r requirements-ai.txt
-export OPENAI_API_KEY="sk-..."
+
+# Chọn provider qua env (default = openai). Đặt cred tương ứng:
+export OPENAI_API_KEY="sk-..."              # openai
+# export ANTHROPIC_API_KEY="sk-ant-..."     # anthropic
+# export GEMINI_API_KEY="..."               # gemini (hoặc GOOGLE_API_KEY)
+# export OLLAMA_HOST="http://localhost:11434"  # ollama (local)
+
+# Hoặc chọn provider qua flag/env runtime:
+#   AI_PROVIDER=anthropic python -m app.cli ... --real-ai
+#   python -m app.cli ... --real-ai --provider gemini
 
 # 3b. (Cho người đóng góp code) Cài dev tooling
 pip install -r requirements-dev.txt
