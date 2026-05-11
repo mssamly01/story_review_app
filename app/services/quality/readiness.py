@@ -14,9 +14,9 @@ from app.domain.validation import ValidationIssue
 from app.services.continuity_checker_service import ContinuityCheckerService
 from app.services.export_service import ExportService
 from app.services.project_service import ProjectService
-from app.services.project_validation_service import ProjectValidationService
-from app.services.prompt_quality_service import PromptQualityService
-from app.services.review_quality_service import ReviewQualityService
+from app.services.quality.prompt import PromptQualityService
+from app.services.quality.review import ReviewQualityService
+from app.services.quality.validation import ProjectValidationService
 
 
 def _utc_now_iso() -> str:

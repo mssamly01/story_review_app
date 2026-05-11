@@ -5,7 +5,7 @@ from app.services.beat_generator_service import BeatGeneratorService
 from app.services.episode_planner_service import EpisodePlannerService
 from app.services.project_service import ProjectService
 from app.services.project_template_service import ProjectTemplateService
-from app.services.project_validation_service import ProjectValidationService
+from app.services.quality.validation import ProjectValidationService
 from app.services.prompt_builder_service import PromptBuilderService
 from app.services.review_rewriter_service import ReviewRewriterService
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 from app.domain.project import Project
 from app.domain.repair import RepairAction
 from app.services.project_service import ProjectService
-from app.services.repair_suggestion_service import RepairSuggestionService
+from app.services.quality.repair import RepairSuggestionService
 
 
 class RepairController:

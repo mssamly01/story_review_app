@@ -2,7 +2,7 @@ import unittest
 
 from app.services.batch_workflow_service import BatchWorkflowService
 from app.services.bible_service import BibleService
-from app.services.prompt_quality_service import PromptQualityService
+from app.services.quality.prompt import PromptQualityService
 from tests.test_batch_workflow_service import build_project_with_chapters
 
 

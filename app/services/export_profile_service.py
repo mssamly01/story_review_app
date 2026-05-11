@@ -12,10 +12,10 @@ from typing import Any
 from app.domain.export_profile import ExportProfile
 from app.domain.project import Project
 from app.services.export_service import ExportService
-from app.services.production_readiness_service import ProductionReadinessService
+from app.services.quality.readiness import ProductionReadinessService
 from app.services.project_service import ProjectService
-from app.services.prompt_quality_service import PromptQualityService
-from app.services.review_quality_service import ReviewQualityService
+from app.services.quality.prompt import PromptQualityService
+from app.services.quality.review import ReviewQualityService
 
 
 class ExportProfileService:

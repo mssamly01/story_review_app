@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from app.domain.project import Project
-from app.services.prompt_quality_service import PromptQualityService
+from app.services.quality.prompt import PromptQualityService
 from app.services.project_service import ProjectService
 
 
