@@ -90,9 +90,11 @@ class ProjectRoundtripTests(unittest.TestCase):
 
         self.assertTrue(saved_text.startswith("{\n  "))
         saved_data = json.loads(saved_text)
+        self.assertEqual(saved_data["schema_version"], 2)
         self.assertEqual(
-            list(saved_data.keys())[:7],
+            list(saved_data.keys())[:8],
             [
+                "schema_version",
                 "project_id",
                 "title",
                 "author_source_note",

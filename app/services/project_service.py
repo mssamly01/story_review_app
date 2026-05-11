@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -10,7 +11,7 @@ from app.domain.beat import Beat
 from app.domain.character import Character
 from app.domain.episode import ReviewEpisode
 from app.domain.location import Location
-from app.domain.project import Project
+from app.domain.project import SCHEMA_VERSION, Project
 from app.domain.scene import Scene
 from app.domain.source_chapter import SourceChapter
 from app.domain.style_preset import StylePreset
@@ -307,20 +308,51 @@ class ProjectService:
             raise ValueError("Project validation failed: " + "; ".join(errors))
 
         project.touch()
+        project.schema_version = SCHEMA_VERSION
         output_path = Path(path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(
-            json.dumps(project.to_dict(), ensure_ascii=False, indent=2) + "\n",
-            encoding="utf-8",
-        )
+        payload = json.dumps(project.to_dict(), ensure_ascii=False, indent=2) + "\n"
+        self._atomic_write_text(output_path, payload)
 
     def load_project(self, path: str | Path) -> Project:
         data = json.loads(Path(path).read_text(encoding="utf-8"))
+        data = self._migrate(data)
         project = Project.from_dict(data)
         errors = self.validate_project(project)
         if errors:
             raise ValueError("Project validation failed: " + "; ".join(errors))
         return project
+
+    def _migrate(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Upgrade ``data`` in-place from older schema versions to ``SCHEMA_VERSION``.
+
+        Unknown / missing ``schema_version`` is treated as legacy v1.
+        Future migrations should add a new ``if version < N`` block and bump
+        ``SCHEMA_VERSION`` in ``app.domain.project``.
+        """
+        version = int(data.get("schema_version", 1))
+        if version > SCHEMA_VERSION:
+            raise ValueError(
+                f"Project schema_version {version} is newer than this app supports "
+                f"(max {SCHEMA_VERSION}). Upgrade the app to open this project."
+            )
+        if version < 2:
+            # v1 → v2: no structural change. Just stamp the version field so
+            # subsequent saves persist it explicitly.
+            data["schema_version"] = 2
+            version = 2
+        return data
+
+    def _atomic_write_text(self, path: Path, text: str) -> None:
+        """Write ``text`` to ``path`` atomically.
+
+        Strategy: write to a sibling ``<name>.tmp`` then ``os.replace`` it onto
+        the target. This guarantees the target file either contains the full
+        new payload or the previous payload — never a truncated half-write.
+        """
+        tmp = path.with_suffix(path.suffix + ".tmp")
+        tmp.write_text(text, encoding="utf-8")
+        os.replace(tmp, path)
 
     def find_episode(self, project: Project, episode_id: str) -> ReviewEpisode:
         for episode in project.review_episodes:
