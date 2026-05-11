@@ -219,17 +219,29 @@ class MainWindow(QMainWindow):
         self._ordered_tabs: list[QWidget] = [
             self.project_tab,
             self.source_tab,
+<<<<<<< HEAD
             self.bible_tab,
             self.planner_tab,
             self.studio_tab,
+=======
+            self.planner_tab,
+            self.studio_tab,
+            self.bible_tab,
+>>>>>>> 47bda6f0371b0fd52f46f1d8d37803bb701dfc21
             self.quality_tab,
             self.export_tab,
         ]
         self.tabs.addTab(_wrap(self.project_tab), "Dự án")
         self.tabs.addTab(_wrap(self.source_tab), "Nguồn")
+<<<<<<< HEAD
         self.tabs.addTab(_wrap(self.bible_tab), "Bible / Style")
         self.tabs.addTab(_wrap(self.planner_tab), "Kế hoạch tập")
         self.tabs.addTab(_wrap(self.studio_tab), "Beat Studio")
+=======
+        self.tabs.addTab(_wrap(self.planner_tab), "Kế hoạch tập")
+        self.tabs.addTab(_wrap(self.studio_tab), "Beat Studio")
+        self.tabs.addTab(_wrap(self.bible_tab), "Bible / Style")
+>>>>>>> 47bda6f0371b0fd52f46f1d8d37803bb701dfc21
         self.tabs.addTab(_wrap(self.quality_tab), "Chất lượng")
         self.tabs.addTab(_wrap(self.export_tab), "Xuất bản")
 

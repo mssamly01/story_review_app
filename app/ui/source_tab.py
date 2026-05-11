@@ -147,6 +147,7 @@ class SourceTab(QWidget):
             self.app_state.selected_chapter_ids = []
             return
 
+<<<<<<< HEAD
         selected_items = self.chapter_list.selectedItems()
         self.app_state.selected_chapter_ids = [item.data(ITEM_ROLE) for item in selected_items]
         
@@ -161,6 +162,15 @@ class SourceTab(QWidget):
             except LookupError:
                 self.app_state.selected_chapter_id = None
         else:
+=======
+        chapter_id = current.data(ITEM_ROLE)
+        self.app_state.selected_chapter_id = chapter_id
+        try:
+            chapter = self.project_controller.find_chapter(chapter_id)
+            if chapter:
+                self._load_chapter(chapter)
+        except LookupError:
+>>>>>>> 47bda6f0371b0fd52f46f1d8d37803bb701dfc21
             self.app_state.selected_chapter_id = None
             self._clear_editor()
 

@@ -428,6 +428,7 @@ class ReviewRewriterService:
             raise ValueError("use_ai=True requires an ai_gateway.")
         return self.ai_gateway
 
+<<<<<<< HEAD
     def _normalise_style(self, narration_style: str) -> str:
         if not narration_style:
             return "neutral"
@@ -457,3 +458,18 @@ class ReviewRewriterService:
             return "condensed"
 
         return "full"
+=======
+    def _validate_style(self, narration_style: str) -> None:
+        if narration_style not in self._allowed_styles:
+            raise ValueError(
+                f"Unknown narration_style '{narration_style}'. "
+                f"Allowed: {sorted(self._allowed_styles)}"
+            )
+
+    def _validate_density(self, retelling_density: str) -> None:
+        if retelling_density not in self._allowed_densities:
+            raise ValueError(
+                f"Unknown retelling_density '{retelling_density}'. "
+                f"Allowed: {sorted(self._allowed_densities)}"
+            )
+>>>>>>> 47bda6f0371b0fd52f46f1d8d37803bb701dfc21

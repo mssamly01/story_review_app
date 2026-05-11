@@ -133,15 +133,21 @@ class ManualAIService:
         if step == "rewrite-review":
             return self._import_rewrite(
                 project,
+<<<<<<< HEAD
                 result_data,
                 episode_id,
                 chapter_id,
+=======
+                self._flatten_grouped_result(result_data, "rewritten_beats"),
+                episode_id,
+>>>>>>> 47bda6f0371b0fd52f46f1d8d37803bb701dfc21
                 tone,
                 density,
             )
         if step == "build-prompts":
             return self._import_prompts(
                 project,
+<<<<<<< HEAD
                 result_data,
                 episode_id,
                 chapter_id,
@@ -149,6 +155,14 @@ class ManualAIService:
             )
         if step == "generate-unified-package":
             return self._import_unified_package(project, result_data, episode_id, chapter_id)
+=======
+                self._flatten_grouped_result(result_data, "prompts"),
+                episode_id,
+                style_preset_id,
+            )
+        if step == "generate-unified-package":
+            return self._import_unified_package(project, result_data, episode_id)
+>>>>>>> 47bda6f0371b0fd52f46f1d8d37803bb701dfc21
         raise ValueError(f"Unsupported step: {step}")
 
     # ── Build input_data (giống hệt cách các service build) ─────
@@ -555,6 +569,7 @@ class ManualAIService:
         chapter_id: str | None = None,
     ) -> str:
         episode = self._require_episode(project, episode_id)
+<<<<<<< HEAD
         total_beats = 0
         
         if "scenes" in result_data and isinstance(result_data["scenes"], list):
@@ -585,6 +600,26 @@ class ManualAIService:
             return f"Đã nhập gói dữ liệu cho {total_beats} nhịp của phân cảnh đang chọn."
         
         return "Không tìm thấy dữ liệu phân cảnh hợp lệ để nhập."
+=======
+
+        from app.services.beat_generator_service import BeatGeneratorService
+
+        total_beats = 0
+        if "scenes" in result_data:
+            for scene_data in result_data["scenes"]:
+                scene_id = scene_data.get("scene_id")
+                if not scene_id:
+                    continue
+                scene_gateway = _SingleResponseGateway({"beats": scene_data.get("beats", [])})
+                scene_service = BeatGeneratorService(
+                    project_service=self.project_service,
+                    ai_gateway=scene_gateway,
+                )
+                beats = scene_service.generate_unified_package_for_scene(
+                    project, episode.episode_id, scene_id, use_ai=True
+                )
+                total_beats += len(beats)
+>>>>>>> 47bda6f0371b0fd52f46f1d8d37803bb701dfc21
 
     def _group_beats_by_scene(self, data: dict[str, Any] | list[Any], target_key: str) -> dict[str, list[dict[str, Any]]]:
         """Group beats by scene_id from a flat structure."""
