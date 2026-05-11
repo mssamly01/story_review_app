@@ -17,13 +17,16 @@ def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 """Current project JSON schema version.
 
 History:
 - v1 (implicit, legacy): no ``schema_version`` field. Equivalent to v2 in
   structure; readers must migrate by stamping ``schema_version = 2``.
 - v2: explicit ``schema_version`` field on every persisted project.
+- v3: ``Beat.dialogues: list[Dialogue]`` introduced as the first piece of
+  the Novel-to-Comic direction. Older projects are upgraded by stamping
+  the version field and leaving each beat's ``dialogues`` as ``[]``.
 """
 
 
