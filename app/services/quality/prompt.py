@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from collections import Counter
 import re
+from collections import Counter
 from typing import Any
 
 from app.domain.beat import Beat
@@ -87,9 +87,7 @@ class PromptQualityService:
         score = max(0, min(100, score))
         grade = self._grade(score)
         is_ready = score >= 80 and not any(issue.severity == "error" for issue in issues)
-        suggestions = list(
-            dict.fromkeys(issue.suggestion for issue in issues if issue.suggestion)
-        )
+        suggestions = list(dict.fromkeys(issue.suggestion for issue in issues if issue.suggestion))
         return PromptQualityResult(
             beat_id=beat.beat_id,
             score=score,
@@ -105,10 +103,7 @@ class PromptQualityService:
         scene_id: str,
     ) -> list[PromptQualityResult]:
         _episode, scene = self._find_scene_context(project, scene_id)
-        return [
-            self.score_beat_prompt(project, beat.beat_id)
-            for beat in scene.ordered_beats()
-        ]
+        return [self.score_beat_prompt(project, beat.beat_id) for beat in scene.ordered_beats()]
 
     def score_episode_prompts(
         self,
@@ -131,18 +126,13 @@ class PromptQualityService:
         results = self.score_episode_prompts(project, episode_id)
         total_beats = len(results)
         average_score = (
-            round(sum(result.score for result in results) / total_beats, 2)
-            if total_beats
-            else 0.0
+            round(sum(result.score for result in results) / total_beats, 2) if total_beats else 0.0
         )
         grade_distribution = dict(Counter(result.grade for result in results))
         ready_count = sum(1 for result in results if result.is_ready)
-        issue_counter = Counter(
-            issue.category for result in results for issue in result.issues
-        )
+        issue_counter = Counter(issue.category for result in results for issue in result.issues)
         worst_beats = [
-            result.to_dict()
-            for result in sorted(results, key=lambda result: result.score)[:5]
+            result.to_dict() for result in sorted(results, key=lambda result: result.score)[:5]
         ]
 
         return {
@@ -198,9 +188,7 @@ class PromptQualityService:
             ]
         )
         for result in report["results"]:
-            top_issues = ", ".join(
-                issue["category"] for issue in result["issues"][:3]
-            ) or "None"
+            top_issues = ", ".join(issue["category"] for issue in result["issues"][:3]) or "None"
             suggestions = "; ".join(result["suggestions"][:2]) or "None"
             ready = "yes" if result["is_ready"] else "no"
             lines.append(
@@ -320,7 +308,7 @@ class PromptQualityService:
                     suggestion="Include the character default outfit for continuity.",
                     penalty=10,
                 )
-            
+
             # High Fidelity Checks
             for field_name in ["hair", "eyes", "body_type"]:
                 val = getattr(character, field_name, "")
@@ -396,11 +384,12 @@ class PromptQualityService:
             suggestion="Add the location mood if it matters visually.",
             penalty=4,
         )
-    
+
         # High Fidelity Checks
         for field_name in ["architecture_style", "recurring_props"]:
             val = getattr(location, field_name, "")
-            if isinstance(val, list): val = ", ".join(val)
+            if isinstance(val, list):
+                val = ", ".join(val)
             if val and not self._contains_visual_terms(image_prompt, val):
                 penalty += self._add_issue(
                     issues,
@@ -513,7 +502,9 @@ class PromptQualityService:
     ) -> int:
         lowered = image_prompt.lower()
         penalty = 0
-        text_terms = [term for term in self.TEXT_REQUEST_TERMS if self._contains_term(lowered, term)]
+        text_terms = [
+            term for term in self.TEXT_REQUEST_TERMS if self._contains_term(lowered, term)
+        ]
         if text_terms:
             penalty += self._add_issue(
                 issues,
@@ -571,9 +562,7 @@ class PromptQualityService:
             )
 
         missing_terms = [
-            term
-            for term in self.REQUIRED_NEGATIVE_TERMS
-            if term not in negative_prompt.lower()
+            term for term in self.REQUIRED_NEGATIVE_TERMS if term not in negative_prompt.lower()
         ]
         if missing_terms:
             return self._add_issue(

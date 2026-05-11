@@ -175,20 +175,14 @@ class PromptBuilderService:
                 "scene": scene.to_dict(),
                 "beat": beat.to_dict(),
                 "beat_id": beat.beat_id,
-                "character_bible": [
-                    character.to_dict() for character in project.characters
-                ],
-                "location_bible": [
-                    location.to_dict() for location in project.locations
-                ],
+                "character_bible": [character.to_dict() for character in project.characters],
+                "location_bible": [location.to_dict() for location in project.locations],
                 "style_preset": style_preset.to_dict() if style_preset else {},
             },
         )
         return self._prompts_from_ai_response(response, beat.beat_id)
 
-    def _prompts_from_ai_response(
-        self, response: dict[str, Any], beat_id: str
-    ) -> tuple[str, str]:
+    def _prompts_from_ai_response(self, response: dict[str, Any], beat_id: str) -> tuple[str, str]:
         if not isinstance(response, dict):
             raise ValueError("image_prompt_builder AI response must be a dict.")
 
@@ -209,13 +203,9 @@ class PromptBuilderService:
         image_prompt = selected_item.get("image_prompt")
         negative_prompt = selected_item.get("negative_prompt")
         if not isinstance(image_prompt, str) or not image_prompt.strip():
-            raise ValueError(
-                "image_prompt_builder AI image_prompt must be a non-empty string."
-            )
+            raise ValueError("image_prompt_builder AI image_prompt must be a non-empty string.")
         if not isinstance(negative_prompt, str) or not negative_prompt.strip():
-            raise ValueError(
-                "image_prompt_builder AI negative_prompt must be a non-empty string."
-            )
+            raise ValueError("image_prompt_builder AI negative_prompt must be a non-empty string.")
         return image_prompt, negative_prompt
 
     def _build_image_prompt(
@@ -235,6 +225,7 @@ class PromptBuilderService:
             f"emotion: {beat.emotion}" if beat.emotion else "",
             f"camera: {beat.shot_type}" if beat.shot_type else "",
             f"mood: {scene.mood}" if scene.mood else "",
+            "single clear visual moment",
             "coherent composition, masterpiece, high details",
         ]
 
@@ -289,27 +280,28 @@ class PromptBuilderService:
             if not character:
                 character_prompts.append(character_id)
                 continue
-            
+
             # Smart concatenation to avoid repeating name if visual_prompt_base already has it
             name_part = character.name
-            if character.visual_prompt_base and character.name.lower() in character.visual_prompt_base.lower():
+            if (
+                character.visual_prompt_base
+                and character.name.lower() in character.visual_prompt_base.lower()
+            ):
                 name_part = ""
 
             parts = [
                 character.visual_prompt_base,
                 name_part,
-                character.gender,
-                character.age_description,
-                character.appearance,
-                character.face_details,
-                character.hair,
-                character.eyes,
-                character.body_type,
                 f"wearing {character.default_outfit}" if character.default_outfit else "",
-                ", ".join(character.outfit_variants),
-                character.personality,
-                ", ".join(character.continuity_tags),
+                character.signature_features,
+                f"keep consistent: {character.continuity_must_keep}" if character.continuity_must_keep else "",
             ]
+            
+            # If reference image or note exists, add consistency instruction
+            if character.reference_image_paths or character.reference_image_note:
+                parts.append("use the character reference sheet for visual consistency")
+                if character.reference_image_note:
+                    parts.append(f"({character.reference_image_note})")
             character_prompts.append(self._join_unique_parts(parts))
         return ", ".join(character_prompts)
 
@@ -357,9 +349,7 @@ class PromptBuilderService:
             return project.style_presets[0]
         return None
 
-    def _find_character(
-        self, project: Project, character_id: str
-    ) -> Character | None:
+    def _find_character(self, project: Project, character_id: str) -> Character | None:
         for character in project.characters:
             if character.character_id == character_id or character.name == character_id:
                 return character
@@ -381,9 +371,7 @@ class PromptBuilderService:
                         return episode, scene, beat
         raise LookupError(f"Beat not found: {beat_id}")
 
-    def _find_scene_context(
-        self, project: Project, scene_id: str
-    ) -> tuple[ReviewEpisode, Scene]:
+    def _find_scene_context(self, project: Project, scene_id: str) -> tuple[ReviewEpisode, Scene]:
         for episode in project.review_episodes:
             for scene in episode.scenes:
                 if scene.scene_id == scene_id:
@@ -419,7 +407,8 @@ class PromptBuilderService:
         seen = set()
         cleaned_parts = []
         for part in parts:
-            if not part: continue
+            if not part:
+                continue
             cleaned = re.sub(r"\s+", " ", part).strip(" ,")
             if cleaned and cleaned.lower() not in seen:
                 cleaned_parts.append(cleaned)

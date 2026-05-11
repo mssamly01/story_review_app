@@ -60,9 +60,6 @@ class PromptQualityResult:
             score=int(data["score"]),
             grade=data["grade"],
             is_ready=bool(data["is_ready"]),
-            issues=[
-                PromptQualityIssue.from_dict(issue)
-                for issue in data.get("issues", [])
-            ],
+            issues=[PromptQualityIssue.from_dict(issue) for issue in data.get("issues", [])],
             suggestions=list(data.get("suggestions", [])),
         )

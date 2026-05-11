@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from app.domain.project import Project
-from app.services.production_readiness_service import ProductionReadinessService
 from app.services.project_service import ProjectService
+from app.services.quality.readiness import ProductionReadinessService
 
 
 class ProductionReadinessController:

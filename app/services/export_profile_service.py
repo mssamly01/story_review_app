@@ -5,17 +5,17 @@ from __future__ import annotations
 import csv
 import io
 import json
-from pathlib import Path
 import re
+from pathlib import Path
 from typing import Any
 
 from app.domain.export_profile import ExportProfile
 from app.domain.project import Project
 from app.services.export_service import ExportService
-from app.services.production_readiness_service import ProductionReadinessService
 from app.services.project_service import ProjectService
-from app.services.prompt_quality_service import PromptQualityService
-from app.services.review_quality_service import ReviewQualityService
+from app.services.quality.prompt import PromptQualityService
+from app.services.quality.readiness import ProductionReadinessService
+from app.services.quality.review import ReviewQualityService
 
 
 class ExportProfileService:
@@ -284,9 +284,7 @@ class ExportProfileService:
             "|---|---:|:---:|:---:|---|",
         ]
         for result in report["results"]:
-            top_issues = ", ".join(
-                issue["category"] for issue in result["issues"][:3]
-            ) or "None"
+            top_issues = ", ".join(issue["category"] for issue in result["issues"][:3]) or "None"
             ready = "yes" if result["is_ready"] else "no"
             lines.append(
                 f"| `{result['beat_id']}` | {result['score']} | "

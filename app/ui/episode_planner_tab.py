@@ -3,31 +3,30 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
     QGridLayout,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QListWidget,
     QListWidgetItem,
+    QMessageBox,
     QPushButton,
     QVBoxLayout,
     QWidget,
-    QMessageBox,
-    QFileDialog,
-    QDialog,
 )
 
 if TYPE_CHECKING:
-    from app.ui.app_state import AppState
-    from app.controllers.project_controller import ProjectController
-    from app.controllers.generation_controller import GenerationController
     from app.controllers.batch_workflow_controller import BatchWorkflowController
+    from app.controllers.generation_controller import GenerationController
     from app.controllers.manual_ai_controller import ManualAIController
+    from app.controllers.project_controller import ProjectController
+    from app.ui.app_state import AppState
 
-from app.services.manual_ai_service import ManualAIService
 from app.ui.manual_ai_dialogs import PromptExportDialog, ResultImportDialog
 
 ITEM_ROLE = Qt.ItemDataRole.UserRole
@@ -51,7 +50,7 @@ class EpisodePlannerTab(QWidget):
         self.batch_controller = batch_controller
         self.manual_ai_controller = manual_ai_controller
         self.refresh_callback = refresh_callback
-        
+
         self._tone_map = {
             "bí ẩn": "mysterious",
             "kịch tính": "dramatic",
@@ -82,14 +81,14 @@ class EpisodePlannerTab(QWidget):
         # --- Middle: Planner Controls ---
         mid_widget = QWidget()
         mid_layout = QVBoxLayout(mid_widget)
-        
+
         form_group = QGridLayout()
         self.title_edit = QLineEdit("Tập 1")
         self.tone_combo = QComboBox()
         self.tone_combo.addItems(list(self._tone_map.keys()))
         self.density_combo = QComboBox()
         self.density_combo.addItems(list(self._density_map.keys()))
-        
+
         form_group.addWidget(QLabel("Tiêu đề tập:"), 0, 0)
         form_group.addWidget(self.title_edit, 0, 1)
         form_group.addWidget(QLabel("Phong cách (Tone):"), 1, 0)
@@ -104,13 +103,29 @@ class EpisodePlannerTab(QWidget):
         mid_layout.addWidget(self.btn_prompt_plan)
         mid_layout.addWidget(self.btn_import_plan)
 
-
         mid_layout.addStretch()
         main_layout.addWidget(mid_widget, 1)
 
         # --- Right: Episode List ---
         right_widget = QWidget()
         right_layout = QVBoxLayout(right_widget)
+        
+        # Readiness Status
+        status_group = QGroupBox("Trạng thái sẵn sàng")
+        status_layout = QVBoxLayout(status_group)
+        self.lbl_status_char = QLabel("• Nhân vật: -")
+        self.lbl_status_loc = QLabel("• Địa điểm: -")
+        self.lbl_status_style = QLabel("• Style Preset: -")
+        self.lbl_status_warning = QLabel("")
+        self.lbl_status_warning.setWordWrap(True)
+        self.lbl_status_warning.setStyleSheet("color: #ffaa00; font-style: italic;")
+        
+        status_layout.addWidget(self.lbl_status_char)
+        status_layout.addWidget(self.lbl_status_loc)
+        status_layout.addWidget(self.lbl_status_style)
+        status_layout.addWidget(self.lbl_status_warning)
+        right_layout.addWidget(status_group)
+
         right_layout.addWidget(QLabel("Danh sách tập truyện:"))
         self.episode_list = QListWidget()
         right_layout.addWidget(self.episode_list)
@@ -127,15 +142,16 @@ class EpisodePlannerTab(QWidget):
     def refresh(self) -> None:
         self.chapter_list.clear()
         self.episode_list.clear()
-        
+
         if not self.app_state.project:
+            self._update_readiness_status(None)
             return
 
         for chapter in self.app_state.project.source_chapters:
             item = QListWidgetItem(f"{chapter.chapter_number} | {chapter.title}")
             item.setData(ITEM_ROLE, chapter.chapter_id)
             self.chapter_list.addItem(item)
-            if chapter.chapter_id == self.app_state.selected_chapter_id:
+            if chapter.chapter_id in (self.app_state.selected_chapter_ids or []):
                 item.setSelected(True)
 
         for ep in self.app_state.project.review_episodes:
@@ -144,6 +160,34 @@ class EpisodePlannerTab(QWidget):
             self.episode_list.addItem(item)
             if ep.episode_id == self.app_state.selected_episode_id:
                 self.episode_list.setCurrentItem(item)
+        
+        self._update_readiness_status(self.app_state.project)
+
+    def _update_readiness_status(self, project) -> None:
+        if not project:
+            self.lbl_status_char.setText("• Nhân vật: -")
+            self.lbl_status_loc.setText("• Địa điểm: -")
+            self.lbl_status_style.setText("• Style Preset: -")
+            self.lbl_status_warning.setText("")
+            return
+            
+        chars = len(project.characters)
+        locs = len(project.locations)
+        styles = len(project.style_presets)
+        
+        self.lbl_status_char.setText(f"• Nhân vật: {'✅ Có' if chars > 0 else '❌ Thiếu'} ({chars})")
+        self.lbl_status_char.setStyleSheet("color: green;" if chars > 0 else "color: red;")
+        
+        self.lbl_status_loc.setText(f"• Địa điểm: {'✅ Có' if locs > 0 else '❌ Thiếu'} ({locs})")
+        self.lbl_status_loc.setStyleSheet("color: green;" if locs > 0 else "color: red;")
+        
+        self.lbl_status_style.setText(f"• Style Preset: {'✅ Có' if styles > 0 else '❌ Thiếu'} ({styles})")
+        self.lbl_status_style.setStyleSheet("color: green;" if styles > 0 else "color: red;")
+        
+        if chars == 0 or locs == 0 or styles == 0:
+            self.lbl_status_warning.setText("⚠️ Bạn nên phân tích Bible / Style trước để kế hoạch tập và prompt ảnh nhất quán hơn.")
+        else:
+            self.lbl_status_warning.setText("")
 
     def _on_episode_select(self, current: QListWidgetItem | None, previous: object) -> None:
         if current:
@@ -165,7 +209,8 @@ class EpisodePlannerTab(QWidget):
                 break
 
         reply = QMessageBox.question(
-            self, "Xác nhận xóa",
+            self,
+            "Xác nhận xóa",
             f"Bạn có chắc muốn xóa tập '{episode_name}'?\nTất cả scenes và beats trong tập này sẽ bị xóa.\nHành động này không thể hoàn tác.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
@@ -173,8 +218,7 @@ class EpisodePlannerTab(QWidget):
             return
 
         self.app_state.project.review_episodes = [
-            ep for ep in self.app_state.project.review_episodes
-            if ep.episode_id != episode_id
+            ep for ep in self.app_state.project.review_episodes if ep.episode_id != episode_id
         ]
         self.app_state.project.touch()
         self.app_state.selected_episode_id = None

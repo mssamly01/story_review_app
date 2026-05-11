@@ -1,0 +1,20 @@
+# Optional AI dependencies. Install only when using real AI providers.
+#
+#   pip install -r requirements-ai.txt
+#
+# Provider selection at runtime is controlled by:
+#   * CLI:  --real-ai --provider {openai|anthropic|gemini|ollama}
+#   * Env:  AI_PROVIDER=openai|anthropic|gemini|ollama
+# Provider-specific credentials:
+#   * OPENAI_API_KEY     for openai
+#   * ANTHROPIC_API_KEY  for anthropic
+#   * GEMINI_API_KEY (or GOOGLE_API_KEY) for gemini
+#   * OLLAMA_HOST        for ollama (default: http://localhost:11434)
+#
+# Ollama uses urllib from the standard library, so no Python package is
+# listed for it — the SDK install only covers the cloud providers.
+
+openai>=1.40,<2
+anthropic>=0.40,<1
+google-genai>=1.0,<3
+tenacity>=8,<10

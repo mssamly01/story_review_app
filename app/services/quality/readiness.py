@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import json
 from collections import Counter
 from datetime import datetime, timezone
-import json
 from typing import Any, Callable
 
 from app.domain.episode import ReviewEpisode
@@ -14,9 +14,9 @@ from app.domain.validation import ValidationIssue
 from app.services.continuity_checker_service import ContinuityCheckerService
 from app.services.export_service import ExportService
 from app.services.project_service import ProjectService
-from app.services.project_validation_service import ProjectValidationService
-from app.services.prompt_quality_service import PromptQualityService
-from app.services.review_quality_service import ReviewQualityService
+from app.services.quality.prompt import PromptQualityService
+from app.services.quality.review import ReviewQualityService
+from app.services.quality.validation import ProjectValidationService
 
 
 def _utc_now_iso() -> str:
@@ -76,9 +76,7 @@ class ProductionReadinessService:
         validation_error_count = self._count_severity(validation_issues, "error")
         validation_warning_count = self._count_severity(validation_issues, "warning")
         issue_health = self._issue_health_score(validation_issues, continuity_issues)
-        overall_score = round(
-            review_average * 0.4 + prompt_average * 0.4 + issue_health * 0.2
-        )
+        overall_score = round(review_average * 0.4 + prompt_average * 0.4 + issue_health * 0.2)
         blocked_reasons = self._blocked_reasons(
             validation_issues,
             export_readiness,
@@ -132,9 +130,7 @@ class ProductionReadinessService:
         project: Project,
         episode_ids: list[str],
     ) -> dict[str, Any]:
-        reports = [
-            self.build_episode_report(project, episode_id) for episode_id in episode_ids
-        ]
+        reports = [self.build_episode_report(project, episode_id) for episode_id in episode_ids]
         status_counts = Counter(report.status for report in reports)
         average_score = (
             round(sum(report.overall_score for report in reports) / len(reports), 2)
@@ -205,40 +201,32 @@ class ProductionReadinessService:
         validation_issues: list[ValidationIssue],
     ) -> dict[str, Any]:
         scenes = list(episode.scenes)
-        beats = [
-            beat
-            for scene in scenes
-            for beat in scene.ordered_beats()
-        ]
+        beats = [beat for scene in scenes for beat in scene.ordered_beats()]
         checks: dict[str, Any] = {
             "episode_exists": True,
             "has_scenes": bool(scenes),
             "has_beats": bool(beats),
-            "all_beats_have_review_text": all(
-                bool(beat.review_text.strip()) for beat in beats
-            )
-            if beats
-            else False,
-            "all_beats_have_image_prompt": all(
-                bool(beat.image_prompt.strip()) for beat in beats
-            )
-            if beats
-            else False,
-            "all_beats_have_negative_prompt": all(
-                bool(beat.negative_prompt.strip()) for beat in beats
-            )
-            if beats
-            else False,
-            "no_validation_errors": not self.validation_service.has_errors(
-                validation_issues
+            "all_beats_have_review_text": (
+                all(bool(beat.review_text.strip()) for beat in beats) if beats else False
             ),
+            "all_beats_have_image_prompt": (
+                all(bool(beat.image_prompt.strip()) for beat in beats) if beats else False
+            ),
+            "all_beats_have_negative_prompt": (
+                all(bool(beat.negative_prompt.strip()) for beat in beats) if beats else False
+            ),
+            "no_validation_errors": not self.validation_service.has_errors(validation_issues),
             "markdown_exportable": False,
             "json_exportable": False,
             "csv_exportable": False,
             "errors": [],
         }
 
-        self._try_export(checks, "markdown_exportable", lambda: self.export_service.export_episode_markdown(project, episode.episode_id))
+        self._try_export(
+            checks,
+            "markdown_exportable",
+            lambda: self.export_service.export_episode_markdown(project, episode.episode_id),
+        )
         self._try_export(
             checks,
             "json_exportable",
@@ -247,7 +235,11 @@ class ProductionReadinessService:
                 ensure_ascii=False,
             ),
         )
-        self._try_export(checks, "csv_exportable", lambda: self.export_service.export_episode_csv(project, episode.episode_id))
+        self._try_export(
+            checks,
+            "csv_exportable",
+            lambda: self.export_service.export_episode_csv(project, episode.episode_id),
+        )
         checks["is_ready"] = all(
             checks[key]
             for key in [
@@ -323,8 +315,7 @@ class ProductionReadinessService:
             return "blocked"
         if review_average >= 80 and prompt_average >= 80:
             has_warning = any(
-                issue.severity == "warning"
-                for issue in [*validation_issues, *continuity_issues]
+                issue.severity == "warning" for issue in [*validation_issues, *continuity_issues]
             )
             return "needs_review" if has_warning else "ready"
         if review_average >= 60 and prompt_average >= 60:
@@ -339,19 +330,30 @@ class ProductionReadinessService:
         prompt_summary: dict[str, Any],
         export_readiness: dict[str, Any],
     ) -> list[str]:
-        categories = {
-            issue.category for issue in [*validation_issues, *continuity_issues]
-        }
+        categories = {issue.category for issue in [*validation_issues, *continuity_issues]}
         recommendations: list[str] = []
 
-        if not export_readiness.get("all_beats_have_review_text") or "empty_review_text" in categories:
+        if (
+            not export_readiness.get("all_beats_have_review_text")
+            or "empty_review_text" in categories
+        ):
             recommendations.append("Run rewrite-review for missing beats.")
-        if not export_readiness.get("all_beats_have_image_prompt") or "empty_image_prompt" in categories:
+        if (
+            not export_readiness.get("all_beats_have_image_prompt")
+            or "empty_image_prompt" in categories
+        ):
             recommendations.append("Run build-prompts for missing beats.")
-        if not export_readiness.get("all_beats_have_negative_prompt") or "empty_negative_prompt" in categories:
-            recommendations.append("Add negative prompts for beats that already have image prompts.")
+        if (
+            not export_readiness.get("all_beats_have_negative_prompt")
+            or "empty_negative_prompt" in categories
+        ):
+            recommendations.append(
+                "Add negative prompts for beats that already have image prompts."
+            )
         if "broken_reference" in categories:
-            recommendations.append("Fix broken episode, scene, beat, or bible references before export.")
+            recommendations.append(
+                "Fix broken episode, scene, beat, or bible references before export."
+            )
         if "character_missing_visual_base" in categories:
             recommendations.append("Update Character Bible visual_prompt_base.")
         if "location_missing_visual_base" in categories:
@@ -370,7 +372,9 @@ class ProductionReadinessService:
         if float(review_summary.get("average_score", 0.0)) < 80:
             recommendations.append("Improve review narration for low-scoring beats.")
         if not export_readiness.get("is_ready"):
-            recommendations.append("Complete missing review text, prompts, and negative prompts before export.")
+            recommendations.append(
+                "Complete missing review text, prompts, and negative prompts before export."
+            )
 
         return list(dict.fromkeys(recommendations))[:8]
 
@@ -430,7 +434,13 @@ class ProductionReadinessService:
         ]
         if issues:
             for issue in issues:
-                target = issue.get("beat_id") or issue.get("scene_id") or issue.get("entity_id") or issue.get("entity_type") or "project"
+                target = (
+                    issue.get("beat_id")
+                    or issue.get("scene_id")
+                    or issue.get("entity_id")
+                    or issue.get("entity_type")
+                    or "project"
+                )
                 lines.append(
                     f"- [{issue['severity']}] {issue['category']} ({target}): {issue['message']}"
                 )
@@ -446,10 +456,7 @@ class ProductionReadinessService:
     def _worst_beats(self, values: list[dict[str, Any]]) -> list[str]:
         if not values:
             return ["- None"]
-        return [
-            f"- `{item['beat_id']}`: {item['score']} ({item['grade']})"
-            for item in values[:5]
-        ]
+        return [f"- `{item['beat_id']}`: {item['score']} ({item['grade']})" for item in values[:5]]
 
     def _count_severity(
         self,

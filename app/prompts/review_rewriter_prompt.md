@@ -50,4 +50,3 @@ Rewrite planned Beat objects into natural Vietnamese review narration.
   ]
 }
 ```
-

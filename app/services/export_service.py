@@ -82,14 +82,10 @@ class ExportService:
 
         return "\n".join(lines).rstrip() + "\n"
 
-    def export_episode_to_markdown(
-        self, project: Project, episode_id: str
-    ) -> str:
+    def export_episode_to_markdown(self, project: Project, episode_id: str) -> str:
         return self.export_episode_markdown(project, episode_id)
 
-    def export_episode_json(
-        self, project: Project, episode_id: str
-    ) -> dict[str, Any]:
+    def export_episode_json(self, project: Project, episode_id: str) -> dict[str, Any]:
         episode = self.project_service.find_episode(project, episode_id)
         character_ids = self._used_character_ids(episode)
         location_ids = self._used_location_ids(episode)
@@ -115,15 +111,10 @@ class ExportService:
                 "summary": episode.summary,
                 "hook": episode.hook,
                 "cliffhanger": episode.cliffhanger,
-                "scene_ids": [
-                    scene.scene_id for scene in self._ordered_scenes(episode)
-                ],
+                "scene_ids": [scene.scene_id for scene in self._ordered_scenes(episode)],
                 "estimated_beats": episode.estimated_beats,
             },
-            "scenes": [
-                self._scene_export_dict(scene)
-                for scene in self._ordered_scenes(episode)
-            ],
+            "scenes": [self._scene_export_dict(scene) for scene in self._ordered_scenes(episode)],
             "beats": [
                 beat.to_dict()
                 for scene in self._ordered_scenes(episode)
@@ -132,16 +123,12 @@ class ExportService:
             "characters_used": list(character_ids),
             "locations_used": list(location_ids),
             "characters": [
-                character.to_dict()
-                for character in self._characters_by_id(project, character_ids)
+                character.to_dict() for character in self._characters_by_id(project, character_ids)
             ],
             "locations": [
-                location.to_dict()
-                for location in self._locations_by_id(project, location_ids)
+                location.to_dict() for location in self._locations_by_id(project, location_ids)
             ],
-            "style_preset": (
-                style_preset.to_dict() if style_preset is not None else None
-            ),
+            "style_preset": (style_preset.to_dict() if style_preset is not None else None),
         }
 
     def export_episode_csv(self, project: Project, episode_id: str) -> str:
@@ -160,9 +147,7 @@ class ExportService:
 
         return output.getvalue()
 
-    def export_review_script_txt(
-        self, project: Project, episode_id: str
-    ) -> str:
+    def export_review_script_txt(self, project: Project, episode_id: str) -> str:
         episode = self.project_service.find_episode(project, episode_id)
         lines = [episode.title]
 
@@ -174,9 +159,7 @@ class ExportService:
 
         return "\n".join(lines).rstrip() + "\n"
 
-    def export_image_prompts_txt(
-        self, project: Project, episode_id: str
-    ) -> str:
+    def export_image_prompts_txt(self, project: Project, episode_id: str) -> str:
         episode = self.project_service.find_episode(project, episode_id)
         lines = [episode.title]
 
@@ -202,17 +185,13 @@ class ExportService:
         path.write_text(content, encoding="utf-8")
         return path
 
-    def write_json_file(
-        self, data: dict[str, Any], output_path: str | Path
-    ) -> Path:
+    def write_json_file(self, data: dict[str, Any], output_path: str | Path) -> Path:
         return self.write_text_file(
             json.dumps(data, ensure_ascii=False, indent=2) + "\n",
             output_path,
         )
 
-    def save_episode_markdown(
-        self, project: Project, episode_id: str, path: str | Path
-    ) -> None:
+    def save_episode_markdown(self, project: Project, episode_id: str, path: str | Path) -> None:
         self.write_text_file(self.export_episode_markdown(project, episode_id), path)
 
     def _beat_markdown(self, beat: Beat) -> list[str]:
@@ -229,9 +208,7 @@ class ExportService:
         ]
 
         if beat.continuity_tags:
-            lines.append(
-                f"- Continuity tags: {', '.join(beat.continuity_tags)}"
-            )
+            lines.append(f"- Continuity tags: {', '.join(beat.continuity_tags)}")
 
         lines.extend(["", "Review text:", beat.review_text or "_Not written yet._"])
 
@@ -307,27 +284,13 @@ class ExportService:
                 self._append_unique(location_ids, beat.location)
         return [location_id for location_id in location_ids if location_id]
 
-    def _characters_by_id(
-        self, project: Project, character_ids: list[str]
-    ) -> list[Character]:
-        by_id = {
-            character.character_id: character for character in project.characters
-        }
-        return [
-            by_id[character_id]
-            for character_id in character_ids
-            if character_id in by_id
-        ]
+    def _characters_by_id(self, project: Project, character_ids: list[str]) -> list[Character]:
+        by_id = {character.character_id: character for character in project.characters}
+        return [by_id[character_id] for character_id in character_ids if character_id in by_id]
 
-    def _locations_by_id(
-        self, project: Project, location_ids: list[str]
-    ) -> list[Location]:
+    def _locations_by_id(self, project: Project, location_ids: list[str]) -> list[Location]:
         by_id = {location.location_id: location for location in project.locations}
-        return [
-            by_id[location_id]
-            for location_id in location_ids
-            if location_id in by_id
-        ]
+        return [by_id[location_id] for location_id in location_ids if location_id in by_id]
 
     def _selected_style_preset(self, project: Project) -> StylePreset | None:
         if not project.style_presets:

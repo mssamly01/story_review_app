@@ -66,4 +66,3 @@ Analyze a source chapter and extract structured story information that can later
   "cliffhanger_candidates": []
 }
 ```
-

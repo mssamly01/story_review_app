@@ -41,9 +41,7 @@ class ContinuityCheckerService:
     def __init__(self, project_service: ProjectService | None = None) -> None:
         self.project_service = project_service or ProjectService()
 
-    def check_episode(
-        self, project: Project, episode_id: str
-    ) -> list[ValidationIssue]:
+    def check_episode(self, project: Project, episode_id: str) -> list[ValidationIssue]:
         episode = self.project_service.find_episode(project, episode_id)
         issues: list[ValidationIssue] = []
         for scene in episode.scenes:
@@ -117,12 +115,8 @@ class ContinuityCheckerService:
         issues: list[ValidationIssue],
     ) -> None:
         beat_id = getattr(beat, "beat_id", "")
-        characters_by_id = {
-            character.character_id: character for character in project.characters
-        }
-        locations_by_id = {
-            location.location_id: location for location in project.locations
-        }
+        characters_by_id = {character.character_id: character for character in project.characters}
+        locations_by_id = {location.location_id: location for location in project.locations}
         image_prompt = str(getattr(beat, "image_prompt", "") or "")
         negative_prompt = str(getattr(beat, "negative_prompt", "") or "")
         review_text = str(getattr(beat, "review_text", "") or "")
@@ -134,10 +128,7 @@ class ContinuityCheckerService:
                     issues,
                     severity="error",
                     category="broken_reference",
-                    message=(
-                        f"Beat {beat_id} references missing character "
-                        f"{character_id}."
-                    ),
+                    message=(f"Beat {beat_id} references missing character " f"{character_id}."),
                     suggestion="Add the character bible entry or remove the reference.",
                     entity_type="Character",
                     entity_id=character_id,
@@ -409,9 +400,7 @@ class ContinuityCheckerService:
             return []
         lowered_negative = negative_prompt.lower()
         return [
-            term
-            for term in style.forbidden_terms
-            if term and term.lower() not in lowered_negative
+            term for term in style.forbidden_terms if term and term.lower() not in lowered_negative
         ]
 
     def _selected_style_preset(self, project: Project) -> Any | None:

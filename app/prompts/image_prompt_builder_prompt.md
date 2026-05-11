@@ -43,4 +43,3 @@ Generate consistent English image prompts and negative prompts for Beat objects.
   ]
 }
 ```
-

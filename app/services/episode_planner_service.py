@@ -32,6 +32,14 @@ class EpisodePlannerService:
         "fast-paced",
     }
     _allowed_retelling_densities = {"full", "balanced", "condensed"}
+    _style_map = {
+        "huyền bí": "mysterious",
+        "kịch tính": "dramatic",
+        "bi tráng": "dramatic",
+        "thân thiện": "friendly",
+        "hài hước": "humorous",
+        "nhanh": "fast-paced",
+    }
     _base_target_beats_by_density = {
         "full": 5,
         "balanced": 4,
@@ -59,14 +67,14 @@ class EpisodePlannerService:
         retelling_density: str,
         episode_title: str | None = None,
     ) -> ReviewEpisode:
+        narration_style = self._normalise_style(narration_style)
+        retelling_density = self._normalise_density(retelling_density)
         self._validate_plan_request(
             selected_source_chapter_ids=selected_source_chapter_ids,
             narration_style=narration_style,
             retelling_density=retelling_density,
         )
-        source_chapters = self._find_source_chapters(
-            project, selected_source_chapter_ids
-        )
+        source_chapters = self._find_source_chapters(project, selected_source_chapter_ids)
         if self.use_ai:
             return self._plan_episode_with_ai(
                 project=project,
@@ -78,8 +86,7 @@ class EpisodePlannerService:
             )
 
         parsed_results = [
-            self.story_parser_service.parse(source_chapter)
-            for source_chapter in source_chapters
+            self.story_parser_service.parse(source_chapter) for source_chapter in source_chapters
         ]
         title = episode_title or self._build_episode_title(source_chapters)
 
@@ -103,9 +110,7 @@ class EpisodePlannerService:
                 parsed_result=parsed_result,
                 retelling_density=retelling_density,
             )
-            source_chapter.parsed_scene_ids.extend(
-                scene.scene_id for scene in planned_scenes
-            )
+            source_chapter.parsed_scene_ids.extend(scene.scene_id for scene in planned_scenes)
 
         project.touch()
         return episode
@@ -142,12 +147,8 @@ class EpisodePlannerService:
                 ],
                 "narration_style": narration_style,
                 "retelling_density": retelling_density,
-                "character_bible": [
-                    character.to_dict() for character in project.characters
-                ],
-                "location_bible": [
-                    location.to_dict() for location in project.locations
-                ],
+                "character_bible": [character.to_dict() for character in project.characters],
+                "location_bible": [location.to_dict() for location in project.locations],
             },
         )
         plan = self._normalise_ai_plan(
@@ -187,9 +188,7 @@ class EpisodePlannerService:
             )
 
         for source_chapter in source_chapters:
-            source_chapter.parsed_scene_ids.extend(
-                scene.scene_id for scene in planned_scenes
-            )
+            source_chapter.parsed_scene_ids.extend(scene.scene_id for scene in planned_scenes)
 
         project.touch()
         return episode
@@ -212,9 +211,7 @@ class EpisodePlannerService:
 
         scenes_data = response.get("scenes", [])
         if not isinstance(scenes_data, list) or not scenes_data:
-            raise ValueError(
-                "episode_planner AI response field 'scenes' must be a non-empty list."
-            )
+            raise ValueError("episode_planner AI response field 'scenes' must be a non-empty list.")
 
         scenes = [
             self._normalise_ai_scene(index, scene_data)
@@ -222,26 +219,20 @@ class EpisodePlannerService:
         ]
         return {
             "title": str(
-                episode_data.get("episode_title")
-                or response.get("episode_title")
-                or fallback_title
+                episode_data.get("episode_title") or response.get("episode_title") or fallback_title
             ),
             "summary": str(
-                episode_data.get("episode_summary")
-                or response.get("episode_summary")
-                or ""
+                episode_data.get("episode_summary") or response.get("episode_summary") or ""
             ),
-            "tone": str(episode_data.get("tone") or narration_style),
-            "density": str(episode_data.get("density") or retelling_density),
+            "tone": self._normalise_style(str(episode_data.get("tone") or narration_style)),
+            "density": self._normalise_density(str(episode_data.get("density") or retelling_density)),
             "hook": str(episode_data.get("hook") or response.get("hook") or ""),
             "cliffhanger": str(response.get("cliffhanger", "")),
             "source_chapter_ids": list(selected_source_chapter_ids),
             "scenes": scenes,
         }
 
-    def _normalise_ai_scene(
-        self, index: int, scene_data: Any
-    ) -> dict[str, Any]:
+    def _normalise_ai_scene(self, index: int, scene_data: Any) -> dict[str, Any]:
         if not isinstance(scene_data, dict):
             raise ValueError("episode_planner AI scene items must be dicts.")
         return {
@@ -316,9 +307,7 @@ class EpisodePlannerService:
         last_title = source_chapters[-1].title
         return f"Review: {first_title} - {last_title}"
 
-    def _build_episode_summary(
-        self, parsed_results: list[ParsedChapterResult]
-    ) -> str:
+    def _build_episode_summary(self, parsed_results: list[ParsedChapterResult]) -> str:
         scene_count = sum(len(result.scene_candidates) for result in parsed_results)
         event_count = sum(len(result.important_events) for result in parsed_results)
         return (
@@ -327,17 +316,13 @@ class EpisodePlannerService:
             "important events before beat generation."
         )
 
-    def _build_hook(
-        self, parsed_results: list[ParsedChapterResult], title: str
-    ) -> str:
+    def _build_hook(self, parsed_results: list[ParsedChapterResult], title: str) -> str:
         first_event = self._first_important_event(parsed_results)
         if first_event:
             return f"{first_event.summary}"
         return f"{title} begins with a scene that should be retold in detail."
 
-    def _build_cliffhanger(
-        self, parsed_results: list[ParsedChapterResult]
-    ) -> str:
+    def _build_cliffhanger(self, parsed_results: list[ParsedChapterResult]) -> str:
         last_event = self._last_important_event(parsed_results)
         if last_event:
             return f"Continue from this unresolved moment: {last_event.summary}"
@@ -388,8 +373,7 @@ class EpisodePlannerService:
         self, project: Project, selected_source_chapter_ids: list[str]
     ) -> list[SourceChapter]:
         chapters_by_id = {
-            source_chapter.chapter_id: source_chapter
-            for source_chapter in project.source_chapters
+            source_chapter.chapter_id: source_chapter for source_chapter in project.source_chapters
         }
         missing_ids = [
             chapter_id
@@ -397,18 +381,43 @@ class EpisodePlannerService:
             if chapter_id not in chapters_by_id
         ]
         if missing_ids:
-            raise LookupError(
-                "SourceChapter not found: " + ", ".join(missing_ids)
-            )
-        return [
-            chapters_by_id[chapter_id]
-            for chapter_id in selected_source_chapter_ids
-        ]
+            raise LookupError("SourceChapter not found: " + ", ".join(missing_ids))
+        return [chapters_by_id[chapter_id] for chapter_id in selected_source_chapter_ids]
 
     def _require_ai_gateway(self) -> AIGateway:
         if self.ai_gateway is None:
             raise ValueError("use_ai=True requires an ai_gateway.")
         return self.ai_gateway
+
+    def _normalise_style(self, narration_style: str) -> str:
+        if not narration_style:
+            return "neutral"
+        style_lower = narration_style.lower()
+        if style_lower in self._allowed_narration_styles:
+            return style_lower
+
+        # Map Vietnamese terms
+        for vn_term, en_key in self._style_map.items():
+            if vn_term in style_lower:
+                return en_key
+
+        return "neutral"
+
+    def _normalise_density(self, retelling_density: str) -> str:
+        if not retelling_density:
+            return "full"
+        density_lower = retelling_density.lower()
+        if density_lower in self._allowed_retelling_densities:
+            return density_lower
+
+        if "đầy đủ" in density_lower or "full" in density_lower:
+            return "full"
+        if "cân bằng" in density_lower or "balanced" in density_lower:
+            return "balanced"
+        if "tóm tắt" in density_lower or "condensed" in density_lower:
+            return "condensed"
+
+        return "full"
 
     def _validate_plan_request(
         self,
@@ -419,5 +428,8 @@ class EpisodePlannerService:
     ) -> None:
         if not selected_source_chapter_ids:
             raise ValueError("At least one source chapter must be selected.")
-        # Relaxed for AI flexibility
-        pass
+        # Only validate that they are normalized strings now
+        if narration_style not in self._allowed_narration_styles:
+            raise ValueError(f"Invalid narration_style: {narration_style}")
+        if retelling_density not in self._allowed_retelling_densities:
+            raise ValueError(f"Invalid retelling_density: {retelling_density}")

@@ -1,7 +1,9 @@
 """Deterministic beat planning service.
 
-This service converts planned scenes into structured Beat objects. It does not
-write final review narration or image prompts.
+This service converts planned scenes into structured Beat objects. It also
+exposes ``generate_unified_package_for_*`` methods that chain beat generation,
+review rewriting, and image-prompt building in one call — the equivalent of
+the (now removed) ``BeatPackageGeneratorService``.
 """
 
 from __future__ import annotations
@@ -10,6 +12,7 @@ import re
 from typing import Any
 
 from app.domain.beat import Beat
+from app.domain.episode import ReviewEpisode
 from app.domain.project import Project
 from app.domain.scene import Scene
 from app.domain.source_chapter import SourceChapter
@@ -93,8 +96,7 @@ class BeatGeneratorService:
     ) -> list[Beat]:
         episode = self.project_service.find_episode(project, episode_id)
         scene = self.project_service.find_scene(project, episode_id, scene_id)
-        density = retelling_density or episode.density
-        self._validate_density(density)
+        density = self._normalise_density(retelling_density or episode.density)
 
         source_chapters = self._source_chapters_for_episode(project, episode_id)
         preserved_beats = [
@@ -119,6 +121,11 @@ class BeatGeneratorService:
                 retelling_density=density,
                 starting_order_index=len(preserved_beats) + 1,
             )
+        
+        # Deduplicate by ID: new beats replace old ones with same ID
+        generated_ids = {b.beat_id for b in generated_beats}
+        preserved_beats = [b for b in preserved_beats if b.beat_id not in generated_ids]
+        
         scene.beats = preserved_beats + generated_beats
         project.touch()
         return generated_beats
@@ -130,8 +137,7 @@ class BeatGeneratorService:
         retelling_density: str | None = None,
     ) -> list[Beat]:
         episode = self.project_service.find_episode(project, episode_id)
-        density = retelling_density or episode.density
-        self._validate_density(density)
+        density = self._normalise_density(retelling_density or episode.density)
 
         generated_beats: list[Beat] = []
         for scene in episode.scenes:
@@ -144,6 +150,168 @@ class BeatGeneratorService:
                 )
             )
         return generated_beats
+
+    def generate_unified_package_for_scene(
+        self,
+        project: Project,
+        episode_id: str,
+        scene_id: str,
+        narration_style: str | None = None,
+        retelling_density: str | None = None,
+        style_preset_id: str | None = None,
+        use_ai: bool = False,
+    ) -> list[Beat]:
+        """Generate beats + review narration + image prompts for one scene.
+
+        Replaces the standalone BeatPackageGeneratorService. By default chains
+        the three single-responsibility services deterministically; with
+        ``use_ai=True`` issues a single unified AI call via the
+        ``beat_package_generator`` prompt template.
+        """
+        episode = self.project_service.find_episode(project, episode_id)
+        scene = self.project_service.find_scene(project, episode_id, scene_id)
+
+        if use_ai:
+            return self._generate_unified_package_with_ai(
+                project=project,
+                episode=episode,
+                scene=scene,
+                narration_style=narration_style,
+                retelling_density=retelling_density,
+                style_preset_id=style_preset_id,
+            )
+        return self._generate_unified_package_deterministic(
+            project=project,
+            episode_id=episode_id,
+            scene=scene,
+            narration_style=narration_style,
+            retelling_density=retelling_density,
+            style_preset_id=style_preset_id,
+        )
+
+    def generate_unified_package_for_episode(
+        self,
+        project: Project,
+        episode_id: str,
+        narration_style: str | None = None,
+        retelling_density: str | None = None,
+        style_preset_id: str | None = None,
+        use_ai: bool = False,
+    ) -> list[Beat]:
+        episode = self.project_service.find_episode(project, episode_id)
+        all_beats: list[Beat] = []
+        for scene in episode.scenes:
+            all_beats.extend(
+                self.generate_unified_package_for_scene(
+                    project=project,
+                    episode_id=episode_id,
+                    scene_id=scene.scene_id,
+                    narration_style=narration_style,
+                    retelling_density=retelling_density,
+                    style_preset_id=style_preset_id,
+                    use_ai=use_ai,
+                )
+            )
+        return all_beats
+
+    def _generate_unified_package_deterministic(
+        self,
+        *,
+        project: Project,
+        episode_id: str,
+        scene: Scene,
+        narration_style: str | None,
+        retelling_density: str | None,
+        style_preset_id: str | None,
+    ) -> list[Beat]:
+        from app.services.prompt_builder_service import PromptBuilderService
+        from app.services.review_rewriter_service import ReviewRewriterService
+
+        self.generate_beats_for_scene(project, episode_id, scene.scene_id, retelling_density)
+        ReviewRewriterService(ai_gateway=self.ai_gateway, use_ai=False).rewrite_scene(
+            project, scene.scene_id, narration_style, retelling_density
+        )
+        PromptBuilderService(ai_gateway=self.ai_gateway, use_ai=False).build_prompts_for_scene(
+            project, scene.scene_id, style_preset_id
+        )
+        return scene.beats
+
+    def _generate_unified_package_with_ai(
+        self,
+        *,
+        project: Project,
+        episode: ReviewEpisode,
+        scene: Scene,
+        narration_style: str | None,
+        retelling_density: str | None,
+        style_preset_id: str | None,
+    ) -> list[Beat]:
+        gateway = self._require_ai_gateway()
+
+        style_preset = None
+        target_style_id = style_preset_id or project.default_art_style
+        for preset in project.style_presets:
+            if preset.style_id == target_style_id or preset.name == target_style_id:
+                style_preset = preset
+                break
+
+        chapters_by_id = {c.chapter_id: c for c in project.source_chapters}
+        source_chapters = [
+            chapters_by_id[cid] for cid in episode.source_chapter_ids if cid in chapters_by_id
+        ]
+
+        input_data = {
+            "project_genre": project.genre,
+            "style_preset_name": style_preset.name if style_preset else "Default",
+            "style_positive": style_preset.positive_prompt if style_preset else "",
+            "style_negative": style_preset.negative_prompt if style_preset else "",
+            "narration_style": narration_style or episode.tone,
+            "retelling_density": retelling_density or episode.density,
+            "character_bible": [c.to_dict() for c in project.characters],
+            "location_bible": [loc.to_dict() for loc in project.locations],
+            "episode_title": episode.title,
+            "episode_summary": episode.summary,
+            "scene_title": scene.title,
+            "scene_summary": scene.summary,
+            "source_text": "\n".join(c.raw_text for c in source_chapters),
+        }
+
+        response = gateway.generate_json("beat_package_generator", input_data)
+        beats_data = response.get("beats", [])
+
+        preserved_beats = [
+            beat
+            for beat in scene.beats
+            if not beat.beat_id.startswith(self._generated_prefix(scene.scene_id))
+        ]
+
+        new_beats: list[Beat] = []
+        for i, b_data in enumerate(beats_data):
+            beat_id = f"beat_{scene.scene_id}_{i + 1:03d}"
+            new_beats.append(
+                Beat(
+                    beat_id=beat_id,
+                    scene_id=scene.scene_id,
+                    order_index=len(preserved_beats) + i + 1,
+                    source_refs=[c.chapter_id for c in source_chapters],
+                    story_function=str(b_data.get("story_function", "")),
+                    characters=[str(c) for c in b_data.get("characters", [])],
+                    location=str(b_data.get("location", "")),
+                    action=str(b_data.get("action", "")),
+                    emotion=str(b_data.get("emotion", "")),
+                    shot_type=str(b_data.get("shot_type", "")),
+                    visual_description=str(b_data.get("visual_description", "")),
+                    review_text=str(b_data.get("review_text", "")),
+                    image_prompt=str(b_data.get("image_prompt", "")),
+                    negative_prompt=str(b_data.get("negative_prompt", "")),
+                    continuity_tags=[str(t) for t in b_data.get("continuity_tags", [])],
+                    status="planned",
+                )
+            )
+
+        scene.beats = preserved_beats + new_beats
+        project.touch()
+        return new_beats
 
     def _build_beats(
         self,
@@ -226,15 +394,17 @@ class BeatGeneratorService:
                     for chapter in source_chapters
                 ],
                 "retelling_density": retelling_density,
-                "character_bible": [
-                    character.to_dict() for character in project.characters
-                ],
-                "location_bible": [
-                    location.to_dict() for location in project.locations
-                ],
+                "character_bible": [character.to_dict() for character in project.characters],
+                "location_bible": [location.to_dict() for location in project.locations],
             },
         )
-        beats_data = self._ai_beats_data(response)
+        all_beats_data = self._ai_beats_data(response)
+        # Filter: only take beats belonging to this scene if scene_id is present
+        beats_data = [
+            b for b in all_beats_data 
+            if isinstance(b, dict) and (b.get("scene_id") == scene.scene_id or "scene_id" not in b)
+        ]
+        
         source_refs = [chapter.chapter_id for chapter in source_chapters]
         generated_beats: list[Beat] = []
 
@@ -257,23 +427,17 @@ class BeatGeneratorService:
                     source_refs=source_refs,
                     story_function=str(beat_data.get("story_function", "")),
                     characters=[
-                        str(value)
-                        for value in beat_data.get("characters", scene.characters)
+                        str(value) for value in beat_data.get("characters", scene.characters)
                     ],
                     location=str(beat_data.get("location", scene.location)),
                     action=str(beat_data.get("action", "")),
                     emotion=str(beat_data.get("emotion", "")),
                     shot_type=str(beat_data.get("shot_type", "")),
-                    visual_description=str(
-                        beat_data.get("visual_description", "")
-                    ),
+                    visual_description=str(beat_data.get("visual_description", "")),
                     review_text="",
                     image_prompt="",
                     negative_prompt="",
-                    continuity_tags=[
-                        str(value)
-                        for value in beat_data.get("continuity_tags", [])
-                    ],
+                    continuity_tags=[str(value) for value in beat_data.get("continuity_tags", [])],
                     status="planned",
                 )
             )
@@ -285,9 +449,7 @@ class BeatGeneratorService:
             raise ValueError("beat_generator AI response must be a dict.")
         beats_data = response.get("beats", [])
         if not isinstance(beats_data, list) or not beats_data:
-            raise ValueError(
-                "beat_generator AI response field 'beats' must be a non-empty list."
-            )
+            raise ValueError("beat_generator AI response field 'beats' must be a non-empty list.")
         return beats_data
 
     def _beat_count_for_scene(self, scene: Scene, retelling_density: str) -> int:
@@ -295,9 +457,7 @@ class BeatGeneratorService:
         importance_bonus = self._importance_bonus.get(importance, 1)
 
         if scene.target_beats > 0:
-            count = round(
-                scene.target_beats * self._target_multipliers[retelling_density]
-            )
+            count = round(scene.target_beats * self._target_multipliers[retelling_density])
             return max(2, count + importance_bonus)
 
         return self._base_beat_counts[retelling_density] + importance_bonus
@@ -391,8 +551,7 @@ class BeatGeneratorService:
     ) -> list[SourceChapter]:
         episode = self.project_service.find_episode(project, episode_id)
         chapters_by_id = {
-            source_chapter.chapter_id: source_chapter
-            for source_chapter in project.source_chapters
+            source_chapter.chapter_id: source_chapter for source_chapter in project.source_chapters
         }
         return [
             chapters_by_id[chapter_id]
@@ -411,6 +570,18 @@ class BeatGeneratorService:
     def _slug(self, value: str) -> str:
         return re.sub(r"[^a-zA-Z0-9]+", "_", value.strip().lower()).strip("_")
 
-    def _validate_density(self, retelling_density: str) -> None:
-        if retelling_density not in self._allowed_retelling_densities:
-            raise ValueError(f"Unsupported retelling_density: {retelling_density}")
+    def _normalise_density(self, retelling_density: str) -> str:
+        if not retelling_density:
+            return "full"
+        density_lower = retelling_density.lower()
+        if density_lower in self._allowed_retelling_densities:
+            return density_lower
+
+        if "đầy đủ" in density_lower or "full" in density_lower:
+            return "full"
+        if "cân bằng" in density_lower or "balanced" in density_lower:
+            return "balanced"
+        if "tóm tắt" in density_lower or "condensed" in density_lower:
+            return "condensed"
+
+        return "full"

@@ -18,7 +18,6 @@ from app.services.prompt_builder_service import PromptBuilderService
 from app.services.review_rewriter_service import ReviewRewriterService
 from app.services.story_parser_service import StoryParserService
 
-
 SUPPORTED_STEPS = [
     "parse-story",
     "plan-episode",
@@ -123,24 +122,33 @@ class ManualAIService:
             return self._import_parse(project, result_data, chapter_id)
         if step == "plan-episode":
             return self._import_plan(
-                project, result_data, chapter_id, tone, density,
+                project,
+                result_data,
+                chapter_id,
+                tone,
+                density,
             )
         if step == "generate-beats":
-            return self._import_beats(project, result_data, episode_id, density)
+            return self._import_beats(project, result_data, episode_id, density, chapter_id)
         if step == "rewrite-review":
             return self._import_rewrite(
-                project, self._flatten_grouped_result(result_data, "rewritten_beats"), 
-                episode_id, tone, density,
+                project,
+                result_data,
+                episode_id,
+                chapter_id,
+                tone,
+                density,
             )
         if step == "build-prompts":
             return self._import_prompts(
-                project, self._flatten_grouped_result(result_data, "prompts"), 
-                episode_id, style_preset_id,
+                project,
+                result_data,
+                episode_id,
+                chapter_id,
+                style_preset_id,
             )
         if step == "generate-unified-package":
-            return self._import_unified_package(
-                project, result_data, episode_id
-            )
+            return self._import_unified_package(project, result_data, episode_id, chapter_id)
         raise ValueError(f"Unsupported step: {step}")
 
     # ── Build input_data (giống hệt cách các service build) ─────
@@ -171,7 +179,9 @@ class ManualAIService:
         raise ValueError(f"Unsupported step: {step}")
 
     def _input_parse(
-        self, project: Project, chapter_id: str | None,
+        self,
+        project: Project,
+        chapter_id: str | None,
     ) -> dict[str, Any]:
         chapter = self._require_chapter(project, chapter_id)
         return {
@@ -229,7 +239,8 @@ class ManualAIService:
     ) -> dict[str, Any]:
         episode = self._require_episode(project, episode_id)
         source_chapters = self._chapters_for_episode(
-            project, episode.source_chapter_ids,
+            project,
+            episode.source_chapter_ids,
         )
         return {
             "episode": episode.to_dict(),
@@ -245,6 +256,7 @@ class ManualAIService:
             "retelling_density": density or episode.density,
             "character_bible": [c.to_dict() for c in project.characters],
             "location_bible": [loc.to_dict() for loc in project.locations],
+            "style_preset": (self._find_style_preset(project, project.default_art_style).to_dict() if self._find_style_preset(project, project.default_art_style) else {}),
         }
 
     def _input_rewrite(
@@ -256,16 +268,19 @@ class ManualAIService:
     ) -> dict[str, Any]:
         episode = self._require_episode(project, episode_id)
         source_chapters = self._chapters_for_episode(
-            project, episode.source_chapter_ids,
+            project,
+            episode.source_chapter_ids,
         )
         scenes_input = []
         for scene in episode.scenes:
-            scenes_input.append({
-                "scene": scene.to_dict(),
-                "beats": [beat.to_dict() for beat in scene.ordered_beats()],
-                "narration_style": tone or episode.tone,
-                "retelling_density": density or episode.density,
-            })
+            scenes_input.append(
+                {
+                    "scene": scene.to_dict(),
+                    "beats": [beat.to_dict() for beat in scene.ordered_beats()],
+                    "narration_style": tone or episode.tone,
+                    "retelling_density": density or episode.density,
+                }
+            )
         return {
             "episode_id": episode.episode_id,
             "episode_title": episode.title,
@@ -290,10 +305,12 @@ class ManualAIService:
         style_preset = self._find_style_preset(project, style_preset_id)
         scenes_input = []
         for scene in episode.scenes:
-            scenes_input.append({
-                "scene": scene.to_dict(),
-                "beats": [beat.to_dict() for beat in scene.ordered_beats()],
-            })
+            scenes_input.append(
+                {
+                    "scene": scene.to_dict(),
+                    "beats": [beat.to_dict() for beat in scene.ordered_beats()],
+                }
+            )
         return {
             "episode_id": episode.episode_id,
             "episode_title": episode.title,
@@ -303,13 +320,9 @@ class ManualAIService:
             "scenes": scenes_input,
         }
 
-    def _input_unified_package(
-        self, project: Project, episode_id: str | None
-    ) -> dict[str, Any]:
+    def _input_unified_package(self, project: Project, episode_id: str | None) -> dict[str, Any]:
         episode = self._require_episode(project, episode_id)
-        source_chapters = self._chapters_for_episode(
-            project, episode.source_chapter_ids
-        )
+        source_chapters = self._chapters_for_episode(project, episode.source_chapter_ids)
         style_preset = self._find_style_preset(project, project.default_art_style)
 
         return {
@@ -362,11 +375,7 @@ class ManualAIService:
         existing_char_names = {c.name.lower() for c in project.characters}
         for det_char in parsed.detected_characters:
             if det_char.name.lower() not in existing_char_names:
-                self.project_service.add_character(
-                    project,
-                    name=det_char.name,
-                    role=det_char.role
-                )
+                self.project_service.add_character(project, name=det_char.name, role=det_char.role)
                 existing_char_names.add(det_char.name.lower())
                 new_chars += 1
 
@@ -374,11 +383,7 @@ class ManualAIService:
         existing_loc_names = {l.name.lower() for l in project.locations}
         for det_loc in parsed.detected_locations:
             if det_loc.name.lower() not in existing_loc_names:
-                self.project_service.add_location(
-                    project,
-                    name=det_loc.name,
-                    mood=det_loc.mood
-                )
+                self.project_service.add_location(project, name=det_loc.name, mood=det_loc.mood)
                 existing_loc_names.add(det_loc.name.lower())
                 new_locs += 1
 
@@ -409,10 +414,7 @@ class ManualAIService:
             narration_style=tone or project.default_narration_style,
             retelling_density=density or project.retelling_density,
         )
-        return (
-            f"Imported episode: {episode.episode_id} "
-            f"({len(episode.scenes)} scenes)"
-        )
+        return f"Imported episode: {episode.episode_id} " f"({len(episode.scenes)} scenes)"
 
     def _import_beats(
         self,
@@ -420,128 +422,207 @@ class ManualAIService:
         result_data: dict[str, Any],
         episode_id: str | None,
         density: str | None,
+        chapter_id: str | None = None,
     ) -> str:
         episode = self._require_episode(project, episode_id)
-        gateway = _SingleResponseGateway(result_data)
-        generator = BeatGeneratorService(
-            self.project_service,
-            ai_gateway=gateway,
-            use_ai=True,
-        )
-        beats = generator.generate_beats_for_episode(
-            project,
-            episode.episode_id,
-            retelling_density=density,
-        )
-        return f"Imported {len(beats)} beats"
+        
+        # Format A: Nested scenes
+        if "scenes" in result_data and isinstance(result_data["scenes"], list):
+            total_beats = 0
+            for scene_data in result_data["scenes"]:
+                sid = scene_data.get("scene_id")
+                if not sid: continue
+                
+                # If user selected a specific scene, skip others
+                if chapter_id and sid != chapter_id: continue
+                
+                scene_gateway = _SingleResponseGateway({"beats": scene_data.get("beats", [])})
+                generator = BeatGeneratorService(self.project_service, ai_gateway=scene_gateway, use_ai=True)
+                beats = generator.generate_beats_for_scene(project, episode.episode_id, sid, density)
+                total_beats += len(beats)
+            
+            if chapter_id:
+                return f"Đã nhập {total_beats} nhịp truyện cho phân cảnh đang chọn."
+            return f"Đã nhập {total_beats} nhịp truyện được phân chia theo từng phân cảnh."
+
+        # Format B: Flat beats or direct list
+        grouped = self._group_beats_by_scene(result_data, "beats")
+        total_beats = 0
+        
+        if chapter_id:
+            # Apply to selected scene. Use beats with matching ID or unknown ones.
+            beats_for_scene = grouped.get(chapter_id, [])
+            if not beats_for_scene and "unknown" in grouped:
+                beats_for_scene = grouped["unknown"]
+            
+            if beats_for_scene:
+                gateway = _SingleResponseGateway({"beats": beats_for_scene})
+                generator = BeatGeneratorService(self.project_service, ai_gateway=gateway, use_ai=True)
+                beats = generator.generate_beats_for_scene(project, episode.episode_id, chapter_id, density)
+                total_beats = len(beats)
+            return f"Đã nhập {total_beats} nhịp truyện cho phân cảnh '{chapter_id}'."
+        else:
+            # Apply to all matching scenes
+            for sid, beats in grouped.items():
+                if sid == "unknown": continue
+                gateway = _SingleResponseGateway({"beats": beats})
+                generator = BeatGeneratorService(self.project_service, ai_gateway=gateway, use_ai=True)
+                
+                # Check if scene exists, create if missing
+                try:
+                    self.project_service.find_scene(project, episode.episode_id, sid)
+                except LookupError:
+                    # Create minimal scene
+                    self.project_service.add_scene(
+                        project, 
+                        episode_id=episode.episode_id, 
+                        title=f"Scene {sid}", 
+                        scene_id=sid
+                    )
+                
+                b = generator.generate_beats_for_scene(project, episode.episode_id, sid, density)
+                total_beats += len(b)
+            return f"Đã nhập {total_beats} nhịp truyện phân bổ theo scene_id."
 
     def _import_rewrite(
         self,
         project: Project,
         result_data: dict[str, Any],
         episode_id: str | None,
+        chapter_id: str | None,
         tone: str | None,
         density: str | None,
     ) -> str:
         episode = self._require_episode(project, episode_id)
-        gateway = _SingleResponseGateway(result_data)
-        rewriter = ReviewRewriterService(
-            ai_gateway=gateway,
-            use_ai=True,
-        )
-        beats = rewriter.rewrite_episode(
-            project,
-            episode.episode_id,
-            narration_style=tone,
-            retelling_density=density,
-        )
-        return f"Imported review text for {len(beats)} beats"
+        grouped = self._group_beats_by_scene(result_data, "rewritten_beats")
+        total_beats = 0
+        
+        if chapter_id:
+            beats = grouped.get(chapter_id, []) or grouped.get("unknown", [])
+            if beats:
+                gateway = _SingleResponseGateway({"rewritten_beats": beats})
+                rewriter = ReviewRewriterService(ai_gateway=gateway, use_ai=True)
+                b = rewriter.rewrite_scene(project, chapter_id, narration_style=tone, retelling_density=density)
+                total_beats = len(b)
+            return f"Đã cập nhật review cho {total_beats} nhịp của phân cảnh đang chọn."
+        else:
+            for sid, beats in grouped.items():
+                if sid == "unknown": continue
+                gateway = _SingleResponseGateway({"rewritten_beats": beats})
+                rewriter = ReviewRewriterService(ai_gateway=gateway, use_ai=True)
+                try:
+                    b = rewriter.rewrite_scene(project, sid, narration_style=tone, retelling_density=density)
+                    total_beats += len(b)
+                except LookupError: continue
+            return f"Đã cập nhật review cho {total_beats} nhịp trên toàn tập."
 
     def _import_prompts(
         self,
         project: Project,
         result_data: dict[str, Any],
         episode_id: str | None,
+        chapter_id: str | None,
         style_preset_id: str | None,
     ) -> str:
         episode = self._require_episode(project, episode_id)
-        gateway = _SingleResponseGateway(result_data)
-        builder = PromptBuilderService(
-            ai_gateway=gateway,
-            use_ai=True,
-        )
-        beats = builder.build_prompts_for_episode(
-            project,
-            episode.episode_id,
-            style_preset_id=style_preset_id,
-        )
-        return f"Imported image prompts for {len(beats)} beats"
+        grouped = self._group_beats_by_scene(result_data, "prompts")
+        total_beats = 0
+        
+        if chapter_id:
+            beats = grouped.get(chapter_id, []) or grouped.get("unknown", [])
+            if beats:
+                gateway = _SingleResponseGateway({"prompts": beats})
+                builder = PromptBuilderService(ai_gateway=gateway, use_ai=True)
+                b = builder.build_prompts_for_scene(project, chapter_id, style_preset_id=style_preset_id)
+                total_beats = len(b)
+            return f"Đã cập nhật prompt cho {total_beats} nhịp của phân cảnh đang chọn."
+        else:
+            for sid, beats in grouped.items():
+                if sid == "unknown": continue
+                gateway = _SingleResponseGateway({"prompts": beats})
+                builder = PromptBuilderService(ai_gateway=gateway, use_ai=True)
+                try:
+                    b = builder.build_prompts_for_scene(project, sid, style_preset_id=style_preset_id)
+                    total_beats += len(b)
+                except LookupError: continue
+            return f"Đã cập nhật prompt cho {total_beats} nhịp trên toàn tập."
 
     def _import_unified_package(
         self,
         project: Project,
         result_data: dict[str, Any],
         episode_id: str | None,
+        chapter_id: str | None = None,
     ) -> str:
         episode = self._require_episode(project, episode_id)
-        
-        # We can reuse BeatPackageGeneratorService logic if we wrap the result
-        from app.services.beat_package_generator_service import BeatPackageGeneratorService
-        gateway = _SingleResponseGateway(result_data)
-        service = BeatPackageGeneratorService(
-            project_service=self.project_service,
-            ai_gateway=gateway
-        )
-        
         total_beats = 0
-        # If the JSON contains a list of scenes, we might need to handle it differently
-        # but BeatPackageGeneratorService expects {"beats": [...]} for a single scene call.
-        # Let's check the schema the user requested.
         
-        if "scenes" in result_data:
+        if "scenes" in result_data and isinstance(result_data["scenes"], list):
             for scene_data in result_data["scenes"]:
-                scene_id = scene_data.get("scene_id")
-                if not scene_id: continue
+                sid = scene_data.get("scene_id")
+                if not sid: continue
+                if chapter_id and sid != chapter_id: continue
                 
-                # Mock a gateway that returns the beats for THIS specific scene
                 scene_gateway = _SingleResponseGateway({"beats": scene_data.get("beats", [])})
-                scene_service = BeatPackageGeneratorService(
-                    project_service=self.project_service,
-                    ai_gateway=scene_gateway
-                )
-                
-                # Use generate_for_scene in AI mode (it will call our mock gateway)
-                beats = scene_service.generate_for_scene(
-                    project, episode.episode_id, scene_id, use_ai=True
+                scene_service = BeatGeneratorService(project_service=self.project_service, ai_gateway=scene_gateway)
+                beats = scene_service.generate_unified_package_for_scene(
+                    project, episode.episode_id, sid, use_ai=True
                 )
                 total_beats += len(beats)
-        elif "beats" in result_data:
-            # Fallback if AI returned beats directly without scene nesting
-            # (or if we are in a single-scene mode)
-            # This is less ideal but good for robustness
-            pass
+        
+        if total_beats > 0:
+            return f"Đã nhập gói dữ liệu đầy đủ cho {total_beats} nhịp."
+        
+        # Fallback to flat if no "scenes" key
+        grouped = self._group_beats_by_scene(result_data, "beats")
+        if chapter_id:
+            beats = grouped.get(chapter_id, []) or grouped.get("unknown", [])
+            if beats:
+                gateway = _SingleResponseGateway({"beats": beats})
+                service = BeatGeneratorService(project_service=self.project_service, ai_gateway=gateway)
+                b = service.generate_unified_package_for_scene(project, episode.episode_id, chapter_id, use_ai=True)
+                total_beats = len(b)
+            return f"Đã nhập gói dữ liệu cho {total_beats} nhịp của phân cảnh đang chọn."
+        
+        return "Không tìm thấy dữ liệu phân cảnh hợp lệ để nhập."
 
-        return f"Imported unified package: {total_beats} beats applied across scenes."
+    def _group_beats_by_scene(self, data: dict[str, Any] | list[Any], target_key: str) -> dict[str, list[dict[str, Any]]]:
+        """Group beats by scene_id from a flat structure."""
+        beats = []
+        if isinstance(data, list):
+            beats = data
+        elif isinstance(data, dict):
+            beats = data.get(target_key, [])
+            if not beats and "beats" in data: # Fallback
+                beats = data["beats"]
+        
+        grouped: dict[str, list[dict[str, Any]]] = {}
+        for b in beats:
+            if not isinstance(b, dict): continue
+            sid = b.get("scene_id", "unknown")
+            if sid not in grouped: grouped[sid] = []
+            grouped[sid].append(b)
+        return grouped
 
     # ── Helpers ───────────────────────────────────────────────────
 
-    def _flatten_grouped_result(
-        self, result: dict[str, Any], target_key: str
-    ) -> dict[str, Any]:
+    def _flatten_grouped_result(self, result: dict[str, Any], target_key: str) -> dict[str, Any]:
         """Convert grouped scene beats into a flat list for legacy services."""
         if target_key in result:
             return result
-        
+
         flat_list = []
         if "scenes" in result and isinstance(result["scenes"], list):
             for scene in result["scenes"]:
                 if "beats" in scene and isinstance(scene["beats"], list):
                     flat_list.extend(scene["beats"])
-        
+
         return {target_key: flat_list}
 
     def _require_chapter(
-        self, project: Project, chapter_id: str | None,
+        self,
+        project: Project,
+        chapter_id: str | None,
     ) -> SourceChapter:
         if not chapter_id:
             if not project.source_chapters:
@@ -560,7 +641,9 @@ class ManualAIService:
         return self.project_service.find_episode(project, episode_id)
 
     def _chapters_for_episode(
-        self, project: Project, chapter_ids: list[str],
+        self,
+        project: Project,
+        chapter_ids: list[str],
     ):
         chapters = []
         for cid in chapter_ids:
@@ -582,8 +665,7 @@ class ManualAIService:
     def _validate_step(self, step: str) -> None:
         if step not in SUPPORTED_STEPS:
             raise ValueError(
-                f"Unsupported step '{step}'. "
-                f"Supported: {', '.join(SUPPORTED_STEPS)}"
+                f"Unsupported step '{step}'. " f"Supported: {', '.join(SUPPORTED_STEPS)}"
             )
 
 

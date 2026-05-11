@@ -26,6 +26,14 @@ class ReviewRewriterService:
         "humorous",
         "fast-paced",
     }
+    _style_map = {
+        "huyền bí": "mysterious",
+        "kịch tính": "dramatic",
+        "bi tráng": "dramatic",
+        "thân thiện": "friendly",
+        "hài hước": "humorous",
+        "nhanh": "fast-paced",
+    }
     _allowed_densities = {"full", "balanced", "condensed"}
     _emotion_words = {
         "calm": "bình tĩnh",
@@ -70,10 +78,8 @@ class ReviewRewriterService:
         retelling_density: str | None = None,
     ) -> Beat:
         episode, scene, beat = self._find_beat_context(project, beat_id)
-        style = narration_style or episode.tone
-        density = retelling_density or episode.density
-        self._validate_style(style)
-        self._validate_density(density)
+        style = self._normalise_style(narration_style or episode.tone)
+        density = self._normalise_density(retelling_density or episode.density)
 
         if self.use_ai:
             beat.review_text = self._rewrite_beat_with_ai(
@@ -103,10 +109,9 @@ class ReviewRewriterService:
         retelling_density: str | None = None,
     ) -> list[Beat]:
         episode, scene = self._find_scene_context(project, scene_id)
-        style = narration_style or episode.tone
-        density = retelling_density or episode.density
-        self._validate_style(style)
-        self._validate_density(density)
+        style = self._normalise_style(narration_style or episode.tone)
+        density = self._normalise_density(retelling_density or episode.density)
+
 
         rewritten_beats: list[Beat] = []
         for beat in scene.ordered_beats():
@@ -139,10 +144,9 @@ class ReviewRewriterService:
         retelling_density: str | None = None,
     ) -> list[Beat]:
         episode = self._find_episode(project, episode_id)
-        style = narration_style or episode.tone
-        density = retelling_density or episode.density
-        self._validate_style(style)
-        self._validate_density(density)
+        style = self._normalise_style(narration_style or episode.tone)
+        density = self._normalise_density(retelling_density or episode.density)
+
 
         rewritten_beats: list[Beat] = []
         for scene in episode.scenes:
@@ -188,9 +192,7 @@ class ReviewRewriterService:
                 "beat_id": beat.beat_id,
                 "source_chapter_context": [
                     chapter.to_dict()
-                    for chapter in self._source_chapters_for_episode(
-                        project, episode
-                    )
+                    for chapter in self._source_chapters_for_episode(project, episode)
                 ],
                 "narration_style": narration_style,
                 "retelling_density": retelling_density,
@@ -198,9 +200,7 @@ class ReviewRewriterService:
         )
         return self._review_text_from_ai_response(response, beat.beat_id)
 
-    def _review_text_from_ai_response(
-        self, response: dict[str, Any], beat_id: str
-    ) -> str:
+    def _review_text_from_ai_response(self, response: dict[str, Any], beat_id: str) -> str:
         if not isinstance(response, dict):
             raise ValueError("review_rewriter AI response must be a dict.")
 
@@ -238,7 +238,7 @@ class ReviewRewriterService:
             style_key = "neutral"
         if style_key == "humorous":
             style_key = "friendly"
-        
+
         context_sentence = self._context_sentence(scene)
         action_sentence = self._action_sentence(beat)
         emotion_sentence = self._emotion_sentence(scene, beat)
@@ -270,8 +270,7 @@ class ReviewRewriterService:
             )
         if style == "dramatic":
             return (
-                f"Ngay trong khoảnh khắc ở {location}, tình thế được đẩy lên "
-                "một nấc căng hơn."
+                f"Ngay trong khoảnh khắc ở {location}, tình thế được đẩy lên " "một nấc căng hơn."
             )
         if style == "friendly":
             return (
@@ -323,9 +322,7 @@ class ReviewRewriterService:
             f"nhấn vào {visual}."
         )
 
-    def _continuity_sentence(
-        self, project: Project, episode: ReviewEpisode, beat: Beat
-    ) -> str:
+    def _continuity_sentence(self, project: Project, episode: ReviewEpisode, beat: Beat) -> str:
         source_labels = self._source_labels(project, episode, beat)
         continuity = ", ".join(beat.continuity_tags[:4]) or "mạch truyện hiện tại"
         return (
@@ -336,8 +333,7 @@ class ReviewRewriterService:
     def _style_closing(self, style: str, beat: Beat) -> str:
         if style == "mysterious":
             return (
-                "Vì vậy, đoạn kể nên khép lại bằng cảm giác còn điều gì đó "
-                "đang chờ được hé lộ."
+                "Vì vậy, đoạn kể nên khép lại bằng cảm giác còn điều gì đó " "đang chờ được hé lộ."
             )
         if style == "dramatic":
             return (
@@ -366,13 +362,9 @@ class ReviewRewriterService:
             return "Nhịp kể dứt khoát và chuyển nhanh sang beat sau."
         return "Beat này giữ mạch kể rõ ràng trước khi sang đoạn tiếp theo."
 
-    def _source_labels(
-        self, project: Project, episode: ReviewEpisode, beat: Beat
-    ) -> str:
+    def _source_labels(self, project: Project, episode: ReviewEpisode, beat: Beat) -> str:
         chapter_ids = beat.source_refs or episode.source_chapter_ids
-        chapter_titles = {
-            chapter.chapter_id: chapter.title for chapter in project.source_chapters
-        }
+        chapter_titles = {chapter.chapter_id: chapter.title for chapter in project.source_chapters}
         labels = [
             f"{chapter_id} ({chapter_titles.get(chapter_id, 'source chapter')})"
             for chapter_id in chapter_ids
@@ -389,9 +381,7 @@ class ReviewRewriterService:
                         return episode, scene, beat
         raise LookupError(f"Beat not found: {beat_id}")
 
-    def _find_scene_context(
-        self, project: Project, scene_id: str
-    ) -> tuple[ReviewEpisode, Scene]:
+    def _find_scene_context(self, project: Project, scene_id: str) -> tuple[ReviewEpisode, Scene]:
         for episode in project.review_episodes:
             for scene in episode.scenes:
                 if scene.scene_id == scene_id:
@@ -426,9 +416,7 @@ class ReviewRewriterService:
     def _source_chapters_for_episode(
         self, project: Project, episode: ReviewEpisode
     ) -> list[SourceChapter]:
-        chapters_by_id = {
-            chapter.chapter_id: chapter for chapter in project.source_chapters
-        }
+        chapters_by_id = {chapter.chapter_id: chapter for chapter in project.source_chapters}
         return [
             chapters_by_id[chapter_id]
             for chapter_id in episode.source_chapter_ids
@@ -440,12 +428,32 @@ class ReviewRewriterService:
             raise ValueError("use_ai=True requires an ai_gateway.")
         return self.ai_gateway
 
-    def _validate_style(self, narration_style: str) -> None:
-        """Kiểm tra style, nếu lạ thì dùng neutral nhưng không báo lỗi."""
-        if narration_style not in self._allowed_styles:
-            # Fallback thầm lặng để không làm hỏng workflow AI
-            pass
+    def _normalise_style(self, narration_style: str) -> str:
+        if not narration_style:
+            return "neutral"
+        style_lower = narration_style.lower()
+        if style_lower in self._allowed_styles:
+            return style_lower
 
-    def _validate_density(self, retelling_density: str) -> None:
-        if retelling_density not in self._allowed_densities:
-            pass
+        # Map Vietnamese terms
+        for vn_term, en_key in self._style_map.items():
+            if vn_term in style_lower:
+                return en_key
+
+        return "neutral"
+
+    def _normalise_density(self, retelling_density: str) -> str:
+        if not retelling_density:
+            return "full"
+        density_lower = retelling_density.lower()
+        if density_lower in self._allowed_densities:
+            return density_lower
+
+        if "đầy đủ" in density_lower or "full" in density_lower:
+            return "full"
+        if "cân bằng" in density_lower or "balanced" in density_lower:
+            return "balanced"
+        if "tóm tắt" in density_lower or "condensed" in density_lower:
+            return "condensed"
+
+        return "full"

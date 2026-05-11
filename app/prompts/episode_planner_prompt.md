@@ -58,4 +58,3 @@ Convert selected source chapters and parsed story context into one ReviewEpisode
   "cliffhanger": ""
 }
 ```
-

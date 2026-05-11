@@ -3,22 +3,23 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+
 from PySide6.QtWidgets import (
+    QComboBox,
+    QFileDialog,
     QGridLayout,
     QGroupBox,
     QLabel,
     QLineEdit,
+    QMessageBox,
     QPushButton,
     QVBoxLayout,
     QWidget,
-    QComboBox,
-    QMessageBox,
-    QFileDialog,
 )
 
 if TYPE_CHECKING:
-    from app.ui.app_state import AppState
     from app.controllers.project_controller import ProjectController
+    from app.ui.app_state import AppState
 
 
 class ProjectTab(QWidget):
@@ -47,9 +48,9 @@ class ProjectTab(QWidget):
         self.language_combo = QComboBox()
         self.language_combo.addItems(["vi", "en", "ja", "ko", "zh"])
         self.narration_combo = QComboBox()
-        self.narration_combo.addItems([
-            "mysterious", "dramatic", "neutral", "humorous", "fast-paced"
-        ])
+        self.narration_combo.addItems(
+            ["mysterious", "dramatic", "neutral", "humorous", "fast-paced"]
+        )
         self.art_style_edit = QLineEdit("dark fantasy webtoon")
         self.path_label = QLabel("Chưa mở dự án nào")
         self.path_label.setWordWrap(True)
@@ -70,7 +71,7 @@ class ProjectTab(QWidget):
         self.btn_open = QPushButton("Mở")
         self.btn_save = QPushButton("Lưu")
         self.btn_save_as = QPushButton("Lưu mới")
-        
+
         btn_layout.addWidget(self.btn_new, 0, 0)
         btn_layout.addWidget(self.btn_open, 0, 1)
         btn_layout.addWidget(self.btn_save, 0, 2)
@@ -103,7 +104,7 @@ class ProjectTab(QWidget):
         self.btn_save_as.clicked.connect(self._on_save_as)
         self.ai_mode_combo.currentTextChanged.connect(self._on_ai_mode_changed)
         self.model_edit.textChanged.connect(self._on_model_changed)
-        
+
         # Sync metadata
         self.title_edit.textChanged.connect(self._sync_project_metadata)
         self.genre_edit.textChanged.connect(self._sync_project_metadata)
@@ -122,7 +123,7 @@ class ProjectTab(QWidget):
             self.path_label.setText(str(self.app_state.project_path or ""))
         else:
             self.path_label.setText("Chưa mở dự án nào")
-        
+
         self.ai_mode_combo.setCurrentText(self.app_state.ai_mode)
         self.model_edit.setText(self.app_state.model or "")
 

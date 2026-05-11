@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -13,9 +13,11 @@ if TYPE_CHECKING:
 @dataclass
 class AppState:
     """Lightweight object to store current UI selection and project context."""
+
     project: Project | None = None
     project_path: Path | None = None
     selected_chapter_id: str | None = None
+    selected_chapter_ids: list[str] = field(default_factory=list)
     selected_episode_id: str | None = None
     selected_scene_id: str | None = None
     selected_beat_id: str | None = None

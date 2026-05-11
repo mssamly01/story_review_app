@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -10,7 +11,7 @@ from app.domain.beat import Beat
 from app.domain.character import Character
 from app.domain.episode import ReviewEpisode
 from app.domain.location import Location
-from app.domain.project import Project
+from app.domain.project import SCHEMA_VERSION, Project
 from app.domain.scene import Scene
 from app.domain.source_chapter import SourceChapter
 from app.domain.style_preset import StylePreset
@@ -84,6 +85,21 @@ class ProjectService:
         visual_prompt_base: str = "",
         relationship_notes: str = "",
         continuity_tags: list[str] | None = None,
+        signature_features: str = "",
+        continuity_must_keep: str = "",
+        continuity_forbidden: str = "",
+        reference_image_note: str = "",
+        required_views: str = "",
+        expression_set: str = "",
+        micro_expression_set: str = "",
+        head_angle_views: str = "",
+        pose_set: str = "",
+        hand_gesture_set: str = "",
+        wardrobe_details: str = "",
+        prop_details: str = "",
+        color_palette: str = "",
+        sheet_layout_style: str = "",
+        reference_sheet_notes: str = "",
     ) -> Character:
         character = Character(
             character_id=character_id or self._next_id("char", project.characters),
@@ -105,6 +121,21 @@ class ProjectService:
             visual_prompt_base=visual_prompt_base,
             relationship_notes=relationship_notes,
             continuity_tags=continuity_tags or [],
+            signature_features=signature_features,
+            continuity_must_keep=continuity_must_keep,
+            continuity_forbidden=continuity_forbidden,
+            reference_image_note=reference_image_note,
+            required_views=required_views,
+            expression_set=expression_set,
+            micro_expression_set=micro_expression_set,
+            head_angle_views=head_angle_views,
+            pose_set=pose_set,
+            hand_gesture_set=hand_gesture_set,
+            wardrobe_details=wardrobe_details,
+            prop_details=prop_details,
+            color_palette=color_palette,
+            sheet_layout_style=sheet_layout_style,
+            reference_sheet_notes=reference_sheet_notes,
         )
         project.characters.append(character)
         project.touch()
@@ -212,8 +243,7 @@ class ProjectService:
     ) -> ReviewEpisode:
         self._ensure_source_chapters_exist(project, source_chapter_ids)
         episode = ReviewEpisode(
-            episode_id=episode_id
-            or self._next_id("ep", project.review_episodes),
+            episode_id=episode_id or self._next_id("ep", project.review_episodes),
             title=title,
             source_chapter_ids=source_chapter_ids,
             tone=tone or project.default_narration_style,
@@ -283,9 +313,7 @@ class ProjectService:
         beat = Beat(
             beat_id=beat_id or self._next_beat_id(project),
             scene_id=scene.scene_id,
-            order_index=order_index
-            if order_index is not None
-            else len(scene.beats) + 1,
+            order_index=order_index if order_index is not None else len(scene.beats) + 1,
             source_refs=source_refs or [],
             story_function=story_function,
             characters=characters or [],
@@ -310,20 +338,57 @@ class ProjectService:
             raise ValueError("Project validation failed: " + "; ".join(errors))
 
         project.touch()
+        project.schema_version = SCHEMA_VERSION
         output_path = Path(path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(
-            json.dumps(project.to_dict(), ensure_ascii=False, indent=2) + "\n",
-            encoding="utf-8",
-        )
+        payload = json.dumps(project.to_dict(), ensure_ascii=False, indent=2) + "\n"
+        self._atomic_write_text(output_path, payload)
 
     def load_project(self, path: str | Path) -> Project:
         data = json.loads(Path(path).read_text(encoding="utf-8"))
+        data = self._migrate(data)
         project = Project.from_dict(data)
         errors = self.validate_project(project)
         if errors:
             raise ValueError("Project validation failed: " + "; ".join(errors))
         return project
+
+    def _migrate(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Upgrade ``data`` in-place from older schema versions to ``SCHEMA_VERSION``.
+
+        Unknown / missing ``schema_version`` is treated as legacy v1.
+        Future migrations should add a new ``if version < N`` block and bump
+        ``SCHEMA_VERSION`` in ``app.domain.project``.
+        """
+        version = int(data.get("schema_version", 1))
+        if version > SCHEMA_VERSION:
+            raise ValueError(
+                f"Project schema_version {version} is newer than this app supports "
+                f"(max {SCHEMA_VERSION}). Upgrade the app to open this project."
+            )
+        if version < 2:
+            # v1 → v2: no structural change. Just stamp the version field so
+            # subsequent saves persist it explicitly.
+            data["schema_version"] = 2
+            version = 2
+        if version < 3:
+            # v2 → v3: ``Beat.dialogues`` introduced. Beat.from_dict already
+            # defaults missing ``dialogues`` to ``[]``, so the only thing we
+            # need to do at the data layer is stamp the version field.
+            data["schema_version"] = 3
+            version = 3
+        return data
+
+    def _atomic_write_text(self, path: Path, text: str) -> None:
+        """Write ``text`` to ``path`` atomically.
+
+        Strategy: write to a sibling ``<name>.tmp`` then ``os.replace`` it onto
+        the target. This guarantees the target file either contains the full
+        new payload or the previous payload — never a truncated half-write.
+        """
+        tmp = path.with_suffix(path.suffix + ".tmp")
+        tmp.write_text(text, encoding="utf-8")
+        os.replace(tmp, path)
 
     def find_episode(self, project: Project, episode_id: str) -> ReviewEpisode:
         for episode in project.review_episodes:
@@ -331,9 +396,7 @@ class ProjectService:
                 return episode
         raise LookupError(f"ReviewEpisode not found: {episode_id}")
 
-    def find_scene(
-        self, project: Project, episode_id: str, scene_id: str
-    ) -> Scene:
+    def find_scene(self, project: Project, episode_id: str, scene_id: str) -> Scene:
         episode = self.find_episode(project, episode_id)
         for scene in episode.scenes:
             if scene.scene_id == scene_id:
@@ -348,8 +411,7 @@ class ProjectService:
             for chapter_id in episode.source_chapter_ids:
                 if chapter_id not in chapter_ids:
                     errors.append(
-                        f"{episode.episode_id} references missing source chapter "
-                        f"{chapter_id}"
+                        f"{episode.episode_id} references missing source chapter " f"{chapter_id}"
                     )
 
             for scene in episode.scenes:
@@ -368,8 +430,7 @@ class ProjectService:
                         )
                     if beat.order_index in seen_order_indexes:
                         errors.append(
-                            f"{scene.scene_id} has duplicate beat order "
-                            f"{beat.order_index}"
+                            f"{scene.scene_id} has duplicate beat order " f"{beat.order_index}"
                         )
                     seen_order_indexes.add(beat.order_index)
 
@@ -380,21 +441,13 @@ class ProjectService:
     ) -> None:
         existing_ids = {chapter.chapter_id for chapter in project.source_chapters}
         missing_ids = [
-            chapter_id
-            for chapter_id in source_chapter_ids
-            if chapter_id not in existing_ids
+            chapter_id for chapter_id in source_chapter_ids if chapter_id not in existing_ids
         ]
         if missing_ids:
-            raise LookupError(
-                "SourceChapter not found: " + ", ".join(missing_ids)
-            )
+            raise LookupError("SourceChapter not found: " + ", ".join(missing_ids))
 
     def _next_scene_id(self, project: Project) -> str:
-        scenes = [
-            scene
-            for episode in project.review_episodes
-            for scene in episode.scenes
-        ]
+        scenes = [scene for episode in project.review_episodes for scene in episode.scenes]
         return self._next_id("sc", scenes)
 
     def _next_beat_id(self, project: Project) -> str:

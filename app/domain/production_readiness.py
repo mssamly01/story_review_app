@@ -7,7 +7,6 @@ from typing import Any
 
 from app.domain.validation import ValidationIssue
 
-
 ProductionReadinessStatus = str
 
 
@@ -54,12 +53,8 @@ class ProductionReadinessReport:
             "ready_prompt_beats": self.ready_prompt_beats,
             "blocked_reasons": list(self.blocked_reasons),
             "top_recommendations": list(self.top_recommendations),
-            "validation_issues": [
-                issue.to_dict() for issue in self.validation_issues
-            ],
-            "continuity_issues": [
-                issue.to_dict() for issue in self.continuity_issues
-            ],
+            "validation_issues": [issue.to_dict() for issue in self.validation_issues],
+            "continuity_issues": [issue.to_dict() for issue in self.continuity_issues],
             "review_quality_summary": self.review_quality_summary,
             "prompt_quality_summary": self.prompt_quality_summary,
             "export_readiness": self.export_readiness,

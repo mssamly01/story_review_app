@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 import re
+from pathlib import Path
 
 from app.domain.episode import ReviewEpisode
 from app.domain.project import Project
@@ -15,8 +15,8 @@ from app.services.continuity_checker_service import ContinuityCheckerService
 from app.services.episode_planner_service import EpisodePlannerService
 from app.services.export_service import ExportService
 from app.services.project_service import ProjectService
-from app.services.project_validation_service import ProjectValidationService
 from app.services.prompt_builder_service import PromptBuilderService
+from app.services.quality.validation import ProjectValidationService
 from app.services.review_rewriter_service import ReviewRewriterService
 
 
@@ -40,12 +40,9 @@ class BatchWorkflowService:
         self.project_service = project_service or ProjectService()
         self.ai_gateway = ai_gateway
         self.export_service = export_service or ExportService(self.project_service)
-        self.project_validation_service = (
-            project_validation_service or ProjectValidationService()
-        )
-        self.continuity_checker_service = (
-            continuity_checker_service
-            or ContinuityCheckerService(self.project_service)
+        self.project_validation_service = project_validation_service or ProjectValidationService()
+        self.continuity_checker_service = continuity_checker_service or ContinuityCheckerService(
+            self.project_service
         )
         self.last_validation_issues: dict[str, list[ValidationIssue]] = {}
 
@@ -66,14 +63,10 @@ class BatchWorkflowService:
 
         chapters_by_id = self._chapters_by_id(project)
         missing_ids = [
-            chapter_id
-            for chapter_id in selected_chapter_ids
-            if chapter_id not in chapters_by_id
+            chapter_id for chapter_id in selected_chapter_ids if chapter_id not in chapters_by_id
         ]
         if missing_ids:
-            raise LookupError(
-                "SourceChapter not found: " + ", ".join(missing_ids)
-            )
+            raise LookupError("SourceChapter not found: " + ", ".join(missing_ids))
 
         narration_style = tone or project.default_narration_style
         retelling_density = density or project.retelling_density
@@ -290,9 +283,7 @@ class BatchWorkflowService:
             episode_id,
         )
         try:
-            issues.extend(
-                self.continuity_checker_service.check_episode(project, episode_id)
-            )
+            issues.extend(self.continuity_checker_service.check_episode(project, episode_id))
         except LookupError as exc:
             issues.append(
                 ValidationIssue(
@@ -339,6 +330,5 @@ class BatchWorkflowService:
         if not errors:
             return "no error severity issues"
         return "; ".join(
-            f"{issue.category} on {issue.entity_id or issue.entity_type}"
-            for issue in errors[:3]
+            f"{issue.category} on {issue.entity_id or issue.entity_type}" for issue in errors[:3]
         )
