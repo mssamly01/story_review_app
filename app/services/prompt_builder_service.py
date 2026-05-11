@@ -77,7 +77,12 @@ class PromptBuilderService:
                 beat=beat,
                 style_preset=style_preset,
             )
-            beat.negative_prompt = self._build_negative_prompt(style_preset)
+            beat.negative_prompt = self._build_negative_prompt(
+                project,
+                beat,
+                scene,
+                style_preset,
+            )
         return beat
 
     def build_prompts_for_scene(
@@ -107,7 +112,12 @@ class PromptBuilderService:
                     beat=beat,
                     style_preset=style_preset,
                 )
-                beat.negative_prompt = self._build_negative_prompt(style_preset)
+                beat.negative_prompt = self._build_negative_prompt(
+                    project,
+                    beat,
+                    scene,
+                    style_preset,
+                )
             prompted_beats.append(beat)
         return prompted_beats
 
@@ -139,7 +149,12 @@ class PromptBuilderService:
                         beat=beat,
                         style_preset=style_preset,
                     )
-                    beat.negative_prompt = self._build_negative_prompt(style_preset)
+                    beat.negative_prompt = self._build_negative_prompt(
+                        project,
+                        beat,
+                        scene,
+                        style_preset,
+                    )
                 prompted_beats.append(beat)
         return prompted_beats
 
@@ -215,10 +230,10 @@ class PromptBuilderService:
             self._style_positive_prompt(style_preset),
             self._character_prompt(project, beat),
             self._location_prompt(project, beat, scene),
+            f"visual focus: {beat.visual_description}",
             f"single clear visual moment: {beat.action}",
             f"emotion: {beat.emotion}",
             f"camera: {beat.shot_type}",
-            f"visual focus: {beat.visual_description}",
             f"scene mood: {scene.mood}",
             "coherent composition",
         ]
@@ -232,22 +247,42 @@ class PromptBuilderService:
         ]
         return ", ".join(cleaned_components)
 
-    def _build_negative_prompt(self, style_preset: StylePreset | None) -> str:
+    def _build_negative_prompt(
+        self,
+        project: Project,
+        beat: Beat,
+        scene: Scene,
+        style_preset: StylePreset | None,
+    ) -> str:
         terms = list(self._base_negative_terms)
         if style_preset and style_preset.negative_prompt:
-            terms.extend(
-                term.strip()
-                for term in style_preset.negative_prompt.split(",")
-                if term.strip()
-            )
+            terms.extend(self._split_terms(style_preset.negative_prompt))
+        if style_preset:
+            terms.extend(style_preset.forbidden_terms)
+        for character_id in beat.characters:
+            character = self._find_character(project, character_id)
+            if character:
+                terms.extend(character.negative_prompt_terms)
+        location = self._find_location(project, beat.location or scene.location)
+        if location:
+            terms.extend(location.negative_prompt_terms)
         return ", ".join(dict.fromkeys(terms))
 
     def _style_positive_prompt(self, style_preset: StylePreset | None) -> str:
         if not style_preset:
             return self._safe_default_style
-        if style_preset.positive_prompt:
-            return style_preset.positive_prompt
-        return f"{style_preset.name}, high quality illustration"
+        parts = [
+            style_preset.positive_prompt or f"{style_preset.name}, high quality illustration",
+            style_preset.line_style,
+            style_preset.color_palette,
+            style_preset.lighting_style,
+            style_preset.rendering_style,
+            style_preset.character_design_rules,
+            style_preset.background_detail_level or style_preset.background_detail,
+            style_preset.camera_style,
+            ", ".join(style_preset.mood_keywords),
+        ]
+        return self._join_unique_parts(parts)
 
     def _character_prompt(self, project: Project, beat: Beat) -> str:
         character_prompts: list[str] = []
@@ -256,17 +291,22 @@ class PromptBuilderService:
             if not character:
                 character_prompts.append(character_id)
                 continue
-            if character.visual_prompt_base:
-                character_prompts.append(character.visual_prompt_base)
-            else:
-                fallback_parts = [
-                    character.name,
-                    character.appearance,
-                    character.default_outfit,
-                ]
-                character_prompts.append(
-                    ", ".join(part for part in fallback_parts if part)
-                )
+            parts = [
+                character.visual_prompt_base,
+                character.name if not character.visual_prompt_base else "",
+                character.gender,
+                character.age_description,
+                character.appearance,
+                character.face_details,
+                character.hair,
+                character.eyes,
+                character.body_type,
+                character.default_outfit,
+                ", ".join(character.outfit_variants),
+                character.personality,
+                ", ".join(character.continuity_tags),
+            ]
+            character_prompts.append(self._join_unique_parts(parts))
         return ", ".join(character_prompts)
 
     def _location_prompt(self, project: Project, beat: Beat, scene: Scene) -> str:
@@ -276,15 +316,20 @@ class PromptBuilderService:
         location = self._find_location(project, location_id)
         if not location:
             return location_id
-        if location.visual_prompt_base:
-            return location.visual_prompt_base
-        fallback_parts = [
+        parts = [
+            location.visual_prompt_base,
             location.name,
+            location.location_type,
             location.description,
             location.mood,
+            location.time_period,
             location.lighting,
+            location.color_palette,
+            location.architecture_style,
+            ", ".join(location.recurring_props),
+            ", ".join(location.continuity_tags),
         ]
-        return ", ".join(part for part in fallback_parts if part)
+        return self._join_unique_parts(parts)
 
     def _select_style_preset(
         self, project: Project, style_preset_id: str | None
@@ -362,6 +407,17 @@ class PromptBuilderService:
                 flags=re.IGNORECASE,
             )
         return re.sub(r"\s+,", ",", re.sub(r"\s{2,}", " ", cleaned)).strip(" ,")
+
+    def _split_terms(self, value: str) -> list[str]:
+        return [term.strip() for term in value.split(",") if term.strip()]
+
+    def _join_unique_parts(self, parts: list[str]) -> str:
+        cleaned_parts = [
+            re.sub(r"\s+", " ", part).strip(" ,")
+            for part in parts
+            if part and part.strip()
+        ]
+        return ", ".join(dict.fromkeys(cleaned_parts))
 
     def _slug(self, value: str) -> str:
         return re.sub(r"[^a-zA-Z0-9]+", "_", value.strip().lower()).strip("_")
