@@ -17,6 +17,16 @@ def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+SCHEMA_VERSION = 2
+"""Current project JSON schema version.
+
+History:
+- v1 (implicit, legacy): no ``schema_version`` field. Equivalent to v2 in
+  structure; readers must migrate by stamping ``schema_version = 2``.
+- v2: explicit ``schema_version`` field on every persisted project.
+"""
+
+
 @dataclass(slots=True)
 class Project:
     project_id: str
@@ -34,12 +44,14 @@ class Project:
     style_presets: list[StylePreset] = field(default_factory=list)
     created_at: str = field(default_factory=_utc_now_iso)
     updated_at: str = field(default_factory=_utc_now_iso)
+    schema_version: int = SCHEMA_VERSION
 
     def touch(self) -> None:
         self.updated_at = _utc_now_iso()
 
     def to_dict(self) -> dict[str, Any]:
         return {
+            "schema_version": self.schema_version,
             "project_id": self.project_id,
             "title": self.title,
             "author_source_note": self.author_source_note,
@@ -82,4 +94,5 @@ class Project:
             ],
             created_at=data.get("created_at", _utc_now_iso()),
             updated_at=data.get("updated_at", _utc_now_iso()),
+            schema_version=int(data.get("schema_version", 1)),
         )
