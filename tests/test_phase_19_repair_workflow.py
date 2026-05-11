@@ -1,6 +1,6 @@
 import unittest
 
-from app.services.repair_suggestion_service import RepairSuggestionService
+from app.services.quality.repair import RepairSuggestionService
 from tests.test_production_readiness_service import build_ready_project
 from tests.test_repair_suggestion_service import first_action
 

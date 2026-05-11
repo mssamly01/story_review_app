@@ -1,7 +1,9 @@
 """Deterministic beat planning service.
 
-This service converts planned scenes into structured Beat objects. It does not
-write final review narration or image prompts.
+This service converts planned scenes into structured Beat objects. It also
+exposes ``generate_unified_package_for_*`` methods that chain beat generation,
+review rewriting, and image-prompt building in one call — the equivalent of
+the (now removed) ``BeatPackageGeneratorService``.
 """
 
 from __future__ import annotations
@@ -10,6 +12,7 @@ import re
 from typing import Any
 
 from app.domain.beat import Beat
+from app.domain.episode import ReviewEpisode
 from app.domain.project import Project
 from app.domain.scene import Scene
 from app.domain.source_chapter import SourceChapter
@@ -144,6 +147,176 @@ class BeatGeneratorService:
                 )
             )
         return generated_beats
+
+    def generate_unified_package_for_scene(
+        self,
+        project: Project,
+        episode_id: str,
+        scene_id: str,
+        narration_style: str | None = None,
+        retelling_density: str | None = None,
+        style_preset_id: str | None = None,
+        use_ai: bool = False,
+    ) -> list[Beat]:
+        """Generate beats + review narration + image prompts for one scene.
+
+        Replaces the standalone BeatPackageGeneratorService. By default chains
+        the three single-responsibility services deterministically; with
+        ``use_ai=True`` issues a single unified AI call via the
+        ``beat_package_generator`` prompt template.
+        """
+        episode = self.project_service.find_episode(project, episode_id)
+        scene = self.project_service.find_scene(project, episode_id, scene_id)
+
+        if use_ai:
+            return self._generate_unified_package_with_ai(
+                project=project,
+                episode=episode,
+                scene=scene,
+                narration_style=narration_style,
+                retelling_density=retelling_density,
+                style_preset_id=style_preset_id,
+            )
+        return self._generate_unified_package_deterministic(
+            project=project,
+            episode_id=episode_id,
+            scene=scene,
+            narration_style=narration_style,
+            retelling_density=retelling_density,
+            style_preset_id=style_preset_id,
+        )
+
+    def generate_unified_package_for_episode(
+        self,
+        project: Project,
+        episode_id: str,
+        narration_style: str | None = None,
+        retelling_density: str | None = None,
+        style_preset_id: str | None = None,
+        use_ai: bool = False,
+    ) -> list[Beat]:
+        episode = self.project_service.find_episode(project, episode_id)
+        all_beats: list[Beat] = []
+        for scene in episode.scenes:
+            all_beats.extend(
+                self.generate_unified_package_for_scene(
+                    project=project,
+                    episode_id=episode_id,
+                    scene_id=scene.scene_id,
+                    narration_style=narration_style,
+                    retelling_density=retelling_density,
+                    style_preset_id=style_preset_id,
+                    use_ai=use_ai,
+                )
+            )
+        return all_beats
+
+    def _generate_unified_package_deterministic(
+        self,
+        *,
+        project: Project,
+        episode_id: str,
+        scene: Scene,
+        narration_style: str | None,
+        retelling_density: str | None,
+        style_preset_id: str | None,
+    ) -> list[Beat]:
+        from app.services.prompt_builder_service import PromptBuilderService
+        from app.services.review_rewriter_service import ReviewRewriterService
+
+        self.generate_beats_for_scene(
+            project, episode_id, scene.scene_id, retelling_density
+        )
+        ReviewRewriterService(
+            ai_gateway=self.ai_gateway, use_ai=False
+        ).rewrite_scene(
+            project, scene.scene_id, narration_style, retelling_density
+        )
+        PromptBuilderService(
+            ai_gateway=self.ai_gateway, use_ai=False
+        ).build_prompts_for_scene(project, scene.scene_id, style_preset_id)
+        return scene.beats
+
+    def _generate_unified_package_with_ai(
+        self,
+        *,
+        project: Project,
+        episode: ReviewEpisode,
+        scene: Scene,
+        narration_style: str | None,
+        retelling_density: str | None,
+        style_preset_id: str | None,
+    ) -> list[Beat]:
+        gateway = self._require_ai_gateway()
+
+        style_preset = None
+        target_style_id = style_preset_id or project.default_art_style
+        for preset in project.style_presets:
+            if preset.style_id == target_style_id or preset.name == target_style_id:
+                style_preset = preset
+                break
+
+        chapters_by_id = {c.chapter_id: c for c in project.source_chapters}
+        source_chapters = [
+            chapters_by_id[cid]
+            for cid in episode.source_chapter_ids
+            if cid in chapters_by_id
+        ]
+
+        input_data = {
+            "project_genre": project.genre,
+            "style_preset_name": style_preset.name if style_preset else "Default",
+            "style_positive": style_preset.positive_prompt if style_preset else "",
+            "style_negative": style_preset.negative_prompt if style_preset else "",
+            "narration_style": narration_style or episode.tone,
+            "retelling_density": retelling_density or episode.density,
+            "character_bible": [c.to_dict() for c in project.characters],
+            "location_bible": [loc.to_dict() for loc in project.locations],
+            "episode_title": episode.title,
+            "episode_summary": episode.summary,
+            "scene_title": scene.title,
+            "scene_summary": scene.summary,
+            "source_text": "\n".join(c.raw_text for c in source_chapters),
+        }
+
+        response = gateway.generate_json("beat_package_generator", input_data)
+        beats_data = response.get("beats", [])
+
+        preserved_beats = [
+            beat
+            for beat in scene.beats
+            if not beat.beat_id.startswith(self._generated_prefix(scene.scene_id))
+        ]
+
+        new_beats: list[Beat] = []
+        for i, b_data in enumerate(beats_data):
+            beat_id = f"beat_{scene.scene_id}_{i + 1:03d}"
+            new_beats.append(
+                Beat(
+                    beat_id=beat_id,
+                    scene_id=scene.scene_id,
+                    order_index=len(preserved_beats) + i + 1,
+                    source_refs=[c.chapter_id for c in source_chapters],
+                    story_function=str(b_data.get("story_function", "")),
+                    characters=[str(c) for c in b_data.get("characters", [])],
+                    location=str(b_data.get("location", "")),
+                    action=str(b_data.get("action", "")),
+                    emotion=str(b_data.get("emotion", "")),
+                    shot_type=str(b_data.get("shot_type", "")),
+                    visual_description=str(b_data.get("visual_description", "")),
+                    review_text=str(b_data.get("review_text", "")),
+                    image_prompt=str(b_data.get("image_prompt", "")),
+                    negative_prompt=str(b_data.get("negative_prompt", "")),
+                    continuity_tags=[
+                        str(t) for t in b_data.get("continuity_tags", [])
+                    ],
+                    status="planned",
+                )
+            )
+
+        scene.beats = preserved_beats + new_beats
+        project.touch()
+        return new_beats
 
     def _build_beats(
         self,

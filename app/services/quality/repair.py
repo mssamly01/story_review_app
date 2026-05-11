@@ -14,12 +14,12 @@ from app.domain.scene import Scene
 from app.services.beat_generator_service import BeatGeneratorService
 from app.services.bible_service import BibleService
 from app.services.continuity_checker_service import ContinuityCheckerService
-from app.services.production_readiness_service import ProductionReadinessService
+from app.services.quality.readiness import ProductionReadinessService
 from app.services.project_service import ProjectService
-from app.services.project_validation_service import ProjectValidationService
+from app.services.quality.validation import ProjectValidationService
 from app.services.prompt_builder_service import PromptBuilderService
-from app.services.prompt_quality_service import PromptQualityService
-from app.services.review_quality_service import ReviewQualityService
+from app.services.quality.prompt import PromptQualityService
+from app.services.quality.review import ReviewQualityService
 from app.services.review_rewriter_service import ReviewRewriterService
 
 

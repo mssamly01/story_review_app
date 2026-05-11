@@ -7,7 +7,7 @@ from app.domain.character import Character
 from app.domain.location import Location
 from app.domain.style_preset import StylePreset
 from app.domain.source_chapter import SourceChapter
-from app.services.beat_package_generator_service import BeatPackageGeneratorService
+from app.services.beat_generator_service import BeatGeneratorService
 from app.services.project_service import ProjectService
 from app.infrastructure.mock_ai_gateway import MockAIGateway
 from app.infrastructure.prompt_template_loader import PromptTemplateLoader
@@ -75,8 +75,8 @@ def project():
     return project
 
 def test_beat_package_generator_deterministic_scene(project):
-    service = BeatPackageGeneratorService()
-    beats = service.generate_for_scene(
+    service = BeatGeneratorService()
+    beats = service.generate_unified_package_for_scene(
         project, "ep_001", "sc_001", use_ai=False
     )
     
@@ -91,8 +91,8 @@ def test_beat_package_generator_deterministic_scene(project):
 
 def test_beat_package_generator_mock_ai_scene(project):
     mock_gateway = MockAIGateway()
-    service = BeatPackageGeneratorService(ai_gateway=mock_gateway)
-    beats = service.generate_for_scene(
+    service = BeatGeneratorService(ai_gateway=mock_gateway)
+    beats = service.generate_unified_package_for_scene(
         project, "ep_001", "sc_001", use_ai=True
     )
     
@@ -112,8 +112,8 @@ def test_beat_package_generator_episode(project):
     )
     project.review_episodes[0].scenes.append(scene2)
     
-    service = BeatPackageGeneratorService()
-    beats = service.generate_for_episode(
+    service = BeatGeneratorService()
+    beats = service.generate_unified_package_for_episode(
         project, "ep_001", use_ai=False
     )
     
@@ -124,14 +124,14 @@ def test_beat_package_generator_episode(project):
     assert all(beat.review_text != "" for beat in beats)
 
 def test_beat_package_generation_is_idempotent(project):
-    service = BeatPackageGeneratorService()
+    service = BeatGeneratorService()
     
     # First run
-    service.generate_for_scene(project, "ep_001", "sc_001", use_ai=False)
+    service.generate_unified_package_for_scene(project, "ep_001", "sc_001", use_ai=False)
     count_1 = len(project.review_episodes[0].scenes[0].beats)
     
     # Second run
-    service.generate_for_scene(project, "ep_001", "sc_001", use_ai=False)
+    service.generate_unified_package_for_scene(project, "ep_001", "sc_001", use_ai=False)
     count_2 = len(project.review_episodes[0].scenes[0].beats)
     
     assert count_1 == count_2
@@ -151,11 +151,11 @@ def test_mock_ai_gateway_supports_beat_package_generator():
     assert len(response["beats"]) > 0
 
 def test_beat_package_preserves_review_and_prompt_quality(project):
-    from app.services.review_quality_service import ReviewQualityService
-    from app.services.prompt_quality_service import PromptQualityService
+    from app.services.quality.review import ReviewQualityService
+    from app.services.quality.prompt import PromptQualityService
     
-    service = BeatPackageGeneratorService()
-    beats = service.generate_for_scene(project, "ep_001", "sc_001", use_ai=False)
+    service = BeatGeneratorService()
+    beats = service.generate_unified_package_for_scene(project, "ep_001", "sc_001", use_ai=False)
     
     rqs = ReviewQualityService()
     pqs = PromptQualityService()
@@ -170,8 +170,8 @@ def test_beat_package_preserves_review_and_prompt_quality(project):
 
 def test_beat_package_does_not_modify_source_raw_text(project):
     original_text = project.source_chapters[0].raw_text
-    service = BeatPackageGeneratorService()
-    service.generate_for_scene(project, "ep_001", "sc_001", use_ai=False)
+    service = BeatGeneratorService()
+    service.generate_unified_package_for_scene(project, "ep_001", "sc_001", use_ai=False)
     assert project.source_chapters[0].raw_text == original_text
 
 def test_beat_studio_has_generate_beat_package_action():

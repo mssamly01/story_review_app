@@ -484,42 +484,26 @@ class ManualAIService:
         episode_id: str | None,
     ) -> str:
         episode = self._require_episode(project, episode_id)
-        
-        # We can reuse BeatPackageGeneratorService logic if we wrap the result
-        from app.services.beat_package_generator_service import BeatPackageGeneratorService
-        gateway = _SingleResponseGateway(result_data)
-        service = BeatPackageGeneratorService(
-            project_service=self.project_service,
-            ai_gateway=gateway
-        )
-        
+
+        from app.services.beat_generator_service import BeatGeneratorService
+
         total_beats = 0
-        # If the JSON contains a list of scenes, we might need to handle it differently
-        # but BeatPackageGeneratorService expects {"beats": [...]} for a single scene call.
-        # Let's check the schema the user requested.
-        
         if "scenes" in result_data:
             for scene_data in result_data["scenes"]:
                 scene_id = scene_data.get("scene_id")
-                if not scene_id: continue
-                
-                # Mock a gateway that returns the beats for THIS specific scene
-                scene_gateway = _SingleResponseGateway({"beats": scene_data.get("beats", [])})
-                scene_service = BeatPackageGeneratorService(
-                    project_service=self.project_service,
-                    ai_gateway=scene_gateway
+                if not scene_id:
+                    continue
+                scene_gateway = _SingleResponseGateway(
+                    {"beats": scene_data.get("beats", [])}
                 )
-                
-                # Use generate_for_scene in AI mode (it will call our mock gateway)
-                beats = scene_service.generate_for_scene(
+                scene_service = BeatGeneratorService(
+                    project_service=self.project_service,
+                    ai_gateway=scene_gateway,
+                )
+                beats = scene_service.generate_unified_package_for_scene(
                     project, episode.episode_id, scene_id, use_ai=True
                 )
                 total_beats += len(beats)
-        elif "beats" in result_data:
-            # Fallback if AI returned beats directly without scene nesting
-            # (or if we are in a single-scene mode)
-            # This is less ideal but good for robustness
-            pass
 
         return f"Imported unified package: {total_beats} beats applied across scenes."
 

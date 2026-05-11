@@ -5,7 +5,7 @@ from app.domain.character import Character
 from app.domain.location import Location
 from app.domain.style_preset import StylePreset
 from app.services.bible_service import BibleService
-from app.services.production_readiness_service import ProductionReadinessService
+from app.services.quality.readiness import ProductionReadinessService
 from app.services.project_service import ProjectService
 
 

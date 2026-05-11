@@ -14,7 +14,6 @@ from app.services.project_service import ProjectService
 from app.services.prompt_builder_service import PromptBuilderService
 from app.services.review_rewriter_service import ReviewRewriterService
 from app.services.story_parser_service import ParsedChapterResult, StoryParserService
-from app.services.beat_package_generator_service import BeatPackageGeneratorService
 
 
 class GenerationController:
@@ -133,12 +132,12 @@ class GenerationController:
         model: str | None = None,
     ) -> list[Beat]:
         gateway = self._gateway_for_mode(ai_mode, model)
-        service = BeatPackageGeneratorService(
+        service = BeatGeneratorService(
             project_service=self.project_service,
             ai_gateway=gateway,
         )
         if scene_id:
-            return service.generate_for_scene(
+            return service.generate_unified_package_for_scene(
                 project,
                 episode_id,
                 scene_id,
@@ -147,15 +146,14 @@ class GenerationController:
                 style_preset_id=style_preset_id,
                 use_ai=gateway is not None,
             )
-        else:
-            return service.generate_for_episode(
-                project,
-                episode_id,
-                narration_style=tone,
-                retelling_density=density,
-                style_preset_id=style_preset_id,
-                use_ai=gateway is not None,
-            )
+        return service.generate_unified_package_for_episode(
+            project,
+            episode_id,
+            narration_style=tone,
+            retelling_density=density,
+            style_preset_id=style_preset_id,
+            use_ai=gateway is not None,
+        )
 
     def run_full_pipeline(
         self,

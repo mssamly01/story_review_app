@@ -2,7 +2,7 @@ from types import SimpleNamespace
 import unittest
 
 from app.services.project_service import ProjectService
-from app.services.project_validation_service import ProjectValidationService
+from app.services.quality.validation import ProjectValidationService
 
 
 class ProjectValidationServiceTests(unittest.TestCase):

@@ -1,7 +1,7 @@
 import unittest
 
-from app.services.production_readiness_service import ProductionReadinessService
-from app.services.repair_suggestion_service import RepairSuggestionService
+from app.services.quality.readiness import ProductionReadinessService
+from app.services.quality.repair import RepairSuggestionService
 from tests.test_production_readiness_service import build_ready_project
 
 

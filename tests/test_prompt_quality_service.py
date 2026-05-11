@@ -5,7 +5,7 @@ from app.domain.location import Location
 from app.domain.style_preset import StylePreset
 from app.services.bible_service import BibleService
 from app.services.project_service import ProjectService
-from app.services.prompt_quality_service import PromptQualityService
+from app.services.quality.prompt import PromptQualityService
 
 
 class PromptQualityServiceTests(unittest.TestCase):

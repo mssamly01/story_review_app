@@ -7,7 +7,7 @@ from app.services.batch_workflow_service import BatchWorkflowService
 from app.services.bible_service import BibleService
 from app.services.continuity_checker_service import ContinuityCheckerService
 from app.services.project_service import ProjectService
-from app.services.project_validation_service import ProjectValidationService
+from app.services.quality.validation import ProjectValidationService
 from app.services.prompt_builder_service import PromptBuilderService
 from tests.test_batch_workflow_service import build_project_with_chapters
 from tests.test_prompt_builder_advanced_bible import build_prompt_ready_project

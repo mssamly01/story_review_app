@@ -1,6 +1,6 @@
 import unittest
 
-from app.services.production_readiness_service import ProductionReadinessService
+from app.services.quality.readiness import ProductionReadinessService
 from tests.test_production_readiness_service import build_ready_project
 
 
