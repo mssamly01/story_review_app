@@ -28,41 +28,58 @@ class EpisodePanel(QGroupBox):
         parent: QWidget | None = None,
         callbacks: dict[str, Callable[..., Any]] | None = None,
     ) -> None:
-        super().__init__("Episodes", parent)
+        super().__init__("Tập truyện (Episodes)", parent)
         self.callbacks = callbacks or {}
         self.episode_list = QListWidget()
-        self.title_edit = QLineEdit("Episode 1")
+        self.title_edit = QLineEdit("Tập 1")
         self.tone_combo = QComboBox()
         self.tone_combo.addItems(
-            ["mysterious", "dramatic", "neutral", "humorous", "fast-paced"]
+            ["bí ẩn", "kịch tính", "trung lập", "hài hước", "nhanh"]
         )
+        self._tone_map = {
+            "bí ẩn": "mysterious",
+            "kịch tính": "dramatic",
+            "trung lập": "neutral",
+            "hài hước": "humorous",
+            "nhanh": "fast-paced",
+        }
         self.density_combo = QComboBox()
-        self.density_combo.addItems(["full", "balanced", "condensed"])
+        self.density_combo.addItems(["đầy đủ", "cân bằng", "tóm gọn"])
+        self._density_map = {
+            "đầy đủ": "full",
+            "cân bằng": "balanced",
+            "tóm gọn": "condensed",
+        }
         self.ai_mode_combo = QComboBox()
-        self.ai_mode_combo.addItems(["deterministic", "mock", "real"])
+        self.ai_mode_combo.addItems(["quy tắc (deterministic)", "giả lập (mock)", "thật (real)"])
+        self._ai_mode_map = {
+            "quy tắc (deterministic)": "deterministic",
+            "giả lập (mock)": "mock",
+            "thật (real)": "real",
+        }
         self.model_edit = QLineEdit()
         self.style_preset_edit = QLineEdit()
 
         layout = QGridLayout(self)
         layout.addWidget(self.episode_list, 0, 0, 8, 1)
-        layout.addWidget(QLabel("Title"), 0, 1)
+        layout.addWidget(QLabel("Tiêu đề"), 0, 1)
         layout.addWidget(self.title_edit, 0, 2)
-        layout.addWidget(QLabel("Tone"), 1, 1)
+        layout.addWidget(QLabel("Phong cách (Tone)"), 1, 1)
         layout.addWidget(self.tone_combo, 1, 2)
-        layout.addWidget(QLabel("Density"), 2, 1)
+        layout.addWidget(QLabel("Độ chi tiết (Density)"), 2, 1)
         layout.addWidget(self.density_combo, 2, 2)
-        layout.addWidget(QLabel("AI Mode"), 3, 1)
+        layout.addWidget(QLabel("Chế độ AI"), 3, 1)
         layout.addWidget(self.ai_mode_combo, 3, 2)
         layout.addWidget(QLabel("Model"), 4, 1)
         layout.addWidget(self.model_edit, 4, 2)
         layout.addWidget(QLabel("Style Preset"), 5, 1)
         layout.addWidget(self.style_preset_edit, 5, 2)
 
-        plan_button = QPushButton("Plan Episode")
+        plan_button = QPushButton("Lập kế hoạch tập")
         plan_button.clicked.connect(self._call("plan_episode"))
         layout.addWidget(plan_button, 6, 1, 1, 2)
 
-        pipeline_button = QPushButton("Full Pipeline")
+        pipeline_button = QPushButton("Chạy toàn bộ Pipeline")
         pipeline_button.clicked.connect(self._call("run_pipeline"))
         layout.addWidget(pipeline_button, 7, 1, 1, 2)
 
@@ -84,11 +101,14 @@ class EpisodePanel(QGroupBox):
         return item.data(ITEM_ROLE)
 
     def settings(self) -> dict[str, str | None]:
+        tone_text = self.tone_combo.currentText()
+        density_text = self.density_combo.currentText()
+        ai_mode_text = self.ai_mode_combo.currentText()
         return {
-            "episode_title": self.title_edit.text().strip() or "Episode 1",
-            "tone": self.tone_combo.currentText(),
-            "density": self.density_combo.currentText(),
-            "ai_mode": self.ai_mode_combo.currentText(),
+            "episode_title": self.title_edit.text().strip() or "Tập 1",
+            "tone": self._tone_map.get(tone_text, tone_text),
+            "density": self._density_map.get(density_text, density_text),
+            "ai_mode": self._ai_mode_map.get(ai_mode_text, ai_mode_text),
             "model": self.model_edit.text().strip() or None,
             "style_preset_id": self.style_preset_edit.text().strip() or None,
         }

@@ -29,7 +29,7 @@ class SourceChapterPanel(QGroupBox):
         parent: QWidget | None = None,
         callbacks: dict[str, Callable[..., Any]] | None = None,
     ) -> None:
-        super().__init__("Source Chapters", parent)
+        super().__init__("Nguồn chương truyện", parent)
         self.callbacks = callbacks or {}
         self.chapter_list = QListWidget()
         self.title_edit = QLineEdit()
@@ -39,16 +39,16 @@ class SourceChapterPanel(QGroupBox):
 
         layout = QGridLayout(self)
         layout.addWidget(self.chapter_list, 0, 0, 5, 1)
-        layout.addWidget(QLabel("Title"), 0, 1)
+        layout.addWidget(QLabel("Tiêu đề"), 0, 1)
         layout.addWidget(self.title_edit, 0, 2)
-        layout.addWidget(QLabel("Number"), 1, 1)
+        layout.addWidget(QLabel("Số chương"), 1, 1)
         layout.addWidget(self.number_spin, 1, 2)
 
-        add_button = QPushButton("Add From File")
+        add_button = QPushButton("Thêm từ tệp")
         add_button.clicked.connect(self._call("add_chapter"))
         layout.addWidget(add_button, 2, 1, 1, 2)
 
-        apply_button = QPushButton("Apply Source Edits")
+        apply_button = QPushButton("Cập nhật nội dung")
         apply_button.clicked.connect(self._apply_edits)
         layout.addWidget(apply_button, 3, 1, 1, 2)
 

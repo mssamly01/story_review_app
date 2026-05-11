@@ -25,14 +25,14 @@ class BeatBrowser(QGroupBox):
         parent: QWidget | None = None,
         callbacks: dict[str, Callable[..., Any]] | None = None,
     ) -> None:
-        super().__init__("Scenes and Beats", parent)
+        super().__init__("Phân cảnh và Nhịp (Scenes & Beats)", parent)
         self.callbacks = callbacks or {}
         self.scene_list = QListWidget()
         self.beat_list = QListWidget()
 
         layout = QGridLayout(self)
-        layout.addWidget(QLabel("Scenes"), 0, 0)
-        layout.addWidget(QLabel("Beats"), 0, 1)
+        layout.addWidget(QLabel("Phân cảnh (Scenes)"), 0, 0)
+        layout.addWidget(QLabel("Nhịp truyện (Beats)"), 0, 1)
         layout.addWidget(self.scene_list, 1, 0)
         layout.addWidget(self.beat_list, 1, 1)
         layout.setColumnStretch(0, 1)

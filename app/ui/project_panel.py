@@ -21,21 +21,21 @@ class ProjectPanel(QGroupBox):
         parent: QWidget | None = None,
         callbacks: dict[str, Callable[..., Any]] | None = None,
     ) -> None:
-        super().__init__("Project", parent)
+        super().__init__("Dự án", parent)
         self.callbacks = callbacks or {}
-        self.title_edit = QLineEdit("Untitled Project")
+        self.title_edit = QLineEdit("Dự án không tên")
         self.path_label = QLabel("")
         self.path_label.setWordWrap(True)
 
         layout = QGridLayout(self)
-        layout.addWidget(QLabel("Title"), 0, 0)
+        layout.addWidget(QLabel("Tiêu đề"), 0, 0)
         layout.addWidget(self.title_edit, 0, 1, 1, 4)
 
         buttons = [
-            ("New", "new_project"),
-            ("Open", "open_project"),
-            ("Save", "save_project"),
-            ("Save As", "save_project_as"),
+            ("Mới", "new_project"),
+            ("Mở", "open_project"),
+            ("Lưu", "save_project"),
+            ("Lưu mới", "save_project_as"),
         ]
         for column, (label, callback_name) in enumerate(buttons):
             button = QPushButton(label)

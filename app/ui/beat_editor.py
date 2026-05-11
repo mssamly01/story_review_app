@@ -34,20 +34,32 @@ class BeatEditor(QGroupBox):
         "shot_type",
         "continuity_tags",
     ]
+    FIELD_LABELS = {
+        "review_text": "Nội dung Review",
+        "visual_description": "Mô tả hình ảnh",
+        "image_prompt": "Image Prompt",
+        "negative_prompt": "Negative Prompt",
+        "characters": "Nhân vật",
+        "location": "Bối cảnh",
+        "emotion": "Cảm xúc",
+        "shot_type": "Góc máy",
+        "continuity_tags": "Thẻ liên kết (Continuity)",
+    }
 
     def __init__(
         self,
         parent: QWidget | None = None,
         callbacks: dict[str, Callable[..., Any]] | None = None,
     ) -> None:
-        super().__init__("Beat Editor", parent)
+        super().__init__("Chỉnh sửa Nhịp (Beat Editor)", parent)
         self.callbacks = callbacks or {}
         self._beat_id: str | None = None
         self.fields: dict[str, QLineEdit | QPlainTextEdit] = {}
 
         layout = QGridLayout(self)
         for row, name in enumerate(self.FIELD_NAMES):
-            label = QLabel(name.replace("_", " ").title())
+            label_text = self.FIELD_LABELS.get(name, name.replace("_", " ").title())
+            label = QLabel(label_text)
             layout.addWidget(label, row, 0)
             if name in self.MULTILINE_FIELDS:
                 widget = QPlainTextEdit()
@@ -58,7 +70,7 @@ class BeatEditor(QGroupBox):
                 layout.addWidget(widget, row, 1)
             self.fields[name] = widget
 
-        apply_button = QPushButton("Apply Beat Edits")
+        apply_button = QPushButton("Cập nhật nhịp")
         apply_button.clicked.connect(self._apply)
         layout.addWidget(apply_button, len(self.FIELD_NAMES), 0, 1, 2)
         layout.setColumnStretch(1, 1)

@@ -25,7 +25,7 @@ class ExportPanel(QGroupBox):
         parent: QWidget | None = None,
         callbacks: dict[str, Callable[..., Any]] | None = None,
     ) -> None:
-        super().__init__("Export", parent)
+        super().__init__("Xuất bản (Export)", parent)
         self.callbacks = callbacks or {}
         self.format_combo = QComboBox()
         self.format_combo.addItems(
@@ -34,15 +34,15 @@ class ExportPanel(QGroupBox):
         self.profile_combo = QComboBox()
 
         layout = QGridLayout(self)
-        layout.addWidget(QLabel("Format"), 0, 0)
+        layout.addWidget(QLabel("Định dạng"), 0, 0)
         layout.addWidget(self.format_combo, 0, 1)
-        export_button = QPushButton("Export Episode")
+        export_button = QPushButton("Xuất tập")
         export_button.clicked.connect(self._export)
         layout.addWidget(export_button, 0, 2)
 
         layout.addWidget(QLabel("Profile"), 1, 0)
         layout.addWidget(self.profile_combo, 1, 1)
-        profile_button = QPushButton("Export Profile")
+        profile_button = QPushButton("Xuất Profile")
         profile_button.clicked.connect(self._export_profile)
         layout.addWidget(profile_button, 1, 2)
         layout.setColumnStretch(1, 1)
