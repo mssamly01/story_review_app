@@ -18,6 +18,13 @@ def add_ai_flags(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--mock-ai", action="store_true")
     parser.add_argument("--real-ai", action="store_true")
     parser.add_argument("--model", default=None)
+    parser.add_argument(
+        "--provider",
+        default=None,
+        choices=["openai", "anthropic", "gemini", "ollama"],
+        help="Which real-AI provider to use with --real-ai. "
+        "Defaults to AI_PROVIDER env var or 'openai'.",
+    )
 
 
 def parse_comma_separated(value: str) -> list[str]:
@@ -52,6 +59,7 @@ def build_gateway(args: argparse.Namespace) -> AIGateway | None:
         mock_ai=bool(getattr(args, "mock_ai", False)),
         real_ai=bool(getattr(args, "real_ai", False)),
         model=getattr(args, "model", None),
+        provider=getattr(args, "provider", None),
     )
 
 

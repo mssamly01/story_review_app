@@ -16,38 +16,31 @@ need to know whether they're talking to OpenAI, the mock, or anything else.
 
 from __future__ import annotations
 
-import json
 import logging
 import os
-from dataclasses import dataclass
-from typing import Any, Callable, Iterable
+from typing import Any, Iterable
 
+from app.infrastructure._ai_gateway_helpers import (
+    AIConfigurationError,
+    AIResponseParseError,
+    TokenCallback,
+    TokenUsage,
+    build_prompt,
+    parse_json_response,
+)
 from app.infrastructure.ai_gateway import AIGateway
 from app.infrastructure.prompt_template_loader import PromptTemplateLoader
 
 logger = logging.getLogger(__name__)
 
-
-class AIConfigurationError(RuntimeError):
-    """Raised when a real AI provider is requested but not configured."""
-
-
-class AIResponseParseError(ValueError):
-    """Raised when model output cannot be parsed into the expected structure."""
-
-
-@dataclass(frozen=True, slots=True)
-class TokenUsage:
-    """Token counters reported by the provider for a single call."""
-
-    prompt_name: str
-    model: str
-    input_tokens: int
-    output_tokens: int
-    total_tokens: int
-
-
-TokenCallback = Callable[[TokenUsage], None]
+# Re-export so callers that previously imported these from this module keep working.
+__all__ = [
+    "AIConfigurationError",
+    "AIResponseParseError",
+    "OpenAIAIGateway",
+    "TokenCallback",
+    "TokenUsage",
+]
 
 
 def _resolve_retryable_exceptions() -> tuple[type[BaseException], ...]:
@@ -128,13 +121,7 @@ class OpenAIAIGateway(AIGateway):
         return self._parse_json(text, prompt_name)
 
     def _build_prompt(self, template: str, input_data: dict[str, Any]) -> str:
-        payload = json.dumps(
-            input_data,
-            ensure_ascii=False,
-            indent=2,
-            sort_keys=True,
-        )
-        return f"{template.rstrip()}\n\n## Runtime input\n```json\n{payload}\n```"
+        return build_prompt(template, input_data)
 
     def _call_with_retry(
         self,
@@ -318,28 +305,4 @@ class OpenAIAIGateway(AIGateway):
         raise AIResponseParseError("OpenAI response did not contain text output.")
 
     def _parse_json(self, text: str, prompt_name: str) -> dict[str, Any]:
-        cleaned = self._strip_json_fence(text)
-        try:
-            data = json.loads(cleaned)
-        except json.JSONDecodeError as exc:
-            raise AIResponseParseError(
-                f"OpenAI response for '{prompt_name}' was not valid JSON."
-            ) from exc
-
-        if not isinstance(data, dict):
-            raise AIResponseParseError(
-                f"OpenAI response for '{prompt_name}' must be a JSON object."
-            )
-        return data
-
-    def _strip_json_fence(self, text: str) -> str:
-        stripped = text.strip()
-        if not stripped.startswith("```"):
-            return stripped
-
-        lines = stripped.splitlines()
-        if lines and lines[0].strip().startswith("```"):
-            lines = lines[1:]
-        if lines and lines[-1].strip() == "```":
-            lines = lines[:-1]
-        return "\n".join(lines).strip()
+        return parse_json_response(text, prompt_name, provider_label="OpenAI")
