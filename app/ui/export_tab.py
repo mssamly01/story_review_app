@@ -43,22 +43,32 @@ class ExportTab(QWidget):
         
         form_layout = QGridLayout()
         self.ep_combo = QComboBox()
+        self.format_combo = QComboBox()
+        self.format_combo.addItems([
+            "markdown", "json", "csv", "review-txt", "prompts-txt"
+        ])
         self.profile_combo = QComboBox()
         self.output_dir_label = QLabel("Chưa chọn thư mục xuất")
         self.btn_browse = QPushButton("Chọn thư mục...")
         
         form_layout.addWidget(QLabel("Tập truyện:"), 0, 0)
         form_layout.addWidget(self.ep_combo, 0, 1)
-        form_layout.addWidget(QLabel("Profile:"), 1, 0)
-        form_layout.addWidget(self.profile_combo, 1, 1)
-        form_layout.addWidget(QLabel("Thư mục:"), 2, 0)
-        form_layout.addWidget(self.output_dir_label, 2, 1)
-        form_layout.addWidget(self.btn_browse, 2, 2)
+        form_layout.addWidget(QLabel("Định dạng:"), 1, 0)
+        form_layout.addWidget(self.format_combo, 1, 1)
+        form_layout.addWidget(QLabel("Profile:"), 2, 0)
+        form_layout.addWidget(self.profile_combo, 2, 1)
+        form_layout.addWidget(QLabel("Thư mục:"), 3, 0)
+        form_layout.addWidget(self.output_dir_label, 3, 1)
+        form_layout.addWidget(self.btn_browse, 3, 2)
         
         layout.addLayout(form_layout)
         
-        self.btn_export = QPushButton("Thực hiện Xuất bản")
-        layout.addWidget(self.btn_export)
+        btn_layout = QHBoxLayout()
+        self.btn_export_format = QPushButton("Xuất theo định dạng")
+        self.btn_export_profile = QPushButton("Xuất theo Profile")
+        btn_layout.addWidget(self.btn_export_format)
+        btn_layout.addWidget(self.btn_export_profile)
+        layout.addLayout(btn_layout)
         
         layout.addWidget(QLabel("Các tệp đã tạo:"))
         self.created_files_list = QListWidget()
@@ -66,7 +76,8 @@ class ExportTab(QWidget):
         
         # Connect signals
         self.btn_browse.clicked.connect(self._on_browse)
-        self.btn_export.clicked.connect(self._on_export)
+        self.btn_export_format.clicked.connect(self._on_export_format)
+        self.btn_export_profile.clicked.connect(self._on_export_profile)
 
     def refresh(self) -> None:
         self.ep_combo.clear()
@@ -90,8 +101,33 @@ class ExportTab(QWidget):
         if path:
             self.output_dir_label.setText(path)
 
-    def _on_export(self) -> None:
-        if not self.app_state.project: return
+    def _on_export_format(self) -> None:
+        """Export directly to a specific format."""
+        if not self.app_state.project:
+            return
+        
+        ep_id = self.ep_combo.currentData()
+        output_dir = self.output_dir_label.text()
+        fmt = self.format_combo.currentText()
+        
+        if not ep_id or "Chưa chọn" in output_dir:
+            QMessageBox.warning(self, "Cảnh báo", "Hãy chọn tập và thư mục xuất.")
+            return
+            
+        try:
+            path = self.export_controller.export_episode(
+                self.app_state.project, ep_id, fmt, output_dir
+            )
+            self.created_files_list.clear()
+            self.created_files_list.addItem(str(path))
+            QMessageBox.information(self, "Thông báo", f"Đã xuất: {path}")
+        except Exception as exc:
+            QMessageBox.critical(self, "Lỗi", str(exc))
+
+    def _on_export_profile(self) -> None:
+        """Export using a profile."""
+        if not self.app_state.project:
+            return
         
         ep_id = self.ep_combo.currentData()
         profile_id = self.profile_combo.currentData()

@@ -67,6 +67,13 @@ class BeatStudioTab(QWidget):
     def _build_ui(self) -> None:
         main_layout = QVBoxLayout(self)
         
+        # Context Label
+        self.context_label = QLabel("Chưa chọn tập truyện — chọn tại tab 'Kế hoạch tập'")
+        self.context_label.setStyleSheet(
+            "font-weight: bold; padding: 4px; background: #f0f0f0; border-radius: 4px;"
+        )
+        main_layout.addWidget(self.context_label)
+
         # Action Bar
         action_layout = QHBoxLayout()
         self.btn_gen_beats = QPushButton("Tạo nhịp truyện (Generate Beats)")
@@ -148,25 +155,25 @@ class BeatStudioTab(QWidget):
         self.beat_table.setRowCount(0)
         self._clear_editor()
         
-        self.btn_gen_beats.setEnabled(self.app_state.selected_episode_id is not None)
-        
-        if not self.app_state.selected_episode_id:
-            self.btn_gen_review.setEnabled(False)
-            self.btn_gen_prompts.setEnabled(False)
-            return
+        if self.app_state.selected_episode_id and self.app_state.project:
+            episode = self.generation_controller.find_episode(
+                self.app_state.project, self.app_state.selected_episode_id
+            )
+            self.context_label.setText(f"Tập: {episode.title} | Scenes: {len(episode.scenes)}")
+            
+            for scene in episode.scenes:
+                item = QListWidgetItem(f"{scene.scene_id} | {scene.title}")
+                item.setData(ITEM_ROLE, scene.scene_id)
+                self.scene_list.addItem(item)
+                if scene.scene_id == self.app_state.selected_scene_id:
+                    self.scene_list.setCurrentItem(item)
+                    self._load_beats(scene)
+        else:
+            self.context_label.setText("Chưa chọn tập truyện — chọn tại tab 'Kế hoạch tập'")
 
-        episode = self.generation_controller.find_episode(
-            self.app_state.project, self.app_state.selected_episode_id
-        )
+        has_ep = self.app_state.selected_episode_id is not None
+        self.btn_gen_beats.setEnabled(has_ep)
         
-        for scene in episode.scenes:
-            item = QListWidgetItem(f"{scene.scene_id} | {scene.title}")
-            item.setData(ITEM_ROLE, scene.scene_id)
-            self.scene_list.addItem(item)
-            if scene.scene_id == self.app_state.selected_scene_id:
-                self.scene_list.setCurrentItem(item)
-                self._load_beats(scene)
-
         has_beats = self.beat_table.rowCount() > 0
         self.btn_gen_review.setEnabled(has_beats)
         self.btn_gen_prompts.setEnabled(has_beats)
@@ -192,7 +199,7 @@ class BeatStudioTab(QWidget):
     def _load_beat_data(self, beat: Beat) -> None:
         for name in self.FIELD_NAMES:
             value = getattr(beat, name)
-            display_value = ", ".join(value) if isinstance(value, list) else str(value)
+            display_value = ", ".join(value) if isinstance(value, list) else str(value or "")
             widget = self.fields[name]
             if isinstance(widget, QPlainTextEdit):
                 widget.setPlainText(display_value)
@@ -237,6 +244,7 @@ class BeatStudioTab(QWidget):
             self.btn_save_beat.setEnabled(True)
 
     def _find_beat(self, beat_id: str) -> Beat | None:
+        if not self.app_state.project: return None
         for ep in self.app_state.project.review_episodes:
             for sc in ep.scenes:
                 for b in sc.beats:

@@ -12,6 +12,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
     QComboBox,
+    QMessageBox,
+    QFileDialog,
 )
 
 if TYPE_CHECKING:
@@ -41,11 +43,27 @@ class ProjectTab(QWidget):
         info_layout = QGridLayout(info_group)
 
         self.title_edit = QLineEdit("Dự án không tên")
+        self.genre_edit = QLineEdit()
+        self.language_combo = QComboBox()
+        self.language_combo.addItems(["vi", "en", "ja", "ko", "zh"])
+        self.narration_combo = QComboBox()
+        self.narration_combo.addItems([
+            "mysterious", "dramatic", "neutral", "humorous", "fast-paced"
+        ])
+        self.art_style_edit = QLineEdit("dark fantasy webtoon")
         self.path_label = QLabel("Chưa mở dự án nào")
         self.path_label.setWordWrap(True)
 
         info_layout.addWidget(QLabel("Tiêu đề:"), 0, 0)
         info_layout.addWidget(self.title_edit, 0, 1)
+        info_layout.addWidget(QLabel("Thể loại:"), 1, 0)
+        info_layout.addWidget(self.genre_edit, 1, 1)
+        info_layout.addWidget(QLabel("Ngôn ngữ:"), 2, 0)
+        info_layout.addWidget(self.language_combo, 2, 1)
+        info_layout.addWidget(QLabel("Phong cách kể:"), 3, 0)
+        info_layout.addWidget(self.narration_combo, 3, 1)
+        info_layout.addWidget(QLabel("Art Style:"), 4, 0)
+        info_layout.addWidget(self.art_style_edit, 4, 1)
 
         btn_layout = QGridLayout()
         self.btn_new = QPushButton("Mới")
@@ -58,8 +76,8 @@ class ProjectTab(QWidget):
         btn_layout.addWidget(self.btn_save, 0, 2)
         btn_layout.addWidget(self.btn_save_as, 0, 3)
 
-        info_layout.addLayout(btn_layout, 1, 0, 1, 2)
-        info_layout.addWidget(self.path_label, 2, 0, 1, 2)
+        info_layout.addLayout(btn_layout, 5, 0, 1, 2)
+        info_layout.addWidget(self.path_label, 6, 0, 1, 2)
         layout.addWidget(info_group)
 
         # --- AI Settings Group ---
@@ -85,10 +103,22 @@ class ProjectTab(QWidget):
         self.btn_save_as.clicked.connect(self._on_save_as)
         self.ai_mode_combo.currentTextChanged.connect(self._on_ai_mode_changed)
         self.model_edit.textChanged.connect(self._on_model_changed)
+        
+        # Sync metadata
+        self.title_edit.textChanged.connect(self._sync_project_metadata)
+        self.genre_edit.textChanged.connect(self._sync_project_metadata)
+        self.language_combo.currentTextChanged.connect(self._sync_project_metadata)
+        self.narration_combo.currentTextChanged.connect(self._sync_project_metadata)
+        self.art_style_edit.textChanged.connect(self._sync_project_metadata)
 
     def refresh(self) -> None:
         if self.app_state.project:
-            self.title_edit.setText(self.app_state.project.title)
+            p = self.app_state.project
+            self.title_edit.setText(p.title)
+            self.genre_edit.setText(getattr(p, "genre", "") or "")
+            self.language_combo.setCurrentText(getattr(p, "language", "vi"))
+            self.narration_combo.setCurrentText(getattr(p, "default_narration_style", "neutral"))
+            self.art_style_edit.setText(getattr(p, "default_art_style", "") or "")
             self.path_label.setText(str(self.app_state.project_path or ""))
         else:
             self.path_label.setText("Chưa mở dự án nào")
@@ -96,20 +126,31 @@ class ProjectTab(QWidget):
         self.ai_mode_combo.setCurrentText(self.app_state.ai_mode)
         self.model_edit.setText(self.app_state.model or "")
 
+    def _sync_project_metadata(self) -> None:
+        if not self.app_state.project:
+            return
+        p = self.app_state.project
+        p.title = self.title_edit.text()
+        p.genre = self.genre_edit.text()
+        p.language = self.language_combo.currentText()
+        p.default_narration_style = self.narration_combo.currentText()
+        p.default_art_style = self.art_style_edit.text()
+        p.touch()
+
     def _on_new(self) -> None:
-        # MainWindow handles complex UI actions like file dialogs
-        # so it's often easier to call back to it or implement them here.
-        # For simplicity in this refactor, I'll keep logic in the tab if it's UI-heavy.
-        from PySide6.QtWidgets import QMessageBox
-        title = self.title_edit.text()
         try:
-            self.project_controller.create_project(title)
+            self.project_controller.create_project(
+                self.title_edit.text(),
+                genre=self.genre_edit.text(),
+                language=self.language_combo.currentText(),
+                default_narration_style=self.narration_combo.currentText(),
+                default_art_style=self.art_style_edit.text(),
+            )
             self.refresh_callback()
         except Exception as exc:
             QMessageBox.critical(self, "Lỗi", str(exc))
 
     def _on_open(self) -> None:
-        from PySide6.QtWidgets import QFileDialog, QMessageBox
         path, _ = QFileDialog.getOpenFileName(self, "Mở dự án", "", "Project JSON (*.json)")
         if path:
             try:
@@ -119,7 +160,6 @@ class ProjectTab(QWidget):
                 QMessageBox.critical(self, "Lỗi", str(exc))
 
     def _on_save(self) -> None:
-        from PySide6.QtWidgets import QMessageBox
         if not self.app_state.project_path:
             self._on_save_as()
             return
@@ -130,7 +170,6 @@ class ProjectTab(QWidget):
             QMessageBox.critical(self, "Lỗi", str(exc))
 
     def _on_save_as(self) -> None:
-        from PySide6.QtWidgets import QFileDialog, QMessageBox
         path, _ = QFileDialog.getSaveFileName(self, "Lưu dự án", "", "Project JSON (*.json)")
         if path:
             try:

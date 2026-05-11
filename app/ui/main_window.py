@@ -29,12 +29,14 @@ from app.controllers.bible_controller import BibleController
 from app.controllers.validation_controller import ValidationController
 from app.controllers.repair_controller import RepairController
 from app.controllers.batch_workflow_controller import BatchWorkflowController
+from app.controllers.production_readiness_controller import ProductionReadinessController
+from app.controllers.prompt_quality_controller import PromptQualityController
 
 
 class MainWindow(QMainWindow):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Story Review Studio (Refactored)")
+        self.setWindowTitle("Story Review Studio")
         self.resize(1280, 800)
 
         # 1. Initialize State
@@ -50,6 +52,8 @@ class MainWindow(QMainWindow):
         self.validation_controller = ValidationController(ps)
         self.repair_controller = RepairController(ps)
         self.batch_controller = BatchWorkflowController(ps)
+        self.readiness_controller = ProductionReadinessController(ps)
+        self.quality_controller = PromptQualityController(ps)
 
         # 3. Build UI
         self._build_ui()
@@ -82,7 +86,12 @@ class MainWindow(QMainWindow):
             self.app_state, self.bible_controller, self.refresh_all_tabs
         )
         self.quality_tab = QualityRepairTab(
-            self.app_state, self.validation_controller, self.repair_controller, self.refresh_all_tabs
+            self.app_state, 
+            self.validation_controller, 
+            self.repair_controller, 
+            self.readiness_controller,
+            self.quality_controller,
+            self.refresh_all_tabs
         )
         self.export_tab = ExportTab(
             self.app_state, self.export_controller, self.export_profile_controller, self.refresh_all_tabs
@@ -98,6 +107,19 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.export_tab, "Xuất bản")
 
         layout.addWidget(self.tabs)
+        self.tabs.currentChanged.connect(self._on_tab_changed)
+
+    def _on_tab_changed(self, index: int) -> None:
+        """Auto-save project when switching tabs."""
+        if self.app_state.project and self.app_state.project_path:
+            try:
+                self.project_controller.save_project()
+            except Exception:
+                pass # Don't block UI on auto-save failure
+        
+        tab = self.tabs.widget(index)
+        if hasattr(tab, "refresh"):
+            tab.refresh()
 
     def refresh_all_tabs(self) -> None:
         """Sync AppState with controllers and refresh every tab."""

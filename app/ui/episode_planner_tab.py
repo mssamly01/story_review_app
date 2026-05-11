@@ -92,8 +92,10 @@ class EpisodePlannerTab(QWidget):
 
         self.btn_plan = QPushButton("Lập kế hoạch tập")
         self.btn_batch = QPushButton("Lập kế hoạch hàng loạt")
+        self.btn_pipeline = QPushButton("Chạy Full Pipeline cho tập đã chọn")
         mid_layout.addWidget(self.btn_plan)
         mid_layout.addWidget(self.btn_batch)
+        mid_layout.addWidget(self.btn_pipeline)
         mid_layout.addStretch()
         main_layout.addWidget(mid_widget, 1)
 
@@ -108,6 +110,7 @@ class EpisodePlannerTab(QWidget):
         # Connect signals
         self.btn_plan.clicked.connect(self._on_plan)
         self.btn_batch.clicked.connect(self._on_batch)
+        self.btn_pipeline.clicked.connect(self._on_full_pipeline)
         self.episode_list.currentItemChanged.connect(self._on_episode_select)
 
     def refresh(self) -> None:
@@ -144,9 +147,6 @@ class EpisodePlannerTab(QWidget):
             return
             
         chapter_ids = [item.data(ITEM_ROLE) for item in selected_items]
-        # We use the first one as primary for some logic, or pass list if service supports it
-        # Current GenerationController.plan_episode takes one chapter_id.
-        # I'll use the first one to match existing controller.
         
         try:
             episode = self.generation_controller.plan_episode(
@@ -167,16 +167,60 @@ class EpisodePlannerTab(QWidget):
         if not self.app_state.project:
             return
         
+        selected_items = self.chapter_list.selectedItems()
+        chapter_ids = [item.data(ITEM_ROLE) for item in selected_items]
+
+        if not chapter_ids:
+            # If no chapters selected, use all available chapters
+            chapter_ids = [ch.chapter_id for ch in self.app_state.project.source_chapters]
+
+        if not chapter_ids:
+            QMessageBox.warning(self, "Cảnh báo", "Không có chương nào để lập kế hoạch.")
+            return
+
         try:
-            # Batch planner usually auto-plans for all chapters
-            self.batch_controller.run_batch_onboarding(
+            self.batch_controller.plan_episodes_from_chapters(
                 self.app_state.project,
+                chapter_ids=chapter_ids,
                 tone=self._tone_map[self.tone_combo.currentText()],
                 density=self._density_map[self.density_combo.currentText()],
                 ai_mode=self.app_state.ai_mode,
                 model=self.app_state.model,
             )
             QMessageBox.information(self, "Thông báo", "Đã lập kế hoạch hàng loạt.")
+            self.refresh_callback()
+        except Exception as exc:
+            QMessageBox.critical(self, "Lỗi", str(exc))
+
+    def _on_full_pipeline(self) -> None:
+        ep_id = self.app_state.selected_episode_id
+        if not ep_id or not self.app_state.project:
+            QMessageBox.warning(self, "Cảnh báo", "Hãy chọn một tập truyện.")
+            return
+
+        try:
+            ep = self.generation_controller.find_episode(self.app_state.project, ep_id)
+            
+            # 1. Generate Beats
+            self.generation_controller.generate_beats(
+                self.app_state.project, ep_id,
+                ai_mode=self.app_state.ai_mode,
+                model=self.app_state.model,
+            )
+            # 2. Rewrite Review
+            self.generation_controller.rewrite_review(
+                self.app_state.project, ep_id,
+                ai_mode=self.app_state.ai_mode,
+                model=self.app_state.model,
+            )
+            # 3. Build Prompts
+            self.generation_controller.build_prompts(
+                self.app_state.project, ep_id,
+                ai_mode=self.app_state.ai_mode,
+                model=self.app_state.model,
+            )
+            
+            QMessageBox.information(self, "Thông báo", f"Full pipeline hoàn tất cho tập '{ep.title}'.")
             self.refresh_callback()
         except Exception as exc:
             QMessageBox.critical(self, "Lỗi", str(exc))

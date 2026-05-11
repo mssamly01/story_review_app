@@ -150,7 +150,11 @@ class SourceTab(QWidget):
             return
 
         try:
-            self.project_controller.add_chapter_from_file(title, num, path)
+            self.project_controller.add_chapter_from_file(
+                title=title,
+                chapter_number=num,
+                text_file=path,
+            )
             self.refresh_callback()
         except Exception as exc:
             QMessageBox.critical(self, "Lỗi", str(exc))

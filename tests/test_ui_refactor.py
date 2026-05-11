@@ -108,7 +108,7 @@ def test_export_tab_delegates_to_controller():
     window.export_profile_controller.export_episode_with_profile = MagicMock(return_value=[Path("file.txt")])
     
     # Trigger export
-    window.export_tab._on_export()
+    window.export_tab._on_export_profile()
     
     window.export_profile_controller.export_episode_with_profile.assert_called_once()
 
