@@ -57,10 +57,7 @@ class PhaseOneToFourWorkflowTests(unittest.TestCase):
 
         project_service = ProjectService()
         project = project_service.create_project("Căn nhà cũ")
-        raw_text = (
-            "Lâm Vũ trở về căn nhà cũ. "
-            "Anh phát hiện căn phòng bị khóa ở hành lang cuối."
-        )
+        raw_text = "Lâm Vũ trở về căn nhà cũ. " "Anh phát hiện căn phòng bị khóa ở hành lang cuối."
         chapter = project_service.add_source_chapter(
             project,
             title="Chương 1",

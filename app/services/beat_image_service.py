@@ -56,29 +56,21 @@ class BeatImageService:
         project.touch()
         return variant
 
-    def select_image(
-        self, project: Project, beat_id: str, image_id: str
-    ) -> BeatImageVariant:
+    def select_image(self, project: Project, beat_id: str, image_id: str) -> BeatImageVariant:
         beat = self._find_beat(project, beat_id)
         variant = self._mark_selected(beat, image_id)
         project.touch()
         return variant
 
-    def remove_image(
-        self, project: Project, beat_id: str, image_id: str
-    ) -> None:
+    def remove_image(self, project: Project, beat_id: str, image_id: str) -> None:
         beat = self._find_beat(project, beat_id)
         original_count = len(beat.images)
         beat.images = [img for img in beat.images if img.image_id != image_id]
         if len(beat.images) == original_count:
-            raise LookupError(
-                f"Image {image_id!r} not found on beat {beat_id!r}"
-            )
+            raise LookupError(f"Image {image_id!r} not found on beat {beat_id!r}")
         project.touch()
 
-    def list_images(
-        self, project: Project, beat_id: str
-    ) -> list[BeatImageVariant]:
+    def list_images(self, project: Project, beat_id: str) -> list[BeatImageVariant]:
         return list(self._find_beat(project, beat_id).images)
 
     def _find_beat(self, project: Project, beat_id: str) -> Beat:
@@ -96,9 +88,7 @@ class BeatImageService:
                 target = image
                 break
         if target is None:
-            raise LookupError(
-                f"Image {image_id!r} not found on beat {beat.beat_id!r}"
-            )
+            raise LookupError(f"Image {image_id!r} not found on beat {beat.beat_id!r}")
         for image in beat.images:
             image.selected = image.image_id == image_id
         return target

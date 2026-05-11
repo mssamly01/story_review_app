@@ -15,7 +15,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-
 ITEM_ROLE = Qt.ItemDataRole.UserRole
 
 
@@ -57,8 +56,7 @@ class BeatBrowser(QGroupBox):
             if len(preview) > 70:
                 preview = preview[:67] + "..."
             item = QListWidgetItem(
-                f"{beat.beat_id} | {beat.order_index} | "
-                f"{beat.story_function} | {preview}"
+                f"{beat.beat_id} | {beat.order_index} | " f"{beat.story_function} | {preview}"
             )
             item.setData(ITEM_ROLE, beat.beat_id)
             self.beat_list.addItem(item)

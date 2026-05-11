@@ -11,10 +11,7 @@ def build_rewriter_project():
         project,
         title="Chương 1",
         chapter_number=1,
-        raw_text=(
-            "Lâm Vũ trở về căn nhà cũ. "
-            "Anh nghe thấy tiếng động sau cánh cửa bị khóa."
-        ),
+        raw_text=("Lâm Vũ trở về căn nhà cũ. " "Anh nghe thấy tiếng động sau cánh cửa bị khóa."),
     )
     episode = project_service.add_review_episode(
         project,
@@ -27,10 +24,7 @@ def build_rewriter_project():
         project,
         episode_id=episode.episode_id,
         title="Trở về nhà cũ",
-        summary=(
-            "Lâm Vũ quay lại căn nhà cũ và nhận ra hành lang phía sau "
-            "vẫn tối bất thường."
-        ),
+        summary=("Lâm Vũ quay lại căn nhà cũ và nhận ra hành lang phía sau " "vẫn tối bất thường."),
         characters=["lam_vu"],
         location="old_house_hallway",
         mood="mysterious",

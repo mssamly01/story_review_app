@@ -1,6 +1,6 @@
-from unittest.mock import patch
 import os
 import unittest
+from unittest.mock import patch
 
 from app.infrastructure.ai_gateway_factory import create_ai_gateway
 from app.infrastructure.mock_ai_gateway import MockAIGateway

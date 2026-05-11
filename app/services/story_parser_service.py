@@ -7,8 +7,8 @@ AI parser can return the same shape.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import re
+from dataclasses import dataclass, field
 from typing import Any
 
 from app.domain.source_chapter import SourceChapter
@@ -102,19 +102,13 @@ class ParsedChapterResult:
     def to_dict(self) -> dict[str, Any]:
         return {
             "chapter_id": self.chapter_id,
-            "detected_characters": [
-                character.to_dict() for character in self.detected_characters
-            ],
-            "detected_locations": [
-                location.to_dict() for location in self.detected_locations
-            ],
+            "detected_characters": [character.to_dict() for character in self.detected_characters],
+            "detected_locations": [location.to_dict() for location in self.detected_locations],
             "scene_candidates": [
-                scene_candidate.to_dict()
-                for scene_candidate in self.scene_candidates
+                scene_candidate.to_dict() for scene_candidate in self.scene_candidates
             ],
             "important_events": [
-                important_event.to_dict()
-                for important_event in self.important_events
+                important_event.to_dict() for important_event in self.important_events
             ],
         }
 
@@ -283,9 +277,7 @@ class StoryParserService:
             mood=str(item.get("mood", "neutral")),
             characters=[str(value) for value in item.get("characters", [])],
             location=str(item.get("location", "")),
-            important_events=[
-                str(value) for value in item.get("important_events", [])
-            ],
+            important_events=[str(value) for value in item.get("important_events", [])],
             importance=str(item.get("importance", "medium")),
         )
 
@@ -325,9 +317,7 @@ class StoryParserService:
         sentences = self._sentence_split_pattern.split(normalized)
         return [sentence.strip() for sentence in sentences if sentence.strip()]
 
-    def _detect_characters(
-        self, sentences: list[str]
-    ) -> list[DetectedCharacter]:
+    def _detect_characters(self, sentences: list[str]) -> list[DetectedCharacter]:
         character_names: list[str] = []
         evidence_by_name: dict[str, str] = {}
 
@@ -449,14 +439,10 @@ class StoryParserService:
                 return mood
         return "neutral"
 
-    def _names_present(
-        self, text: str, characters: list[DetectedCharacter]
-    ) -> list[str]:
+    def _names_present(self, text: str, characters: list[DetectedCharacter]) -> list[str]:
         return [character.name for character in characters if character.name in text]
 
-    def _first_location_present(
-        self, text: str, locations: list[DetectedLocation]
-    ) -> str:
+    def _first_location_present(self, text: str, locations: list[DetectedLocation]) -> str:
         for location in locations:
             if location.name in text:
                 return location.name

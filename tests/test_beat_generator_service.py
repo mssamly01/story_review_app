@@ -24,10 +24,7 @@ def build_scene_project(*, importance: str = "high", target_beats: int = 6):
         project,
         episode_id=episode.episode_id,
         title="Trở về nhà cũ",
-        summary=(
-            "Lâm Vũ quay lại căn nhà cũ. "
-            "Anh nhận ra cánh cửa cuối hành lang vẫn bị khóa."
-        ),
+        summary=("Lâm Vũ quay lại căn nhà cũ. " "Anh nhận ra cánh cửa cuối hành lang vẫn bị khóa."),
         characters=["lam_vu"],
         location="old_house_hallway",
         mood="mysterious",
@@ -94,12 +91,8 @@ class BeatGeneratorServiceTests(unittest.TestCase):
             [beat.order_index for beat in second_scene.ordered_beats()],
             list(range(1, len(second_scene.beats) + 1)),
         )
-        self.assertTrue(
-            all(beat.beat_id.startswith("beat_sc_001_") for beat in first_scene.beats)
-        )
-        self.assertTrue(
-            all(beat.beat_id.startswith("beat_sc_002_") for beat in second_scene.beats)
-        )
+        self.assertTrue(all(beat.beat_id.startswith("beat_sc_001_") for beat in first_scene.beats))
+        self.assertTrue(all(beat.beat_id.startswith("beat_sc_002_") for beat in second_scene.beats))
 
     def test_retelling_density_affects_beat_count(self) -> None:
         project_service, project, episode, scene = build_scene_project(

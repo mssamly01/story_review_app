@@ -1,6 +1,6 @@
 import os
-from unittest.mock import patch
 import unittest
+from unittest.mock import patch
 
 from app.infrastructure.openai_ai_gateway import (
     AIConfigurationError,
@@ -77,4 +77,3 @@ class OpenAIGatewayContractTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

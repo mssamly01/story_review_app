@@ -17,9 +17,7 @@ class OnboardingController:
         template_service: ProjectTemplateService | None = None,
     ) -> None:
         self.project_service = project_service or ProjectService()
-        self.template_service = template_service or ProjectTemplateService(
-            self.project_service
-        )
+        self.template_service = template_service or ProjectTemplateService(self.project_service)
 
     def list_templates(self) -> list[ProjectTemplate]:
         return self.template_service.list_templates()

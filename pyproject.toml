@@ -1,0 +1,29 @@
+# Minimal project config for tooling only. The repo is pip-managed; this file
+# does NOT replace requirements*.txt for runtime/test dependency installs.
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [".pytest_cache", "build", "dist"]
+
+[tool.ruff.lint]
+# Conservative baseline so the initial CI integration is green without a giant
+# style rewrite. Future PRs can opt-in to B (bugbear), UP (pyupgrade), SIM
+# (simplify) and tighten the per-file-ignores once the codebase is cleaned.
+select = ["E", "F", "W", "I"]
+ignore = [
+  "E501",  # line length handled by black; ruff would double-flag.
+  "E402",  # module-level imports after sys.path tweaks (rare; tests need it).
+  "E741",  # ambiguous variable names like `l` / `I` — leave alone for now.
+]
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+extend-exclude = '''
+/(
+    \.pytest_cache
+  | build
+  | dist
+)/
+'''

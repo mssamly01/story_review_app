@@ -1,6 +1,6 @@
+import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
-import unittest
 
 from app import cli
 from app.services.project_service import ProjectService
@@ -84,7 +84,9 @@ class CliBibleCommandTests(unittest.TestCase):
             self.assertEqual(project.characters[0].character_id, "lam_vu")
             self.assertEqual(project.characters[0].aliases, ["Vu", "young master"])
             self.assertEqual(project.locations[0].location_id, "old_house")
-            self.assertEqual(project.locations[0].recurring_props, ["locked door", "dusty portrait"])
+            self.assertEqual(
+                project.locations[0].recurring_props, ["locked door", "dusty portrait"]
+            )
 
 
 if __name__ == "__main__":

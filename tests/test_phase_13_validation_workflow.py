@@ -1,9 +1,9 @@
 import io
 import json
+import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 from tempfile import TemporaryDirectory
-import unittest
 
 from app import cli
 from app.services.project_service import ProjectService
@@ -55,9 +55,7 @@ class PhaseThirteenValidationWorkflowTests(unittest.TestCase):
             self.assertEqual(exit_code, 0)
             data = json.loads(stdout.getvalue())
             self.assertIsInstance(data, list)
-            self.assertTrue(
-                any(issue["category"] == "empty_review_text" for issue in data)
-            )
+            self.assertTrue(any(issue["category"] == "empty_review_text" for issue in data))
 
     def test_cli_validate_project_fail_on_error(self) -> None:
         with TemporaryDirectory() as temp_dir:

@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import re
 
+from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (
     QDialog,
     QHBoxLayout,
@@ -18,7 +19,6 @@ from PySide6.QtWidgets import (
     QPushButton,
     QVBoxLayout,
 )
-from PySide6.QtGui import QGuiApplication
 
 
 class PromptExportDialog(QDialog):
@@ -39,10 +39,12 @@ class PromptExportDialog(QDialog):
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
 
-        layout.addWidget(QLabel(
-            "Copy toàn bộ nội dung bên dưới → paste vào ChatGPT / Claude / Gemini.\n"
-            "AI sẽ trả về JSON. Sau đó dùng nút 'Dán kết quả' để import."
-        ))
+        layout.addWidget(
+            QLabel(
+                "Copy toàn bộ nội dung bên dưới → paste vào ChatGPT / Claude / Gemini.\n"
+                "AI sẽ trả về JSON. Sau đó dùng nút 'Dán kết quả' để import."
+            )
+        )
 
         self.text_view = QPlainTextEdit()
         self.text_view.setPlainText(self.prompt_text)
@@ -84,15 +86,15 @@ class ResultImportDialog(QDialog):
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
 
-        layout.addWidget(QLabel(
-            "Paste JSON kết quả từ AI vào ô bên dưới.\n"
-            "Hỗ trợ JSON thuần hoặc JSON trong markdown code block (```json ... ```)."
-        ))
+        layout.addWidget(
+            QLabel(
+                "Paste JSON kết quả từ AI vào ô bên dưới.\n"
+                "Hỗ trợ JSON thuần hoặc JSON trong markdown code block (```json ... ```)."
+            )
+        )
 
         self.text_edit = QPlainTextEdit()
-        self.text_edit.setPlaceholderText(
-            'Paste JSON tại đây...\n{\n  "scenes": [...]\n}'
-        )
+        self.text_edit.setPlaceholderText('Paste JSON tại đây...\n{\n  "scenes": [...]\n}')
         layout.addWidget(self.text_edit)
 
         btn_layout = QHBoxLayout()
@@ -127,7 +129,9 @@ class ResultImportDialog(QDialog):
             self.result_data = json.loads(cleaned)
         except json.JSONDecodeError as exc:
             QMessageBox.critical(
-                self, "Lỗi JSON", f"Không thể parse JSON:\n{exc}",
+                self,
+                "Lỗi JSON",
+                f"Không thể parse JSON:\n{exc}",
             )
             return
 

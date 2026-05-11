@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
@@ -12,22 +13,19 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QListWidget,
     QListWidgetItem,
+    QMessageBox,
     QPushButton,
     QVBoxLayout,
     QWidget,
-    QMessageBox,
-    QFileDialog,
-    QDialog,
 )
 
 if TYPE_CHECKING:
-    from app.ui.app_state import AppState
-    from app.controllers.project_controller import ProjectController
-    from app.controllers.generation_controller import GenerationController
     from app.controllers.batch_workflow_controller import BatchWorkflowController
+    from app.controllers.generation_controller import GenerationController
     from app.controllers.manual_ai_controller import ManualAIController
+    from app.controllers.project_controller import ProjectController
+    from app.ui.app_state import AppState
 
-from app.services.manual_ai_service import ManualAIService
 from app.ui.manual_ai_dialogs import PromptExportDialog, ResultImportDialog
 
 ITEM_ROLE = Qt.ItemDataRole.UserRole
@@ -51,7 +49,7 @@ class EpisodePlannerTab(QWidget):
         self.batch_controller = batch_controller
         self.manual_ai_controller = manual_ai_controller
         self.refresh_callback = refresh_callback
-        
+
         self._tone_map = {
             "bí ẩn": "mysterious",
             "kịch tính": "dramatic",
@@ -82,14 +80,14 @@ class EpisodePlannerTab(QWidget):
         # --- Middle: Planner Controls ---
         mid_widget = QWidget()
         mid_layout = QVBoxLayout(mid_widget)
-        
+
         form_group = QGridLayout()
         self.title_edit = QLineEdit("Tập 1")
         self.tone_combo = QComboBox()
         self.tone_combo.addItems(list(self._tone_map.keys()))
         self.density_combo = QComboBox()
         self.density_combo.addItems(list(self._density_map.keys()))
-        
+
         form_group.addWidget(QLabel("Tiêu đề tập:"), 0, 0)
         form_group.addWidget(self.title_edit, 0, 1)
         form_group.addWidget(QLabel("Phong cách (Tone):"), 1, 0)
@@ -103,7 +101,6 @@ class EpisodePlannerTab(QWidget):
         self.btn_import_plan = QPushButton("Dán kết quả Plan")
         mid_layout.addWidget(self.btn_prompt_plan)
         mid_layout.addWidget(self.btn_import_plan)
-
 
         mid_layout.addStretch()
         main_layout.addWidget(mid_widget, 1)
@@ -127,7 +124,7 @@ class EpisodePlannerTab(QWidget):
     def refresh(self) -> None:
         self.chapter_list.clear()
         self.episode_list.clear()
-        
+
         if not self.app_state.project:
             return
 
@@ -165,7 +162,8 @@ class EpisodePlannerTab(QWidget):
                 break
 
         reply = QMessageBox.question(
-            self, "Xác nhận xóa",
+            self,
+            "Xác nhận xóa",
             f"Bạn có chắc muốn xóa tập '{episode_name}'?\nTất cả scenes và beats trong tập này sẽ bị xóa.\nHành động này không thể hoàn tác.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
@@ -173,8 +171,7 @@ class EpisodePlannerTab(QWidget):
             return
 
         self.app_state.project.review_episodes = [
-            ep for ep in self.app_state.project.review_episodes
-            if ep.episode_id != episode_id
+            ep for ep in self.app_state.project.review_episodes if ep.episode_id != episode_id
         ]
         self.app_state.project.touch()
         self.app_state.selected_episode_id = None

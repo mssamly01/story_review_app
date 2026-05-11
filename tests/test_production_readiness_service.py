@@ -5,8 +5,8 @@ from app.domain.character import Character
 from app.domain.location import Location
 from app.domain.style_preset import StylePreset
 from app.services.bible_service import BibleService
-from app.services.quality.readiness import ProductionReadinessService
 from app.services.project_service import ProjectService
+from app.services.quality.readiness import ProductionReadinessService
 
 
 class ProductionReadinessServiceTests(unittest.TestCase):
@@ -27,9 +27,7 @@ class ProductionReadinessServiceTests(unittest.TestCase):
         report = readiness_service().build_episode_report(project, "ep_001")
 
         self.assertEqual(report.status, "blocked")
-        self.assertTrue(
-            any("review text" in reason.lower() for reason in report.blocked_reasons)
-        )
+        self.assertTrue(any("review text" in reason.lower() for reason in report.blocked_reasons))
         self.assertIn("Run rewrite-review", " ".join(report.top_recommendations))
 
     def test_missing_image_prompt_blocks_report(self) -> None:
@@ -39,9 +37,7 @@ class ProductionReadinessServiceTests(unittest.TestCase):
         report = readiness_service().build_episode_report(project, "ep_001")
 
         self.assertEqual(report.status, "blocked")
-        self.assertTrue(
-            any("image prompt" in reason.lower() for reason in report.blocked_reasons)
-        )
+        self.assertTrue(any("image prompt" in reason.lower() for reason in report.blocked_reasons))
         self.assertIn("Run build-prompts", " ".join(report.top_recommendations))
 
     def test_low_review_quality_needs_review(self) -> None:

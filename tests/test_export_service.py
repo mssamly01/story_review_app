@@ -37,15 +37,11 @@ class ExportServiceTests(unittest.TestCase):
             emotion="lonely",
             shot_type="wide shot",
             review_text="Lâm Vũ quay lại căn nhà mà ông nội để lại.",
-            image_prompt=(
-                "dark fantasy webtoon style, young man standing before an old house"
-            ),
+            image_prompt=("dark fantasy webtoon style, young man standing before an old house"),
             negative_prompt="low quality, blurry, text",
         )
 
-        markdown = export_service.export_episode_to_markdown(
-            project, episode.episode_id
-        )
+        markdown = export_service.export_episode_to_markdown(project, episode.episode_id)
 
         self.assertIn("# Cánh cửa cuối hành lang", markdown)
         self.assertIn("## Scene 1 - Trở về", markdown)

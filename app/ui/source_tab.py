@@ -3,33 +3,32 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QFileDialog,
     QGridLayout,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QLineEdit,
     QListWidget,
     QListWidgetItem,
+    QMessageBox,
     QPlainTextEdit,
     QPushButton,
+    QSpinBox,
     QSplitter,
     QVBoxLayout,
     QWidget,
-    QSpinBox,
-    QMessageBox,
-    QInputDialog,
-    QFileDialog,
-    QDialog,
 )
 
 if TYPE_CHECKING:
-    from app.ui.app_state import AppState
-    from app.controllers.project_controller import ProjectController
     from app.controllers.generation_controller import GenerationController
     from app.controllers.manual_ai_controller import ManualAIController
+    from app.controllers.project_controller import ProjectController
+    from app.ui.app_state import AppState
 
-from app.services.manual_ai_service import ManualAIService
 from app.ui.manual_ai_dialogs import PromptExportDialog, ResultImportDialog
 
 ITEM_ROLE = Qt.ItemDataRole.UserRole
@@ -63,7 +62,7 @@ class SourceTab(QWidget):
         left_layout.addWidget(QLabel("Danh sách chương nguồn"))
         self.chapter_list = QListWidget()
         left_layout.addWidget(self.chapter_list)
-        
+
         btn_list_layout = QHBoxLayout()
         self.btn_add = QPushButton("Thêm từ tệp")
         self.btn_delete_chapter = QPushButton("Xóa chương")
@@ -75,12 +74,12 @@ class SourceTab(QWidget):
         # --- Right: Editor ---
         right_widget = QWidget()
         right_layout = QVBoxLayout(right_widget)
-        
+
         form_layout = QGridLayout()
         self.title_edit = QLineEdit()
         self.number_spin = QSpinBox()
         self.number_spin.setRange(1, 9999)
-        
+
         form_layout.addWidget(QLabel("Tiêu đề:"), 0, 0)
         form_layout.addWidget(self.title_edit, 0, 1)
         form_layout.addWidget(QLabel("Số chương:"), 1, 0)
@@ -94,7 +93,7 @@ class SourceTab(QWidget):
         action_layout = QHBoxLayout()
         self.btn_save = QPushButton("Lưu thay đổi")
         action_layout.addWidget(self.btn_save)
-        
+
         action_layout.addWidget(QLabel("<b>Manual AI:</b>"))
         self.btn_prompt_parse = QPushButton("Lấy Prompt Parse")
         self.btn_import_parse = QPushButton("Dán kết quả Parse")
@@ -102,7 +101,6 @@ class SourceTab(QWidget):
         action_layout.addWidget(self.btn_import_parse)
         right_layout.addLayout(action_layout)
 
-        
         splitter.addWidget(right_widget)
         splitter.setStretchFactor(1, 1)
         main_layout.addWidget(splitter)
@@ -143,7 +141,7 @@ class SourceTab(QWidget):
         if not current or not self.app_state.project:
             self.app_state.selected_chapter_id = None
             return
-        
+
         chapter_id = current.data(ITEM_ROLE)
         self.app_state.selected_chapter_id = chapter_id
         try:
@@ -161,11 +159,11 @@ class SourceTab(QWidget):
         path, _ = QFileDialog.getOpenFileName(self, "Thêm chương nguồn", "", "Tệp văn bản (*.txt)")
         if not path:
             return
-        
+
         title, ok = QInputDialog.getText(self, "Tiêu đề chương", "Nhập tiêu đề chương:")
         if not ok or not title:
             return
-            
+
         num, ok = QInputDialog.getInt(self, "Số chương", "Nhập số thứ tự chương:", 1, 1, 9999)
         if not ok:
             return
@@ -183,7 +181,7 @@ class SourceTab(QWidget):
     def _on_save_edits(self) -> None:
         if not self.app_state.selected_chapter_id:
             return
-        
+
         try:
             self.project_controller.update_chapter(
                 self.app_state.selected_chapter_id,
@@ -195,7 +193,6 @@ class SourceTab(QWidget):
             self.refresh_callback()
         except Exception as exc:
             QMessageBox.critical(self, "Lỗi", str(exc))
-
 
     def _on_delete_chapter(self) -> None:
         """Xóa chương đang chọn khỏi project."""
@@ -211,7 +208,8 @@ class SourceTab(QWidget):
                 break
 
         reply = QMessageBox.question(
-            self, "Xác nhận xóa",
+            self,
+            "Xác nhận xóa",
             f"Bạn có chắc muốn xóa chương '{chapter_name}'?\nHành động này không thể hoàn tác.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
@@ -219,8 +217,7 @@ class SourceTab(QWidget):
             return
 
         self.app_state.project.source_chapters = [
-            ch for ch in self.app_state.project.source_chapters
-            if ch.chapter_id != chapter_id
+            ch for ch in self.app_state.project.source_chapters if ch.chapter_id != chapter_id
         ]
         self.app_state.project.touch()
         self.app_state.selected_chapter_id = None

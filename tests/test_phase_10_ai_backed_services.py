@@ -1,6 +1,6 @@
 import os
-from unittest.mock import patch
 import unittest
+from unittest.mock import patch
 
 from app.infrastructure.mock_ai_gateway import MockAIGateway
 from app.services.beat_generator_service import BeatGeneratorService
@@ -24,10 +24,7 @@ def build_base_project():
         chapter_id="ch_001",
         title="Chapter 1",
         chapter_number=1,
-        raw_text=(
-            "Lan returns to the old house. She finds a small clue on the "
-            "dusty floor."
-        ),
+        raw_text=("Lan returns to the old house. She finds a small clue on the " "dusty floor."),
     )
     project_service.add_character(
         project,

@@ -4,15 +4,15 @@ from __future__ import annotations
 
 import argparse
 import json
-from pathlib import Path
 import sys
+from pathlib import Path
 from typing import Any, Sequence
 
+from app.controllers.export_profile_controller import ExportProfileController
+from app.controllers.onboarding_controller import OnboardingController
 from app.controllers.production_readiness_controller import (
     ProductionReadinessController,
 )
-from app.controllers.onboarding_controller import OnboardingController
-from app.controllers.export_profile_controller import ExportProfileController
 from app.controllers.prompt_quality_controller import PromptQualityController
 from app.controllers.repair_controller import RepairController
 from app.controllers.validation_controller import ValidationController
@@ -22,17 +22,17 @@ from app.domain.project import Project
 from app.infrastructure.ai_gateway import AIGateway
 from app.infrastructure.ai_gateway_factory import create_ai_gateway
 from app.services.batch_workflow_service import BatchWorkflowService
+from app.services.beat_generator_service import BeatGeneratorService
 from app.services.beat_image_service import BeatImageService
 from app.services.bible_service import BibleService
-from app.services.beat_generator_service import BeatGeneratorService
 from app.services.episode_planner_service import EpisodePlannerService
 from app.services.export_service import ExportService
+from app.services.manual_ai_service import SUPPORTED_STEPS, ManualAIService
 from app.services.project_service import ProjectService
 from app.services.prompt_builder_service import PromptBuilderService
 from app.services.review_rewriter_service import ReviewRewriterService
 from app.services.source_import_service import SourceImportService
 from app.services.story_parser_service import StoryParserService
-from app.services.manual_ai_service import ManualAIService, SUPPORTED_STEPS
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -327,17 +327,18 @@ def build_parser() -> argparse.ArgumentParser:
     )
     export_prompt.add_argument("--project", required=True)
     export_prompt.add_argument(
-        "--step", required=True, choices=SUPPORTED_STEPS,
+        "--step",
+        required=True,
+        choices=SUPPORTED_STEPS,
         help="Pipeline step: parse-story, plan-episode, generate-beats, "
-             "rewrite-review, build-prompts",
+        "rewrite-review, build-prompts",
     )
     export_prompt.add_argument("--chapter-id", default=None)
     export_prompt.add_argument("--episode-id", default=None)
     export_prompt.add_argument("--tone", default=None)
     export_prompt.add_argument("--density", default=None)
     export_prompt.add_argument("--style-preset-id", default=None)
-    export_prompt.add_argument("--output", required=True,
-                               help="Output file (.json or .md)")
+    export_prompt.add_argument("--output", required=True, help="Output file (.json or .md)")
     export_prompt.set_defaults(handler=handle_export_prompt)
 
     import_result = subparsers.add_parser(
@@ -346,10 +347,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     import_result.add_argument("--project", required=True)
     import_result.add_argument(
-        "--step", required=True, choices=SUPPORTED_STEPS,
+        "--step",
+        required=True,
+        choices=SUPPORTED_STEPS,
     )
-    import_result.add_argument("--result-file", required=True,
-                               help="Path to JSON file with AI result.")
+    import_result.add_argument(
+        "--result-file", required=True, help="Path to JSON file with AI result."
+    )
     import_result.add_argument("--chapter-id", default=None)
     import_result.add_argument("--episode-id", default=None)
     import_result.add_argument("--tone", default=None)
@@ -402,10 +406,7 @@ def handle_create_project_from_template(args: argparse.Namespace) -> int:
         project_id=args.project_id,
         language=args.language,
     )
-    print(
-        f"Created project from template: {project.title} "
-        f"({args.template})"
-    )
+    print(f"Created project from template: {project.title} " f"({args.template})")
     return 0
 
 
@@ -638,8 +639,7 @@ def handle_import_image(args: argparse.Namespace) -> int:
     project_service.save_project(project, args.project)
     print(
         f"Attached image {variant.image_id} to beat {args.beat_id}: "
-        f"{variant.image_path}"
-        + (" [selected]" if variant.selected else "")
+        f"{variant.image_path}" + (" [selected]" if variant.selected else "")
     )
     return 0
 
@@ -647,9 +647,7 @@ def handle_import_image(args: argparse.Namespace) -> int:
 def handle_select_image(args: argparse.Namespace) -> int:
     project_service = ProjectService()
     project = load_project(project_service, args.project)
-    variant = BeatImageService(project_service).select_image(
-        project, args.beat_id, args.image_id
-    )
+    variant = BeatImageService(project_service).select_image(project, args.beat_id, args.image_id)
     project_service.save_project(project, args.project)
     print(f"Selected image {variant.image_id} for beat {args.beat_id}.")
     return 0
@@ -680,10 +678,7 @@ def handle_list_images(args: argparse.Namespace) -> int:
 def handle_list_export_profiles(args: argparse.Namespace) -> int:
     del args
     for profile in ExportProfileController().list_profiles():
-        print(
-            f"{profile.profile_id}: {profile.name} "
-            f"({', '.join(profile.formats)})"
-        )
+        print(f"{profile.profile_id}: {profile.name} " f"({', '.join(profile.formats)})")
     return 0
 
 
@@ -720,11 +715,14 @@ def handle_score_prompts(args: argparse.Namespace) -> int:
     project = load_project(project_service, args.project)
     controller = PromptQualityController(project_service)
     if args.format == "json":
-        content = json.dumps(
-            controller.build_episode_report(project, args.episode_id),
-            ensure_ascii=False,
-            indent=2,
-        ) + "\n"
+        content = (
+            json.dumps(
+                controller.build_episode_report(project, args.episode_id),
+                ensure_ascii=False,
+                indent=2,
+            )
+            + "\n"
+        )
     elif args.format == "markdown":
         content = controller.export_episode_report_markdown(project, args.episode_id)
     else:
@@ -799,11 +797,14 @@ def handle_suggest_repairs(args: argparse.Namespace) -> int:
     actions = controller.suggest_repairs_for_episode(project, args.episode_id)
 
     if args.format == "json":
-        content = json.dumps(
-            [action.to_dict() for action in actions],
-            ensure_ascii=False,
-            indent=2,
-        ) + "\n"
+        content = (
+            json.dumps(
+                [action.to_dict() for action in actions],
+                ensure_ascii=False,
+                indent=2,
+            )
+            + "\n"
+        )
     elif args.format == "markdown":
         content = format_repair_actions_markdown(actions)
     else:
@@ -913,9 +914,7 @@ def handle_run_batch_pipeline(args: argparse.Namespace) -> int:
         parse_comma_separated(args.export_formats),
     )
     if args.validate:
-        issue_count = sum(
-            len(issues) for issues in service.last_validation_issues.values()
-        )
+        issue_count = sum(len(issues) for issues in service.last_validation_issues.values())
         print(f"Validation issues: {issue_count}")
     print(f"Batch pipeline complete: {len(episodes)} episodes, {len(output_paths)} files")
     return 0
@@ -1089,9 +1088,7 @@ def format_validation_issues(issues: list[Any]) -> str:
         target = issue.entity_type or "Project"
         if issue.entity_id:
             target = f"{target} {issue.entity_id}"
-        lines.append(
-            f"[{issue.severity}] {issue.category} - {target}: {issue.message}"
-        )
+        lines.append(f"[{issue.severity}] {issue.category} - {target}: {issue.message}")
         if issue.suggestion:
             lines.append(f"  Suggestion: {issue.suggestion}")
     return "\n".join(lines)
@@ -1113,8 +1110,7 @@ def format_prompt_quality_report(report: dict[str, Any]) -> str:
         lines.append(
             "Common issues: "
             + ", ".join(
-                f"{item['category']} ({item['count']})"
-                for item in report["common_issues"][:5]
+                f"{item['category']} ({item['count']})" for item in report["common_issues"][:5]
             )
         )
     else:
@@ -1138,13 +1134,9 @@ def format_readiness_report(report: dict[str, Any]) -> str:
         f"Export ready: {report['export_readiness'].get('is_ready', False)}",
     ]
     if report["blocked_reasons"]:
-        lines.append(
-            "Blocked reasons: " + "; ".join(report["blocked_reasons"][:5])
-        )
+        lines.append("Blocked reasons: " + "; ".join(report["blocked_reasons"][:5]))
     if report["top_recommendations"]:
-        lines.append(
-            "Recommendations: " + "; ".join(report["top_recommendations"][:5])
-        )
+        lines.append("Recommendations: " + "; ".join(report["top_recommendations"][:5]))
     return "\n".join(lines)
 
 
@@ -1161,10 +1153,7 @@ def format_batch_readiness_report(report: dict[str, Any]) -> str:
         ),
     ]
     for item in report["reports"]:
-        lines.append(
-            f"- {item['episode_id']}: {item['status']} "
-            f"({item['overall_score']})"
-        )
+        lines.append(f"- {item['episode_id']}: {item['status']} " f"({item['overall_score']})")
     return "\n".join(lines)
 
 
@@ -1174,8 +1163,7 @@ def format_repair_actions_text(actions: list[Any]) -> str:
     lines = [f"Repair suggestions: {len(actions)}"]
     for action in actions:
         lines.append(
-            f"- {action.action_id}: {action.action_type} "
-            f"[{action.risk_level}] {action.title}"
+            f"- {action.action_id}: {action.action_type} " f"[{action.risk_level}] {action.title}"
         )
         lines.append(f"  Target: {action.target_entity_type} {action.target_entity_id}")
         lines.append(f"  Auto apply: {action.can_auto_apply}")

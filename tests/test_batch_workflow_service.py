@@ -1,6 +1,6 @@
+import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
-import unittest
 
 from app.services.batch_workflow_service import BatchWorkflowService
 from app.services.project_service import ProjectService
@@ -85,8 +85,7 @@ class BatchWorkflowServiceTests(unittest.TestCase):
     def test_batch_generation_preserves_source_raw_text(self) -> None:
         project, episodes = plan_sample_batch()
         raw_text_by_id = {
-            chapter.chapter_id: chapter.raw_text
-            for chapter in project.source_chapters
+            chapter.chapter_id: chapter.raw_text for chapter in project.source_chapters
         }
 
         BatchWorkflowService().run_generation_for_episodes(
@@ -97,10 +96,7 @@ class BatchWorkflowServiceTests(unittest.TestCase):
         )
 
         self.assertEqual(
-            {
-                chapter.chapter_id: chapter.raw_text
-                for chapter in project.source_chapters
-            },
+            {chapter.chapter_id: chapter.raw_text for chapter in project.source_chapters},
             raw_text_by_id,
         )
 

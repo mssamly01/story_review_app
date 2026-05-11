@@ -18,7 +18,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-
 ITEM_ROLE = Qt.ItemDataRole.UserRole
 
 
@@ -33,9 +32,7 @@ class EpisodePanel(QGroupBox):
         self.episode_list = QListWidget()
         self.title_edit = QLineEdit("Tập 1")
         self.tone_combo = QComboBox()
-        self.tone_combo.addItems(
-            ["bí ẩn", "kịch tính", "trung lập", "hài hước", "nhanh"]
-        )
+        self.tone_combo.addItems(["bí ẩn", "kịch tính", "trung lập", "hài hước", "nhanh"])
         self._tone_map = {
             "bí ẩn": "mysterious",
             "kịch tính": "dramatic",

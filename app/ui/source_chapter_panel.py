@@ -19,7 +19,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-
 ITEM_ROLE = Qt.ItemDataRole.UserRole
 
 

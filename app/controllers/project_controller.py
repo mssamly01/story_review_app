@@ -105,4 +105,3 @@ class ProjectController:
         if self.project is None:
             raise ValueError("No project is open.")
         return self.project
-

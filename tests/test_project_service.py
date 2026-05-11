@@ -1,7 +1,7 @@
 import json
+import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
-import unittest
 
 from app.services.project_service import ProjectService
 
@@ -61,13 +61,9 @@ class ProjectServiceTests(unittest.TestCase):
             action="returns to the old house",
             emotion="uneasy",
             shot_type="wide shot",
-            review_text=(
-                "Sau nhiều năm xa cách, Lâm Vũ cuối cùng cũng quay lại căn nhà cũ."
-            ),
+            review_text=("Sau nhiều năm xa cách, Lâm Vũ cuối cùng cũng quay lại căn nhà cũ."),
             visual_description="Lâm Vũ đứng trước hành lang phủ bụi.",
-            image_prompt=(
-                "dark fantasy webtoon style, young man in a dusty old hallway"
-            ),
+            image_prompt=("dark fantasy webtoon style, young man in a dusty old hallway"),
             negative_prompt="low quality, blurry, watermark, text",
             continuity_tags=["lam_vu_black_jacket", "old_house_hallway"],
         )

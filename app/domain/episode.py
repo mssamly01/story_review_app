@@ -27,10 +27,7 @@ class ReviewEpisode:
 
     @property
     def estimated_beats(self) -> int:
-        return sum(
-            len(scene.beats) if scene.beats else scene.target_beats
-            for scene in self.scenes
-        )
+        return sum(len(scene.beats) if scene.beats else scene.target_beats for scene in self.scenes)
 
     def to_dict(self) -> dict[str, Any]:
         return {

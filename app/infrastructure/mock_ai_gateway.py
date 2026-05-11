@@ -51,16 +51,13 @@ class MockAIGateway(AIGateway):
         if prompt_name not in builders:
             supported = ", ".join(sorted(self.SUPPORTED_PROMPTS))
             raise ValueError(
-                f"Unsupported prompt_name '{prompt_name}'. "
-                f"Supported prompt names: {supported}."
+                f"Unsupported prompt_name '{prompt_name}'. " f"Supported prompt names: {supported}."
             )
 
         response = builders[prompt_name](input_data)
         return copy.deepcopy(response)
 
-    def _story_parser_response(
-        self, input_data: dict[str, Any]
-    ) -> dict[str, Any]:
+    def _story_parser_response(self, input_data: dict[str, Any]) -> dict[str, Any]:
         chapter_id = str(input_data.get("chapter_id", "ch_mock"))
         return {
             "chapter_id": chapter_id,
@@ -92,16 +89,12 @@ class MockAIGateway(AIGateway):
             "continuity_notes": ["Preserve the mock clue across beats."],
         }
 
-    def _episode_planner_response(
-        self, input_data: dict[str, Any]
-    ) -> dict[str, Any]:
+    def _episode_planner_response(self, input_data: dict[str, Any]) -> dict[str, Any]:
         source_chapter_ids = list(input_data.get("source_chapter_ids", ["ch_mock"]))
         return {
             "episode": {
                 "episode_title": "Mock Review Episode",
-                "episode_summary": (
-                    "A detailed retelling plan that preserves cause and effect."
-                ),
+                "episode_summary": ("A detailed retelling plan that preserves cause and effect."),
                 "source_chapter_ids": source_chapter_ids,
                 "tone": input_data.get("narration_style", "mysterious"),
                 "density": input_data.get("retelling_density", "full"),
@@ -122,9 +115,7 @@ class MockAIGateway(AIGateway):
             "cliffhanger": "The clue points to a hidden room.",
         }
 
-    def _beat_generator_response(
-        self, input_data: dict[str, Any]
-    ) -> dict[str, Any]:
+    def _beat_generator_response(self, input_data: dict[str, Any]) -> dict[str, Any]:
         scene_id = str(input_data.get("scene_id", "sc_mock_001"))
         return {
             "beats": [
@@ -148,9 +139,7 @@ class MockAIGateway(AIGateway):
             ]
         }
 
-    def _review_rewriter_response(
-        self, input_data: dict[str, Any]
-    ) -> dict[str, Any]:
+    def _review_rewriter_response(self, input_data: dict[str, Any]) -> dict[str, Any]:
         beat_id = str(input_data.get("beat_id", "beat_mock_001"))
         return {
             "rewritten_beats": [
@@ -164,9 +153,7 @@ class MockAIGateway(AIGateway):
             ]
         }
 
-    def _image_prompt_builder_response(
-        self, input_data: dict[str, Any]
-    ) -> dict[str, Any]:
+    def _image_prompt_builder_response(self, input_data: dict[str, Any]) -> dict[str, Any]:
         beat_id = str(input_data.get("beat_id", "beat_mock_001"))
         return {
             "prompts": [
@@ -185,9 +172,7 @@ class MockAIGateway(AIGateway):
             ]
         }
 
-    def _continuity_checker_response(
-        self, input_data: dict[str, Any]
-    ) -> dict[str, Any]:
+    def _continuity_checker_response(self, input_data: dict[str, Any]) -> dict[str, Any]:
         return {
             "issues": [],
             "checked_categories": [
@@ -200,9 +185,8 @@ class MockAIGateway(AIGateway):
                 "emotional_continuity",
             ],
         }
-    def _beat_package_generator_response(
-        self, input_data: dict[str, Any]
-    ) -> dict[str, Any]:
+
+    def _beat_package_generator_response(self, input_data: dict[str, Any]) -> dict[str, Any]:
         return {
             "beats": [
                 {
@@ -217,7 +201,7 @@ class MockAIGateway(AIGateway):
                     "review_text": "Ngay lúc này, nhân vật chính chậm lại và nhận ra một chi tiết quan trọng.",
                     "image_prompt": "cinematic webtoon style, mock protagonist finding a small clue on a dusty floor, high quality",
                     "negative_prompt": "low quality, blurry, text, watermark, logo",
-                    "continuity_tags": ["mock_protagonist", "mock_location"]
+                    "continuity_tags": ["mock_protagonist", "mock_location"],
                 },
                 {
                     "order_index": 2,
@@ -231,8 +215,7 @@ class MockAIGateway(AIGateway):
                     "review_text": "Sự ngạc nhiên hiện rõ trên khuôn mặt khi sự thật bắt đầu hé lộ.",
                     "image_prompt": "cinematic webtoon style, close up of mock protagonist eyes reflecting light, high quality",
                     "negative_prompt": "low quality, blurry, text, watermark, logo",
-                    "continuity_tags": ["mock_protagonist"]
-                }
+                    "continuity_tags": ["mock_protagonist"],
+                },
             ]
         }
-

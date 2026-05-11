@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import json
 import pytest
 
-from app.services.manual_ai_service import ManualAIService, SUPPORTED_STEPS
+from app.services.manual_ai_service import SUPPORTED_STEPS, ManualAIService
 from app.services.project_service import ProjectService
 
 
@@ -19,7 +18,7 @@ def project_with_chapter():
         title="Chapter 1",
         chapter_number=1,
         raw_text="Nhân vật chính bước vào căn nhà hoang. "
-                 "Anh ta phát hiện một manh mối kỳ lạ trên sàn.",
+        "Anh ta phát hiện một manh mối kỳ lạ trên sàn.",
     )
     return project, service
 
@@ -71,9 +70,7 @@ class TestImportResult:
             "detected_characters": [
                 {"name": "Nhân vật chính", "role": "protagonist", "evidence": "test"}
             ],
-            "detected_locations": [
-                {"name": "Căn nhà hoang", "mood": "mysterious"}
-            ],
+            "detected_locations": [{"name": "Căn nhà hoang", "mood": "mysterious"}],
             "scene_candidates": [
                 {
                     "title": "Scene test",
@@ -82,7 +79,7 @@ class TestImportResult:
                     "characters": ["Nhân vật chính"],
                     "location": "Căn nhà hoang",
                     "mood": "mysterious",
-                    "scene_id": "sc_001"
+                    "scene_id": "sc_001",
                 }
             ],
             "important_events": [
@@ -92,7 +89,7 @@ class TestImportResult:
                     "characters": ["Nhân vật chính"],
                     "location": "Căn nhà hoang",
                     "evidence": "test",
-                    "importance": "medium"
+                    "importance": "medium",
                 }
             ],
         }
@@ -116,7 +113,7 @@ class TestImportResult:
                 "source_chapter_ids": [chapter_id],
                 "tone": "mysterious",
                 "density": "full",
-                "hook": "Test hook"
+                "hook": "Test hook",
             },
             "scenes": [
                 {
@@ -127,10 +124,10 @@ class TestImportResult:
                     "characters": ["protagonist"],
                     "location": "location",
                     "target_beats": 3,
-                    "importance": "high"
+                    "importance": "high",
                 }
             ],
-            "cliffhanger": "Test cliffhanger"
+            "cliffhanger": "Test cliffhanger",
         }
         message = service.import_result(
             project,

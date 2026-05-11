@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from collections import Counter
 import re
+from collections import Counter
 from typing import Any
 
 from app.domain.beat import Beat
@@ -67,9 +67,7 @@ class ReviewQualityService:
         score = max(0, min(100, score))
         grade = self._grade(score)
         is_ready = score >= 80 and not any(issue.severity == "error" for issue in issues)
-        suggestions = list(
-            dict.fromkeys(issue.suggestion for issue in issues if issue.suggestion)
-        )
+        suggestions = list(dict.fromkeys(issue.suggestion for issue in issues if issue.suggestion))
         return ReviewQualityResult(
             beat_id=beat.beat_id,
             score=score,
@@ -85,10 +83,7 @@ class ReviewQualityService:
         scene_id: str,
     ) -> list[ReviewQualityResult]:
         _episode, scene = self._find_scene_context(project, scene_id)
-        return [
-            self.score_beat_review(project, beat.beat_id)
-            for beat in scene.ordered_beats()
-        ]
+        return [self.score_beat_review(project, beat.beat_id) for beat in scene.ordered_beats()]
 
     def score_episode_reviews(
         self,
@@ -111,18 +106,13 @@ class ReviewQualityService:
         results = self.score_episode_reviews(project, episode_id)
         total_beats = len(results)
         average_score = (
-            round(sum(result.score for result in results) / total_beats, 2)
-            if total_beats
-            else 0.0
+            round(sum(result.score for result in results) / total_beats, 2) if total_beats else 0.0
         )
         grade_distribution = dict(Counter(result.grade for result in results))
         ready_count = sum(1 for result in results if result.is_ready)
-        issue_counter = Counter(
-            issue.category for result in results for issue in result.issues
-        )
+        issue_counter = Counter(issue.category for result in results for issue in result.issues)
         worst_beats = [
-            result.to_dict()
-            for result in sorted(results, key=lambda result: result.score)[:5]
+            result.to_dict() for result in sorted(results, key=lambda result: result.score)[:5]
         ]
 
         return {

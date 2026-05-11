@@ -22,6 +22,7 @@ from app.domain.beat import Beat, BeatImageVariant
 from app.domain.character import Character
 from app.domain.episode import ReviewEpisode
 from app.domain.location import Location
+from app.domain.project import Project
 from app.domain.scene import Scene
 from app.domain.source_chapter import SourceChapter
 from app.services.beat_image_service import BeatImageService
@@ -30,8 +31,7 @@ from app.services.project_service import ProjectService
 
 class _Fixture:
     @staticmethod
-    def project_with_one_beat() -> tuple[ProjectService, "Project"]:
-        from app.domain.project import Project  # local import to avoid circular
+    def project_with_one_beat() -> tuple[ProjectService, Project]:
 
         ps = ProjectService()
         project = ps.create_project("Image Loop Test")
@@ -43,12 +43,8 @@ class _Fixture:
                 raw_text="A character walks into a castle.",
             )
         )
-        project.characters.append(
-            Character(character_id="char_hero", name="Hero")
-        )
-        project.locations.append(
-            Location(location_id="loc_castle", name="Castle")
-        )
+        project.characters.append(Character(character_id="char_hero", name="Hero"))
+        project.locations.append(Location(location_id="loc_castle", name="Castle"))
         episode = ReviewEpisode(
             episode_id="ep1",
             title="Ep1",
@@ -124,9 +120,7 @@ class BeatImageServiceTests(unittest.TestCase):
         service = BeatImageService(ps)
         first = service.attach_image(project, "beat_001", "/tmp/a.png")
 
-        second = service.attach_image(
-            project, "beat_001", "/tmp/b.png", select=False
-        )
+        second = service.attach_image(project, "beat_001", "/tmp/b.png", select=False)
 
         beat = project.review_episodes[0].scenes[0].beats[0]
         self.assertEqual(len(beat.images), 2)
@@ -138,9 +132,7 @@ class BeatImageServiceTests(unittest.TestCase):
         ps, project = _Fixture.project_with_one_beat()
         service = BeatImageService(ps)
         first = service.attach_image(project, "beat_001", "/tmp/a.png")
-        second = service.attach_image(
-            project, "beat_001", "/tmp/b.png", select=False
-        )
+        second = service.attach_image(project, "beat_001", "/tmp/b.png", select=False)
 
         service.select_image(project, "beat_001", second.image_id)
 
@@ -153,9 +145,7 @@ class BeatImageServiceTests(unittest.TestCase):
         ps, project = _Fixture.project_with_one_beat()
         service = BeatImageService(ps)
         first = service.attach_image(project, "beat_001", "/tmp/a.png")
-        second = service.attach_image(
-            project, "beat_001", "/tmp/b.png", select=False
-        )
+        second = service.attach_image(project, "beat_001", "/tmp/b.png", select=False)
 
         service.remove_image(project, "beat_001", first.image_id)
 
@@ -166,16 +156,12 @@ class BeatImageServiceTests(unittest.TestCase):
     def test_attach_image_raises_for_unknown_beat(self) -> None:
         ps, project = _Fixture.project_with_one_beat()
         with self.assertRaises(LookupError):
-            BeatImageService(ps).attach_image(
-                project, "beat_does_not_exist", "/tmp/x.png"
-            )
+            BeatImageService(ps).attach_image(project, "beat_does_not_exist", "/tmp/x.png")
 
     def test_select_image_raises_for_unknown_image_id(self) -> None:
         ps, project = _Fixture.project_with_one_beat()
         with self.assertRaises(LookupError):
-            BeatImageService(ps).select_image(
-                project, "beat_001", "img_does_not_exist"
-            )
+            BeatImageService(ps).select_image(project, "beat_001", "img_does_not_exist")
 
     def test_list_images_returns_all_attached_variants(self) -> None:
         ps, project = _Fixture.project_with_one_beat()

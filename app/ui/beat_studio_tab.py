@@ -3,35 +3,34 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QComboBox,
     QGridLayout,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QLineEdit,
     QListWidget,
     QListWidgetItem,
+    QMessageBox,
     QPlainTextEdit,
     QPushButton,
-    QSplitter,
-    QVBoxLayout,
-    QWidget,
     QScrollArea,
+    QSplitter,
     QTableWidget,
     QTableWidgetItem,
-    QHeaderView,
-    QMessageBox,
-    QComboBox,
-    QDialog,
+    QVBoxLayout,
+    QWidget,
 )
 
 if TYPE_CHECKING:
-    from app.ui.app_state import AppState
     from app.controllers.generation_controller import GenerationController
     from app.controllers.manual_ai_controller import ManualAIController
     from app.domain.beat import Beat
+    from app.ui.app_state import AppState
 
-from app.services.manual_ai_service import ManualAIService
 from app.ui.manual_ai_dialogs import PromptExportDialog, ResultImportDialog
 
 ITEM_ROLE = Qt.ItemDataRole.UserRole
@@ -50,8 +49,15 @@ class BeatStudioTab(QWidget):
         "continuity_tags": "Thẻ liên kết (Continuity)",
     }
     FIELD_NAMES = [
-        "review_text", "visual_description", "image_prompt", "negative_prompt",
-        "characters", "location", "emotion", "shot_type", "continuity_tags"
+        "review_text",
+        "visual_description",
+        "image_prompt",
+        "negative_prompt",
+        "characters",
+        "location",
+        "emotion",
+        "shot_type",
+        "continuity_tags",
     ]
     MULTILINE_FIELDS = {"review_text", "visual_description", "image_prompt", "negative_prompt"}
 
@@ -73,7 +79,7 @@ class BeatStudioTab(QWidget):
 
     def _build_ui(self) -> None:
         main_layout = QVBoxLayout(self)
-        
+
         # Context Label
         self.context_label = QLabel("Chưa chọn tập truyện — chọn tại tab 'Kế hoạch tập'")
         self.context_label.setStyleSheet(
@@ -93,25 +99,31 @@ class BeatStudioTab(QWidget):
         action_layout.addWidget(self.btn_gen_review)
         action_layout.addWidget(self.btn_gen_prompts)
         main_layout.addWidget(self.advanced_action_widget)
-        self.advanced_action_widget.setVisible(False) # Hide offline buttons
+        self.advanced_action_widget.setVisible(False)  # Hide offline buttons
 
         # Primary Workflow: Manual AI Section
         manual_group = QWidget()
         manual_group.setStyleSheet("background: #e1f5fe; border-radius: 8px; padding: 10px;")
         manual_layout = QHBoxLayout(manual_group)
-        
+
         self.manual_step_combo = QComboBox()
-        self.manual_step_combo.addItem("Tạo gói nhịp truyện đầy đủ (Khuyên dùng)", "generate-unified-package")
+        self.manual_step_combo.addItem(
+            "Tạo gói nhịp truyện đầy đủ (Khuyên dùng)", "generate-unified-package"
+        )
         self.manual_step_combo.addItem("Chỉ tạo nhịp truyện", "generate-beats")
         self.manual_step_combo.addItem("Chỉ viết lại Review", "rewrite-review")
         self.manual_step_combo.addItem("Chỉ xây dựng Prompt ảnh", "build-prompts")
-        
+
         self.btn_export_prompt = QPushButton("1. Lấy Prompt")
-        self.btn_export_prompt.setStyleSheet("background-color: #0288d1; color: white; font-weight: bold; padding: 6px;")
-        
+        self.btn_export_prompt.setStyleSheet(
+            "background-color: #0288d1; color: white; font-weight: bold; padding: 6px;"
+        )
+
         self.btn_import_result = QPushButton("2. Dán kết quả / Áp dụng")
-        self.btn_import_result.setStyleSheet("background-color: #388e3c; color: white; font-weight: bold; padding: 6px;")
-        
+        self.btn_import_result.setStyleSheet(
+            "background-color: #388e3c; color: white; font-weight: bold; padding: 6px;"
+        )
+
         manual_layout.addWidget(QLabel("<b>Quy trình AI:</b>"))
         manual_layout.addWidget(self.manual_step_combo, 1)
         manual_layout.addWidget(self.btn_export_prompt)
@@ -149,7 +161,7 @@ class BeatStudioTab(QWidget):
         editor_widget = QWidget()
         editor_layout = QVBoxLayout(editor_widget)
         editor_layout.addWidget(QLabel("Chi tiết nhịp truyện"))
-        
+
         self.form_layout = QGridLayout()
         for row, name in enumerate(self.FIELD_NAMES):
             label = QLabel(self.FIELD_LABELS.get(name, name))
@@ -160,18 +172,20 @@ class BeatStudioTab(QWidget):
             elif name == "emotion":
                 widget = QComboBox()
                 widget.setEditable(True)
-                widget.addItems(["neutral", "happy", "sad", "angry", "surprised", "tense", "mysterious"])
+                widget.addItems(
+                    ["neutral", "happy", "sad", "angry", "surprised", "tense", "mysterious"]
+                )
             else:
                 widget = QLineEdit()
-            
+
             self.form_layout.addWidget(widget, row, 1)
             self.fields[name] = widget
-            
+
         editor_layout.addLayout(self.form_layout)
         self.btn_save_beat = QPushButton("Lưu nhịp truyện")
         editor_layout.addWidget(self.btn_save_beat)
         editor_layout.addStretch()
-        
+
         editor_scroll.setWidget(editor_widget)
         splitter.addWidget(editor_scroll)
 
@@ -193,13 +207,13 @@ class BeatStudioTab(QWidget):
         self.scene_list.clear()
         self.beat_table.setRowCount(0)
         self._clear_editor()
-        
+
         if self.app_state.selected_episode_id and self.app_state.project:
             episode = self.generation_controller.find_episode(
                 self.app_state.project, self.app_state.selected_episode_id
             )
             self.context_label.setText(f"Tập: {episode.title} | Scenes: {len(episode.scenes)}")
-            
+
             for scene in episode.scenes:
                 item = QListWidgetItem(f"{scene.scene_id} | {scene.title}")
                 item.setData(ITEM_ROLE, scene.scene_id)
@@ -213,11 +227,11 @@ class BeatStudioTab(QWidget):
         has_ep = self.app_state.selected_episode_id is not None
         self.btn_export_prompt.setEnabled(has_ep)
         self.btn_import_result.setEnabled(has_ep)
-        
+
         # Keep advanced buttons disabled if they were visible
         self.btn_gen_package.setEnabled(False)
         self.btn_gen_beats.setEnabled(False)
-        
+
         has_beats = self.beat_table.rowCount() > 0
         self.btn_gen_review.setEnabled(has_beats)
         self.btn_gen_prompts.setEnabled(has_beats)
@@ -230,12 +244,13 @@ class BeatStudioTab(QWidget):
             self.beat_table.setItem(row, 0, QTableWidgetItem(beat.beat_id))
             self.beat_table.setItem(row, 1, QTableWidgetItem(beat.story_function))
             preview = beat.review_text or beat.action or ""
-            if len(preview) > 50: preview = preview[:47] + "..."
+            if len(preview) > 50:
+                preview = preview[:47] + "..."
             self.beat_table.setItem(row, 2, QTableWidgetItem(preview))
-            
+
             # Store ID in the first cell
             self.beat_table.item(row, 0).setData(ITEM_ROLE, beat.beat_id)
-            
+
             if beat.beat_id == self.app_state.selected_beat_id:
                 self.beat_table.selectRow(row)
                 self._load_beat_data(beat)
@@ -254,9 +269,12 @@ class BeatStudioTab(QWidget):
 
     def _clear_editor(self) -> None:
         for widget in self.fields.values():
-            if isinstance(widget, QPlainTextEdit): widget.clear()
-            elif isinstance(widget, QComboBox): widget.setCurrentIndex(-1)
-            else: widget.setText("")
+            if isinstance(widget, QPlainTextEdit):
+                widget.clear()
+            elif isinstance(widget, QComboBox):
+                widget.setCurrentIndex(-1)
+            else:
+                widget.setText("")
 
     def _on_scene_select(self, current: QListWidgetItem | None, previous: object) -> None:
         if current and self.app_state.selected_episode_id:
@@ -277,33 +295,39 @@ class BeatStudioTab(QWidget):
             self._clear_editor()
             self.btn_save_beat.setEnabled(False)
             return
-        
+
         row = ranges[0].topRow()
         beat_id = self.beat_table.item(row, 0).data(ITEM_ROLE)
         self.app_state.selected_beat_id = beat_id
-        
+
         beat = self._find_beat(beat_id)
         if beat:
             self._load_beat_data(beat)
             self.btn_save_beat.setEnabled(True)
 
     def _find_beat(self, beat_id: str) -> Beat | None:
-        if not self.app_state.project: return None
+        if not self.app_state.project:
+            return None
         for ep in self.app_state.project.review_episodes:
             for sc in ep.scenes:
                 for b in sc.beats:
-                    if b.beat_id == beat_id: return b
+                    if b.beat_id == beat_id:
+                        return b
         return None
 
     def _on_save_beat(self) -> None:
-        if not self.app_state.selected_beat_id: return
-        
+        if not self.app_state.selected_beat_id:
+            return
+
         values = {}
         for name, widget in self.fields.items():
-            if isinstance(widget, QPlainTextEdit): values[name] = widget.toPlainText()
-            elif isinstance(widget, QComboBox): values[name] = widget.currentText()
-            else: values[name] = widget.text()
-            
+            if isinstance(widget, QPlainTextEdit):
+                values[name] = widget.toPlainText()
+            elif isinstance(widget, QComboBox):
+                values[name] = widget.currentText()
+            else:
+                values[name] = widget.text()
+
         try:
             beat = self._find_beat(self.app_state.selected_beat_id)
             if beat:
@@ -313,7 +337,6 @@ class BeatStudioTab(QWidget):
                 self.refresh_callback()
         except Exception as exc:
             QMessageBox.critical(self, "Lỗi", str(exc))
-
 
     def _on_prompt(self) -> None:
         """Hiện cửa sổ prompt cho step đã chọn từ dropdown."""
@@ -371,7 +394,8 @@ class BeatStudioTab(QWidget):
 
         scene_id = self.app_state.selected_scene_id
         reply = QMessageBox.question(
-            self, "Xác nhận xóa",
+            self,
+            "Xác nhận xóa",
             f"Bạn có chắc muốn xóa phân cảnh '{scene_id}'?\nTất cả beats trong phân cảnh này sẽ bị xóa.\nHành động này không thể hoàn tác.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
@@ -400,7 +424,8 @@ class BeatStudioTab(QWidget):
 
         beat_id = self.app_state.selected_beat_id
         reply = QMessageBox.question(
-            self, "Xác nhận xóa",
+            self,
+            "Xác nhận xóa",
             f"Bạn có chắc muốn xóa nhịp truyện '{beat_id}'?\nHành động này không thể hoàn tác.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )

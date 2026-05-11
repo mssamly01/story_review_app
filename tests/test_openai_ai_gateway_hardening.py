@@ -81,9 +81,7 @@ def configure_fake_openai(
 
         def create(self, *, model: str, input: list[dict[str, str]]) -> Any:
             counter["calls"] += 1
-            call_log.append(
-                {"model": model, "input": input, "timeout": self.client.timeout}
-            )
+            call_log.append({"model": model, "input": input, "timeout": self.client.timeout})
             if counter["calls"] <= raise_first_n and raise_exc is not None:
                 raise raise_exc("transient")
             return response or _ResponseStub("ok")
@@ -192,9 +190,7 @@ class RetryTests(_FakeOpenAITestCase):
         with self.assertRaises(ValueError):
             gateway.generate_text("story_parser", {})
 
-        self.assertEqual(
-            len(call_log), 1, "non-retryable errors should fail fast on first attempt"
-        )
+        self.assertEqual(len(call_log), 1, "non-retryable errors should fail fast on first attempt")
 
 
 class TokenTrackingTests(_FakeOpenAITestCase):

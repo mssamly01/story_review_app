@@ -7,8 +7,8 @@ from app.services.batch_workflow_service import BatchWorkflowService
 from app.services.bible_service import BibleService
 from app.services.continuity_checker_service import ContinuityCheckerService
 from app.services.project_service import ProjectService
-from app.services.quality.validation import ProjectValidationService
 from app.services.prompt_builder_service import PromptBuilderService
+from app.services.quality.validation import ProjectValidationService
 from tests.test_batch_workflow_service import build_project_with_chapters
 from tests.test_prompt_builder_advanced_bible import build_prompt_ready_project
 
@@ -36,8 +36,7 @@ class PhaseFifteenBibleAndStyleTests(unittest.TestCase):
         self.assertIn("location_missing_visual_base", categories)
         self.assertTrue(
             any(
-                issue.entity_type == "StylePreset"
-                and issue.category == "missing_required_field"
+                issue.entity_type == "StylePreset" and issue.category == "missing_required_field"
                 for issue in issues
             )
         )
@@ -142,9 +141,7 @@ class PhaseFifteenBibleAndStyleTests(unittest.TestCase):
 
         beats = [beat for scene in episodes[0].scenes for beat in scene.beats]
         self.assertTrue(beats)
-        self.assertTrue(
-            all("noir detective comic style" in beat.image_prompt for beat in beats)
-        )
+        self.assertTrue(all("noir detective comic style" in beat.image_prompt for beat in beats))
 
 
 if __name__ == "__main__":

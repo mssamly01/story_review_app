@@ -128,7 +128,5 @@ class Beat:
             negative_prompt=data.get("negative_prompt", ""),
             continuity_tags=list(data.get("continuity_tags", [])),
             status=data.get("status", "planned"),
-            images=[
-                BeatImageVariant.from_dict(img) for img in data.get("images", [])
-            ],
+            images=[BeatImageVariant.from_dict(img) for img in data.get("images", [])],
         )

@@ -5,10 +5,9 @@ from app.services.beat_generator_service import BeatGeneratorService
 from app.services.episode_planner_service import EpisodePlannerService
 from app.services.project_service import ProjectService
 from app.services.project_template_service import ProjectTemplateService
-from app.services.quality.validation import ProjectValidationService
 from app.services.prompt_builder_service import PromptBuilderService
+from app.services.quality.validation import ProjectValidationService
 from app.services.review_rewriter_service import ReviewRewriterService
-
 
 REQUIRED_TEMPLATE_IDS = {
     "dark_fantasy_webtoon",
@@ -181,15 +180,9 @@ class ProjectTemplateServiceTests(unittest.TestCase):
         ReviewRewriterService().rewrite_episode(project, episode.episode_id)
         PromptBuilderService().build_prompts_for_episode(project, episode.episode_id)
 
-        prompts = [
-            beat.image_prompt
-            for scene in episode.scenes
-            for beat in scene.beats
-        ]
+        prompts = [beat.image_prompt for scene in episode.scenes for beat in scene.beats]
         self.assertTrue(prompts)
-        self.assertTrue(
-            all("dark fantasy webtoon style" in prompt for prompt in prompts)
-        )
+        self.assertTrue(all("dark fantasy webtoon style" in prompt for prompt in prompts))
 
 
 if __name__ == "__main__":

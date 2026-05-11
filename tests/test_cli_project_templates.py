@@ -1,8 +1,8 @@
 import io
+import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 from tempfile import TemporaryDirectory
-import unittest
 
 from app import cli
 from app.services.project_service import ProjectService

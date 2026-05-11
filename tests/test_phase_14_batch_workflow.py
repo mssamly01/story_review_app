@@ -55,9 +55,7 @@ class PhaseFourteenBatchWorkflowTests(unittest.TestCase):
         self.assertEqual(len(generated), 2)
         self.assertEqual(episodes[-1].source_chapter_ids, ["ch_003"])
         self.assertTrue(controller.last_validation_issues)
-        self.assertTrue(
-            all(scene.beats for episode in generated for scene in episode.scenes)
-        )
+        self.assertTrue(all(scene.beats for episode in generated for scene in episode.scenes))
 
 
 if __name__ == "__main__":

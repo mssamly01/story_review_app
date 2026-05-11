@@ -3,35 +3,35 @@
 from __future__ import annotations
 
 from typing import Any
+
 from PySide6.QtWidgets import (
     QMainWindow,
+    QMessageBox,
+    QStatusBar,
     QTabWidget,
     QVBoxLayout,
     QWidget,
-    QStatusBar,
-    QMessageBox,
 )
 
-from app.ui.app_state import AppState
-from app.ui.project_tab import ProjectTab
-from app.ui.source_tab import SourceTab
-from app.ui.episode_planner_tab import EpisodePlannerTab
-from app.ui.beat_studio_tab import BeatStudioTab
-from app.ui.bible_style_tab import BibleStyleTab
-from app.ui.quality_repair_tab import QualityRepairTab
-from app.ui.export_tab import ExportTab
-
-from app.controllers.project_controller import ProjectController
-from app.controllers.generation_controller import GenerationController
+from app.controllers.batch_workflow_controller import BatchWorkflowController
+from app.controllers.bible_controller import BibleController
 from app.controllers.export_controller import ExportController
 from app.controllers.export_profile_controller import ExportProfileController
-from app.controllers.bible_controller import BibleController
-from app.controllers.validation_controller import ValidationController
-from app.controllers.repair_controller import RepairController
-from app.controllers.batch_workflow_controller import BatchWorkflowController
-from app.controllers.production_readiness_controller import ProductionReadinessController
-from app.controllers.prompt_quality_controller import PromptQualityController
+from app.controllers.generation_controller import GenerationController
 from app.controllers.manual_ai_controller import ManualAIController
+from app.controllers.production_readiness_controller import ProductionReadinessController
+from app.controllers.project_controller import ProjectController
+from app.controllers.prompt_quality_controller import PromptQualityController
+from app.controllers.repair_controller import RepairController
+from app.controllers.validation_controller import ValidationController
+from app.ui.app_state import AppState
+from app.ui.beat_studio_tab import BeatStudioTab
+from app.ui.bible_style_tab import BibleStyleTab
+from app.ui.episode_planner_tab import EpisodePlannerTab
+from app.ui.export_tab import ExportTab
+from app.ui.project_tab import ProjectTab
+from app.ui.quality_repair_tab import QualityRepairTab
+from app.ui.source_tab import SourceTab
 
 
 class MainWindow(QMainWindow):
@@ -69,36 +69,46 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(central)
 
         self.tabs = QTabWidget()
-        
+
         # Create Tabs
         self.project_tab = ProjectTab(
             self.app_state, self.project_controller, self.refresh_all_tabs
         )
         self.source_tab = SourceTab(
-            self.app_state, self.project_controller, self.generation_controller,
-            self.manual_ai_controller, self.refresh_all_tabs
+            self.app_state,
+            self.project_controller,
+            self.generation_controller,
+            self.manual_ai_controller,
+            self.refresh_all_tabs,
         )
         self.planner_tab = EpisodePlannerTab(
-            self.app_state, self.project_controller, self.generation_controller, 
-            self.batch_controller, self.manual_ai_controller, self.refresh_all_tabs
+            self.app_state,
+            self.project_controller,
+            self.generation_controller,
+            self.batch_controller,
+            self.manual_ai_controller,
+            self.refresh_all_tabs,
         )
         self.studio_tab = BeatStudioTab(
-            self.app_state, self.generation_controller, self.manual_ai_controller, 
-            self.refresh_all_tabs
+            self.app_state,
+            self.generation_controller,
+            self.manual_ai_controller,
+            self.refresh_all_tabs,
         )
-        self.bible_tab = BibleStyleTab(
-            self.app_state, self.bible_controller, self.refresh_all_tabs
-        )
+        self.bible_tab = BibleStyleTab(self.app_state, self.bible_controller, self.refresh_all_tabs)
         self.quality_tab = QualityRepairTab(
-            self.app_state, 
-            self.validation_controller, 
-            self.repair_controller, 
+            self.app_state,
+            self.validation_controller,
+            self.repair_controller,
             self.readiness_controller,
             self.quality_controller,
-            self.refresh_all_tabs
+            self.refresh_all_tabs,
         )
         self.export_tab = ExportTab(
-            self.app_state, self.export_controller, self.export_profile_controller, self.refresh_all_tabs
+            self.app_state,
+            self.export_controller,
+            self.export_profile_controller,
+            self.refresh_all_tabs,
         )
 
         # Add to TabWidget
@@ -119,8 +129,8 @@ class MainWindow(QMainWindow):
             try:
                 self.project_controller.save_project()
             except Exception:
-                pass # Don't block UI on auto-save failure
-        
+                pass  # Don't block UI on auto-save failure
+
         tab = self.tabs.widget(index)
         if hasattr(tab, "refresh"):
             tab.refresh()
@@ -129,7 +139,7 @@ class MainWindow(QMainWindow):
         """Sync AppState with controllers and refresh every tab."""
         self.app_state.project = self.project_controller.project
         self.app_state.project_path = self.project_controller.project_path
-        
+
         self.project_tab.refresh()
         self.source_tab.refresh()
         self.planner_tab.refresh()
@@ -137,7 +147,7 @@ class MainWindow(QMainWindow):
         self.bible_tab.refresh()
         self.quality_tab.refresh()
         self.export_tab.refresh()
-        
+
         self.set_status("Đã cập nhật")
 
     def set_status(self, message: str) -> None:
@@ -148,8 +158,10 @@ class MainWindow(QMainWindow):
 
 
 def create_main_window() -> tuple[Any, MainWindow]:
-    from PySide6.QtWidgets import QApplication
     import sys
+
+    from PySide6.QtWidgets import QApplication
+
     app = QApplication.instance() or QApplication(sys.argv)
     window = MainWindow()
     return app, window

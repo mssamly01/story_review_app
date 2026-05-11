@@ -1,8 +1,8 @@
 import os
+import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
-import unittest
 
 from app.controllers.export_controller import ExportController
 from app.controllers.generation_controller import GenerationController
