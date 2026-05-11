@@ -48,7 +48,7 @@ def build_base_project():
     return project_service, project, chapter
 
 
-class PhaseTenAIBackedServiceTests(unittest.TestCase):
+class AIBackedServicesWorkflowTests(unittest.TestCase):
     def test_services_default_to_deterministic_without_ai(self) -> None:
         project_service, project, chapter = build_base_project()
 

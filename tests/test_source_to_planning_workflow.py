@@ -27,7 +27,7 @@ EpisodePlannerService = optional_class(
 )
 
 
-class PhaseOneToFourWorkflowTests(unittest.TestCase):
+class SourceToPlanningWorkflowTests(unittest.TestCase):
     def test_source_import_service_imports_without_side_effects(self) -> None:
         if SourceImportService is None:
             self.skipTest("SourceImportService is not implemented.")

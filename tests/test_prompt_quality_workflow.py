@@ -6,7 +6,7 @@ from app.services.quality.prompt import PromptQualityService
 from tests.test_batch_workflow_service import build_project_with_chapters
 
 
-class PhaseSixteenPromptQualityTests(unittest.TestCase):
+class PromptQualityWorkflowTests(unittest.TestCase):
     def test_batch_workflow_can_be_scored_after_generation(self) -> None:
         project = build_project_with_chapters(2)
         BibleService().create_default_style_presets(project)

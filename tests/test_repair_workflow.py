@@ -5,7 +5,7 @@ from tests.test_production_readiness_service import build_ready_project
 from tests.test_repair_suggestion_service import first_action
 
 
-class PhaseNineteenRepairWorkflowTests(unittest.TestCase):
+class RepairWorkflowTests(unittest.TestCase):
     def test_medium_risk_repair_can_apply_when_allowed(self) -> None:
         project, _beat = build_ready_project()
         scene = project.review_episodes[0].scenes[0]

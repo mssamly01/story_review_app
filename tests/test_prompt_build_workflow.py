@@ -7,7 +7,7 @@ from app.services.prompt_builder_service import PromptBuilderService
 from app.services.review_rewriter_service import ReviewRewriterService
 
 
-class PhaseSevenWorkflowTests(unittest.TestCase):
+class PromptBuildWorkflowTests(unittest.TestCase):
     def test_phase_7_builds_prompts_after_review_rewrite(self) -> None:
         project_service = ProjectService()
         planner = EpisodePlannerService(project_service)
