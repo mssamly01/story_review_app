@@ -235,6 +235,7 @@ class PromptBuilderService:
             f"emotion: {beat.emotion}" if beat.emotion else "",
             f"camera: {beat.shot_type}" if beat.shot_type else "",
             f"mood: {scene.mood}" if scene.mood else "",
+            "single clear visual moment",
             "coherent composition, masterpiece, high details",
         ]
 
