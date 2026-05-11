@@ -17,8 +17,8 @@ class ExportProfileController:
         export_profile_service: ExportProfileService | None = None,
     ) -> None:
         self.project_service = project_service or ProjectService()
-        self.export_profile_service = (
-            export_profile_service or ExportProfileService(self.project_service)
+        self.export_profile_service = export_profile_service or ExportProfileService(
+            self.project_service
         )
 
     def list_profiles(self) -> list[ExportProfile]:

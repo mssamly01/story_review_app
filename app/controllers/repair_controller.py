@@ -15,9 +15,7 @@ class RepairController:
         repair_service: RepairSuggestionService | None = None,
     ) -> None:
         self.project_service = project_service or ProjectService()
-        self.repair_service = repair_service or RepairSuggestionService(
-            self.project_service
-        )
+        self.repair_service = repair_service or RepairSuggestionService(self.project_service)
 
     def suggest_repairs_for_episode(
         self,

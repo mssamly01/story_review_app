@@ -22,9 +22,7 @@ def build_prompt_project(*, include_style: bool = True):
         name="Lâm Vũ",
         appearance="young man, messy black hair, gray eyes",
         default_outfit="black jacket, white shirt",
-        visual_prompt_base=(
-            "young man, messy black hair, gray eyes, black jacket, white shirt"
-        ),
+        visual_prompt_base=("young man, messy black hair, gray eyes, black jacket, white shirt"),
     )
     location = project_service.add_location(
         project,
@@ -39,9 +37,7 @@ def build_prompt_project(*, include_style: bool = True):
             project,
             style_id="dark_fantasy_webtoon",
             name="Dark Fantasy Webtoon",
-            positive_prompt=(
-                "dark fantasy webtoon style, cinematic lighting, detailed background"
-            ),
+            positive_prompt=("dark fantasy webtoon style, cinematic lighting, detailed background"),
             negative_prompt="flat lighting, inconsistent style, watermark, text",
             lighting="moonlight, rim light, deep shadows",
             background_detail="high",

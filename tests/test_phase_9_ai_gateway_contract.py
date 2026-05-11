@@ -1,9 +1,8 @@
-from pathlib import Path
 import unittest
+from pathlib import Path
 
 from app.infrastructure.mock_ai_gateway import MockAIGateway
 from app.infrastructure.prompt_template_loader import PromptTemplateLoader
-
 
 ROOT = Path(__file__).resolve().parents[1]
 PROMPTS_DIR = ROOT / "app" / "prompts"

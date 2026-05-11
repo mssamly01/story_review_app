@@ -33,9 +33,7 @@ class CharacterReferenceFieldTests(unittest.TestCase):
             character_embedding_hash="sha256:abc",
         )
         data = char.to_dict()
-        self.assertEqual(
-            data["reference_image_paths"], ["/refs/hero1.png", "/refs/hero2.png"]
-        )
+        self.assertEqual(data["reference_image_paths"], ["/refs/hero1.png", "/refs/hero2.png"])
         self.assertEqual(data["sd_lora_name"], "hero_v3")
         self.assertEqual(data["ip_adapter_image_path"], "/refs/face.png")
         self.assertEqual(data["character_embedding_hash"], "sha256:abc")

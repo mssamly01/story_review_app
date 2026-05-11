@@ -212,8 +212,7 @@ class ProjectService:
     ) -> ReviewEpisode:
         self._ensure_source_chapters_exist(project, source_chapter_ids)
         episode = ReviewEpisode(
-            episode_id=episode_id
-            or self._next_id("ep", project.review_episodes),
+            episode_id=episode_id or self._next_id("ep", project.review_episodes),
             title=title,
             source_chapter_ids=source_chapter_ids,
             tone=tone or project.default_narration_style,
@@ -283,9 +282,7 @@ class ProjectService:
         beat = Beat(
             beat_id=beat_id or self._next_beat_id(project),
             scene_id=scene.scene_id,
-            order_index=order_index
-            if order_index is not None
-            else len(scene.beats) + 1,
+            order_index=order_index if order_index is not None else len(scene.beats) + 1,
             source_refs=source_refs or [],
             story_function=story_function,
             characters=characters or [],
@@ -331,9 +328,7 @@ class ProjectService:
                 return episode
         raise LookupError(f"ReviewEpisode not found: {episode_id}")
 
-    def find_scene(
-        self, project: Project, episode_id: str, scene_id: str
-    ) -> Scene:
+    def find_scene(self, project: Project, episode_id: str, scene_id: str) -> Scene:
         episode = self.find_episode(project, episode_id)
         for scene in episode.scenes:
             if scene.scene_id == scene_id:
@@ -348,8 +343,7 @@ class ProjectService:
             for chapter_id in episode.source_chapter_ids:
                 if chapter_id not in chapter_ids:
                     errors.append(
-                        f"{episode.episode_id} references missing source chapter "
-                        f"{chapter_id}"
+                        f"{episode.episode_id} references missing source chapter " f"{chapter_id}"
                     )
 
             for scene in episode.scenes:
@@ -368,8 +362,7 @@ class ProjectService:
                         )
                     if beat.order_index in seen_order_indexes:
                         errors.append(
-                            f"{scene.scene_id} has duplicate beat order "
-                            f"{beat.order_index}"
+                            f"{scene.scene_id} has duplicate beat order " f"{beat.order_index}"
                         )
                     seen_order_indexes.add(beat.order_index)
 
@@ -380,21 +373,13 @@ class ProjectService:
     ) -> None:
         existing_ids = {chapter.chapter_id for chapter in project.source_chapters}
         missing_ids = [
-            chapter_id
-            for chapter_id in source_chapter_ids
-            if chapter_id not in existing_ids
+            chapter_id for chapter_id in source_chapter_ids if chapter_id not in existing_ids
         ]
         if missing_ids:
-            raise LookupError(
-                "SourceChapter not found: " + ", ".join(missing_ids)
-            )
+            raise LookupError("SourceChapter not found: " + ", ".join(missing_ids))
 
     def _next_scene_id(self, project: Project) -> str:
-        scenes = [
-            scene
-            for episode in project.review_episodes
-            for scene in episode.scenes
-        ]
+        scenes = [scene for episode in project.review_episodes for scene in episode.scenes]
         return self._next_id("sc", scenes)
 
     def _next_beat_id(self, project: Project) -> str:

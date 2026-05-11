@@ -11,7 +11,7 @@ Return JSON only. Do not include prose outside the JSON object.
    - `review_text`: Phải là tiếng Việt tự nhiên, phù hợp để đọc voice-over, phong cách review lôi cuốn. KHÔNG tóm tắt quá mức, hãy kể lại câu chuyện một cách chi tiết và hấp dẫn.
    - `image_prompt`: Phải là tiếng Anh chi tiết để sinh ảnh.
 2. **Cấu trúc Beat:** Mỗi Beat chỉ mô tả MỘT khoảnh khắc hình ảnh/nội dung duy nhất.
-3. **Tính nhất quán (Continuity):** 
+3. **Tính nhất quán (Continuity):**
    - Sử dụng đúng `character_id` và `location_id` từ Bible.
    - Áp dụng chính xác đặc điểm ngoại hình (tóc, mắt, trang phục) và bối cảnh (kiến trúc, ánh sáng) đã mô tả trong Bible.
 4. **Image Prompt chi tiết:** Phải bao gồm:

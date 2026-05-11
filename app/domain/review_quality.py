@@ -60,9 +60,6 @@ class ReviewQualityResult:
             score=int(data["score"]),
             grade=data["grade"],
             is_ready=bool(data["is_ready"]),
-            issues=[
-                ReviewQualityIssue.from_dict(issue)
-                for issue in data.get("issues", [])
-            ],
+            issues=[ReviewQualityIssue.from_dict(issue) for issue in data.get("issues", [])],
             suggestions=list(data.get("suggestions", [])),
         )

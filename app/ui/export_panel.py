@@ -15,7 +15,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-
 ITEM_ROLE = Qt.ItemDataRole.UserRole
 
 
@@ -28,9 +27,7 @@ class ExportPanel(QGroupBox):
         super().__init__("Xuất bản (Export)", parent)
         self.callbacks = callbacks or {}
         self.format_combo = QComboBox()
-        self.format_combo.addItems(
-            ["markdown", "json", "csv", "review-txt", "prompts-txt"]
-        )
+        self.format_combo.addItems(["markdown", "json", "csv", "review-txt", "prompts-txt"])
         self.profile_combo = QComboBox()
 
         layout = QGridLayout(self)

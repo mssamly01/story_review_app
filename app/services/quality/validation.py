@@ -21,22 +21,14 @@ class ProjectValidationService:
 
         return issues
 
-    def validate_episode(
-        self, project: Project, episode_id: str
-    ) -> list[ValidationIssue]:
+    def validate_episode(self, project: Project, episode_id: str) -> list[ValidationIssue]:
         issues = self.validate_project(project)
-        return [
-            issue
-            for issue in issues
-            if not issue.episode_id or issue.episode_id == episode_id
-        ]
+        return [issue for issue in issues if not issue.episode_id or issue.episode_id == episode_id]
 
     def has_errors(self, issues: list[ValidationIssue]) -> bool:
         return any(issue.severity == "error" for issue in issues)
 
-    def _validate_project_fields(
-        self, project: Project, issues: list[ValidationIssue]
-    ) -> None:
+    def _validate_project_fields(self, project: Project, issues: list[ValidationIssue]) -> None:
         if not self._text(getattr(project, "project_id", "")):
             self._add_issue(
                 issues,
@@ -58,9 +50,7 @@ class ProjectValidationService:
                 entity_id=getattr(project, "project_id", ""),
             )
 
-    def _validate_top_level_ids(
-        self, project: Project, issues: list[ValidationIssue]
-    ) -> None:
+    def _validate_top_level_ids(self, project: Project, issues: list[ValidationIssue]) -> None:
         self._check_duplicate_ids(
             issues,
             "SourceChapter",
@@ -69,18 +59,12 @@ class ProjectValidationService:
         self._check_duplicate_ids(
             issues,
             "ReviewEpisode",
-            [
-                getattr(episode, "episode_id", "")
-                for episode in project.review_episodes
-            ],
+            [getattr(episode, "episode_id", "") for episode in project.review_episodes],
         )
         self._check_duplicate_ids(
             issues,
             "Character",
-            [
-                getattr(character, "character_id", "")
-                for character in project.characters
-            ],
+            [getattr(character, "character_id", "") for character in project.characters],
         )
         self._check_duplicate_ids(
             issues,
@@ -90,10 +74,7 @@ class ProjectValidationService:
         self._check_duplicate_ids(
             issues,
             "StylePreset",
-            [
-                getattr(style_preset, "style_id", "")
-                for style_preset in project.style_presets
-            ],
+            [getattr(style_preset, "style_id", "") for style_preset in project.style_presets],
         )
 
         scene_ids: list[str] = []
@@ -107,9 +88,7 @@ class ProjectValidationService:
         self._check_duplicate_ids(issues, "Scene", scene_ids)
         self._check_duplicate_ids(issues, "Beat", beat_ids)
 
-    def _validate_source_chapters(
-        self, project: Project, issues: list[ValidationIssue]
-    ) -> None:
+    def _validate_source_chapters(self, project: Project, issues: list[ValidationIssue]) -> None:
         for chapter in project.source_chapters:
             chapter_id = getattr(chapter, "chapter_id", "")
             if not self._text(chapter_id):
@@ -142,9 +121,7 @@ class ProjectValidationService:
                     entity_id=chapter_id,
                 )
 
-    def _validate_bible_entries(
-        self, project: Project, issues: list[ValidationIssue]
-    ) -> None:
+    def _validate_bible_entries(self, project: Project, issues: list[ValidationIssue]) -> None:
         for character in project.characters:
             character_id = getattr(character, "character_id", "")
             if not self._text(getattr(character, "visual_prompt_base", "")):
@@ -196,13 +173,8 @@ class ProjectValidationService:
                     entity_id=style_id,
                 )
 
-    def _validate_episodes(
-        self, project: Project, issues: list[ValidationIssue]
-    ) -> None:
-        chapter_ids = {
-            getattr(chapter, "chapter_id", "")
-            for chapter in project.source_chapters
-        }
+    def _validate_episodes(self, project: Project, issues: list[ValidationIssue]) -> None:
+        chapter_ids = {getattr(chapter, "chapter_id", "") for chapter in project.source_chapters}
 
         for episode in project.review_episodes:
             episode_id = getattr(episode, "episode_id", "")
@@ -246,9 +218,7 @@ class ProjectValidationService:
 
             scenes = self._scenes(episode)
             scene_ids = [getattr(scene, "scene_id", "") for scene in scenes]
-            declared_scene_ids = self._list(
-                getattr(episode, "scene_ids", scene_ids)
-            )
+            declared_scene_ids = self._list(getattr(episode, "scene_ids", scene_ids))
 
             if not scene_ids:
                 self._add_issue(
@@ -268,10 +238,7 @@ class ProjectValidationService:
                         issues,
                         severity="error",
                         category="broken_reference",
-                        message=(
-                            f"Episode {episode_id} references missing scene "
-                            f"{scene_id}."
-                        ),
+                        message=(f"Episode {episode_id} references missing scene " f"{scene_id}."),
                         suggestion="Remove the stale scene reference or restore the scene.",
                         entity_type="Scene",
                         entity_id=scene_id,
@@ -473,21 +440,14 @@ class ProjectValidationService:
         beats: list[Any],
         issues: list[ValidationIssue],
     ) -> None:
-        order_indexes = [
-            int(getattr(beat, "order_index", 0) or 0) for beat in beats
-        ]
-        duplicate_orders = [
-            order for order, count in Counter(order_indexes).items() if count > 1
-        ]
+        order_indexes = [int(getattr(beat, "order_index", 0) or 0) for beat in beats]
+        duplicate_orders = [order for order, count in Counter(order_indexes).items() if count > 1]
         for order_index in duplicate_orders:
             self._add_issue(
                 issues,
                 severity="error",
                 category="beat_order_issue",
-                message=(
-                    f"Scene {scene_id} has duplicate beat order_index "
-                    f"{order_index}."
-                ),
+                message=(f"Scene {scene_id} has duplicate beat order_index " f"{order_index}."),
                 suggestion="Give each beat a unique order_index in the scene.",
                 entity_type="Scene",
                 entity_id=scene_id,

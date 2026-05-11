@@ -52,6 +52,10 @@ pip install -r requirements.txt
 pip install -r requirements-ai.txt
 export OPENAI_API_KEY="sk-..."
 
+# 3b. (Cho người đóng góp code) Cài dev tooling
+pip install -r requirements-dev.txt
+pre-commit install
+
 # 4. Chạy desktop app
 python -m app
 
@@ -66,6 +70,27 @@ python -m app.cli export --project my_project.json \
   --episode ep_001 --format markdown --output ep001.md
 ```
 
+## Dev workflow
+
+```bash
+# Chạy test (offline, không cần OPENAI_API_KEY)
+python -m pytest tests/ -q
+
+# Lint + format check (cũng chạy trong CI)
+ruff check .
+black --check .
+
+# Format tự động
+ruff check --fix .
+black .
+
+# Chạy mọi pre-commit hook trên toàn repo
+pre-commit run --all-files
+```
+
+CI ở [`.github/workflows/ci.yml`](.github/workflows/ci.yml) chạy `pytest`,
+`ruff check`, `black --check` trên Python 3.11 và 3.12 cho mọi PR.
+
 ## Tài liệu
 
 - [`docs/AGENTS.md`](docs/AGENTS.md) — guard rail cho AI coding agent (đọc trước khi sửa code)
@@ -75,7 +100,7 @@ python -m app.cli export --project my_project.json \
 
 ## Trạng thái
 
-- **Tests:** 275 test, 48 subtest — passing
+- **Tests:** 301 test, 48 subtest — passing
 - **Stage:** Pre-production, hoàn thiện kiến trúc 7-bước, đang polish
 
 ## License

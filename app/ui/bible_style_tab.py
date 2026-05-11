@@ -3,27 +3,27 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QLineEdit,
     QListWidget,
-    QListWidgetItem,
+    QMessageBox,
     QPlainTextEdit,
     QPushButton,
     QScrollArea,
     QTabWidget,
     QVBoxLayout,
     QWidget,
-    QInputDialog,
-    QMessageBox,
 )
 
 if TYPE_CHECKING:
-    from app.ui.app_state import AppState
     from app.controllers.bible_controller import BibleController
+    from app.ui.app_state import AppState
 
 ITEM_ROLE = Qt.ItemDataRole.UserRole
 
@@ -45,11 +45,11 @@ class BibleStyleTab(QWidget):
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
         self.tabs = QTabWidget()
-        
+
         self.tabs.addTab(self._build_character_bible(), "Nhân vật")
         self.tabs.addTab(self._build_location_bible(), "Địa điểm")
         self.tabs.addTab(self._build_style_presets(), "Style Presets")
-        
+
         layout.addWidget(self.tabs)
 
     def _add_row(self, layout: QGridLayout, row: int, label_text: str, widget: QWidget) -> int:
@@ -60,13 +60,13 @@ class BibleStyleTab(QWidget):
     def _build_character_bible(self) -> QWidget:
         widget = QWidget()
         layout = QHBoxLayout(widget)
-        
+
         # Left: List
         left_widget = QWidget()
         left_layout = QVBoxLayout(left_widget)
         self.char_list = QListWidget()
         left_layout.addWidget(self.char_list)
-        
+
         char_btn_layout = QHBoxLayout()
         self.btn_add_char = QPushButton("Thêm")
         self.btn_del_char = QPushButton("Xóa")
@@ -74,28 +74,31 @@ class BibleStyleTab(QWidget):
         char_btn_layout.addWidget(self.btn_del_char)
         left_layout.addLayout(char_btn_layout)
         layout.addWidget(left_widget, 1)
-        
+
         # Right: Scrollable Form
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         form_container = QWidget()
         form_layout = QGridLayout(form_container)
-        
-        self.char_id = QLineEdit(); self.char_id.setReadOnly(True)
+
+        self.char_id = QLineEdit()
+        self.char_id.setReadOnly(True)
         self.char_name = QLineEdit()
         self.char_aliases = QLineEdit()
         self.char_role = QLineEdit()
         self.char_gender = QLineEdit()
         self.char_age = QLineEdit()
         self.char_personality = QLineEdit()
-        self.char_appearance = QPlainTextEdit(); self.char_appearance.setMaximumHeight(60)
+        self.char_appearance = QPlainTextEdit()
+        self.char_appearance.setMaximumHeight(60)
         self.char_face = QLineEdit()
         self.char_hair = QLineEdit()
         self.char_eyes = QLineEdit()
         self.char_body = QLineEdit()
         self.char_outfit = QLineEdit()
         self.char_outfit_variants = QLineEdit()
-        self.char_prompt_base = QPlainTextEdit(); self.char_prompt_base.setMaximumHeight(60)
+        self.char_prompt_base = QPlainTextEdit()
+        self.char_prompt_base.setMaximumHeight(60)
         self.char_neg_terms = QLineEdit()
         self.char_voice = QLineEdit()
         self.char_rel = QLineEdit()
@@ -124,26 +127,26 @@ class BibleStyleTab(QWidget):
 
         self.btn_save_char = QPushButton("Lưu nhân vật")
         form_layout.addWidget(self.btn_save_char, r, 0, 1, 2)
-        
+
         scroll.setWidget(form_container)
         layout.addWidget(scroll, 2)
-        
+
         self.char_list.currentItemChanged.connect(self._on_char_select)
         self.btn_add_char.clicked.connect(self._on_add_char)
         self.btn_del_char.clicked.connect(self._on_del_char)
         self.btn_save_char.clicked.connect(self._on_save_char)
-        
+
         return widget
 
     def _build_location_bible(self) -> QWidget:
         widget = QWidget()
         layout = QHBoxLayout(widget)
-        
+
         left_widget = QWidget()
         left_layout = QVBoxLayout(left_widget)
         self.loc_list = QListWidget()
         left_layout.addWidget(self.loc_list)
-        
+
         loc_btn_layout = QHBoxLayout()
         self.btn_add_loc = QPushButton("Thêm")
         self.btn_del_loc = QPushButton("Xóa")
@@ -151,24 +154,27 @@ class BibleStyleTab(QWidget):
         loc_btn_layout.addWidget(self.btn_del_loc)
         left_layout.addLayout(loc_btn_layout)
         layout.addWidget(left_widget, 1)
-        
+
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         form_container = QWidget()
         form_layout = QGridLayout(form_container)
-        
-        self.loc_id = QLineEdit(); self.loc_id.setReadOnly(True)
+
+        self.loc_id = QLineEdit()
+        self.loc_id.setReadOnly(True)
         self.loc_name = QLineEdit()
         self.loc_aliases = QLineEdit()
         self.loc_type = QLineEdit()
-        self.loc_desc = QPlainTextEdit(); self.loc_desc.setMaximumHeight(60)
+        self.loc_desc = QPlainTextEdit()
+        self.loc_desc.setMaximumHeight(60)
         self.loc_mood = QLineEdit()
         self.loc_time = QLineEdit()
         self.loc_lighting = QLineEdit()
         self.loc_palette = QLineEdit()
         self.loc_arch = QLineEdit()
         self.loc_props = QLineEdit()
-        self.loc_prompt_base = QPlainTextEdit(); self.loc_prompt_base.setMaximumHeight(60)
+        self.loc_prompt_base = QPlainTextEdit()
+        self.loc_prompt_base.setMaximumHeight(60)
         self.loc_neg_terms = QLineEdit()
         self.loc_tags = QLineEdit()
 
@@ -190,26 +196,26 @@ class BibleStyleTab(QWidget):
 
         self.btn_save_loc = QPushButton("Lưu địa điểm")
         form_layout.addWidget(self.btn_save_loc, r, 0, 1, 2)
-        
+
         scroll.setWidget(form_container)
         layout.addWidget(scroll, 2)
-        
+
         self.loc_list.currentItemChanged.connect(self._on_loc_select)
         self.btn_add_loc.clicked.connect(self._on_add_loc)
         self.btn_del_loc.clicked.connect(self._on_del_loc)
         self.btn_save_loc.clicked.connect(self._on_save_loc)
-        
+
         return widget
 
     def _build_style_presets(self) -> QWidget:
         widget = QWidget()
         layout = QHBoxLayout(widget)
-        
+
         left_widget = QWidget()
         left_layout = QVBoxLayout(left_widget)
         self.style_list = QListWidget()
         left_layout.addWidget(self.style_list)
-        
+
         style_btn_layout = QHBoxLayout()
         self.btn_add_style = QPushButton("Thêm")
         self.btn_del_style = QPushButton("Xóa")
@@ -223,12 +229,16 @@ class BibleStyleTab(QWidget):
         form_container = QWidget()
         form_layout = QGridLayout(form_container)
 
-        self.style_id = QLineEdit(); self.style_id.setReadOnly(True)
+        self.style_id = QLineEdit()
+        self.style_id.setReadOnly(True)
         self.style_name = QLineEdit()
-        self.style_desc = QPlainTextEdit(); self.style_desc.setMaximumHeight(40)
+        self.style_desc = QPlainTextEdit()
+        self.style_desc.setMaximumHeight(40)
         self.style_genre = QLineEdit()
-        self.style_pos = QPlainTextEdit(); self.style_pos.setMaximumHeight(60)
-        self.style_neg = QPlainTextEdit(); self.style_neg.setMaximumHeight(60)
+        self.style_pos = QPlainTextEdit()
+        self.style_pos.setMaximumHeight(60)
+        self.style_neg = QPlainTextEdit()
+        self.style_neg.setMaximumHeight(60)
         self.style_line = QLineEdit()
         self.style_palette = QLineEdit()
         self.style_lighting = QLineEdit()
@@ -259,31 +269,34 @@ class BibleStyleTab(QWidget):
         self.btn_save_style = QPushButton("Lưu Style")
         self.btn_set_default_style = QPushButton("Đặt làm mặc định")
         self.btn_gen_default_styles = QPushButton("Tạo các Style mặc định")
-        
-        form_layout.addWidget(self.btn_save_style, r, 0, 1, 2); r += 1
-        form_layout.addWidget(self.btn_set_default_style, r, 0, 1, 2); r += 1
-        form_layout.addWidget(self.btn_gen_default_styles, r, 0, 1, 2); r += 1
+
+        form_layout.addWidget(self.btn_save_style, r, 0, 1, 2)
+        r += 1
+        form_layout.addWidget(self.btn_set_default_style, r, 0, 1, 2)
+        r += 1
+        form_layout.addWidget(self.btn_gen_default_styles, r, 0, 1, 2)
+        r += 1
 
         scroll.setWidget(form_container)
         layout.addWidget(scroll, 2)
-        
+
         self.style_list.currentItemChanged.connect(self._on_style_select)
         self.btn_add_style.clicked.connect(self._on_add_style)
         self.btn_del_style.clicked.connect(self._on_del_style)
         self.btn_save_style.clicked.connect(self._on_save_style)
         self.btn_set_default_style.clicked.connect(self._on_set_default_style)
         self.btn_gen_default_styles.clicked.connect(self._on_gen_default_styles)
-        
+
         return widget
 
     def refresh(self) -> None:
         self.char_list.clear()
         self.loc_list.clear()
         self.style_list.clear()
-        
+
         if not self.app_state.project:
             return
-            
+
         for char in self.app_state.project.characters:
             self.char_list.addItem(char.name)
         for loc in self.app_state.project.locations:
@@ -320,7 +333,8 @@ class BibleStyleTab(QWidget):
                 break
 
     def _on_add_char(self) -> None:
-        if not self.app_state.project: return
+        if not self.app_state.project:
+            return
         name, ok = QInputDialog.getText(self, "Thêm nhân vật", "Tên nhân vật:")
         if ok and name:
             self.bible_controller.add_character(self.app_state.project, name=name)
@@ -332,7 +346,8 @@ class BibleStyleTab(QWidget):
             return
         name = current.text()
         reply = QMessageBox.question(
-            self, "Xác nhận xóa",
+            self,
+            "Xác nhận xóa",
             f"Bạn có chắc muốn xóa nhân vật '{name}'?\nHành động này không thể hoàn tác.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
@@ -345,7 +360,8 @@ class BibleStyleTab(QWidget):
 
     def _on_save_char(self) -> None:
         current = self.char_list.currentItem()
-        if not current or not self.app_state.project: return
+        if not current or not self.app_state.project:
+            return
         char_id = self.char_id.text()
         for char in self.app_state.project.characters:
             if char.character_id == char_id:
@@ -361,19 +377,26 @@ class BibleStyleTab(QWidget):
                 char.eyes = self.char_eyes.text()
                 char.body_type = self.char_body.text()
                 char.default_outfit = self.char_outfit.text()
-                char.outfit_variants = [s.strip() for s in self.char_outfit_variants.text().split(",") if s.strip()]
+                char.outfit_variants = [
+                    s.strip() for s in self.char_outfit_variants.text().split(",") if s.strip()
+                ]
                 char.visual_prompt_base = self.char_prompt_base.toPlainText()
-                char.negative_prompt_terms = [s.strip() for s in self.char_neg_terms.text().split(",") if s.strip()]
+                char.negative_prompt_terms = [
+                    s.strip() for s in self.char_neg_terms.text().split(",") if s.strip()
+                ]
                 char.voice_notes = self.char_voice.text()
                 char.relationship_notes = self.char_rel.text()
-                char.continuity_tags = [s.strip() for s in self.char_tags.text().split(",") if s.strip()]
+                char.continuity_tags = [
+                    s.strip() for s in self.char_tags.text().split(",") if s.strip()
+                ]
                 break
         self.app_state.project.touch()
         self.refresh_callback()
 
     # ── Location handlers ──
     def _on_loc_select(self, current, previous) -> None:
-        if not current or not self.app_state.project: return
+        if not current or not self.app_state.project:
+            return
         name = current.text()
         for loc in self.app_state.project.locations:
             if loc.name == name:
@@ -394,7 +417,8 @@ class BibleStyleTab(QWidget):
                 break
 
     def _on_add_loc(self) -> None:
-        if not self.app_state.project: return
+        if not self.app_state.project:
+            return
         name, ok = QInputDialog.getText(self, "Thêm địa điểm", "Tên địa điểm:")
         if ok and name:
             self.bible_controller.add_location(self.app_state.project, name=name)
@@ -406,7 +430,8 @@ class BibleStyleTab(QWidget):
             return
         name = current.text()
         reply = QMessageBox.question(
-            self, "Xác nhận xóa",
+            self,
+            "Xác nhận xóa",
             f"Bạn có chắc muốn xóa địa điểm '{name}'?\nHành động này không thể hoàn tác.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
@@ -419,7 +444,8 @@ class BibleStyleTab(QWidget):
 
     def _on_save_loc(self) -> None:
         current = self.loc_list.currentItem()
-        if not current or not self.app_state.project: return
+        if not current or not self.app_state.project:
+            return
         loc_id = self.loc_id.text()
         for loc in self.app_state.project.locations:
             if loc.location_id == loc_id:
@@ -432,17 +458,24 @@ class BibleStyleTab(QWidget):
                 loc.lighting = self.loc_lighting.text()
                 loc.color_palette = self.loc_palette.text()
                 loc.architecture_style = self.loc_arch.text()
-                loc.recurring_props = [s.strip() for s in self.loc_props.text().split(",") if s.strip()]
+                loc.recurring_props = [
+                    s.strip() for s in self.loc_props.text().split(",") if s.strip()
+                ]
                 loc.visual_prompt_base = self.loc_prompt_base.toPlainText()
-                loc.negative_prompt_terms = [s.strip() for s in self.loc_neg_terms.text().split(",") if s.strip()]
-                loc.continuity_tags = [s.strip() for s in self.loc_tags.text().split(",") if s.strip()]
+                loc.negative_prompt_terms = [
+                    s.strip() for s in self.loc_neg_terms.text().split(",") if s.strip()
+                ]
+                loc.continuity_tags = [
+                    s.strip() for s in self.loc_tags.text().split(",") if s.strip()
+                ]
                 break
         self.app_state.project.touch()
         self.refresh_callback()
 
     # ── Style handlers ──
     def _on_style_select(self, current, previous) -> None:
-        if not current or not self.app_state.project: return
+        if not current or not self.app_state.project:
+            return
         name = current.text()
         for style in self.app_state.project.style_presets:
             if style.name == name:
@@ -464,7 +497,8 @@ class BibleStyleTab(QWidget):
                 break
 
     def _on_add_style(self) -> None:
-        if not self.app_state.project: return
+        if not self.app_state.project:
+            return
         name, ok = QInputDialog.getText(self, "Thêm Style", "Tên Style:")
         if ok and name:
             self.bible_controller.add_style_preset(self.app_state.project, name=name)
@@ -472,16 +506,20 @@ class BibleStyleTab(QWidget):
 
     def _on_del_style(self) -> None:
         current = self.style_list.currentItem()
-        if not current or not self.app_state.project: return
+        if not current or not self.app_state.project:
+            return
         name = current.text()
         if QMessageBox.question(self, "Xóa", f"Xóa '{name}'?") == QMessageBox.StandardButton.Yes:
-            self.app_state.project.style_presets = [s for s in self.app_state.project.style_presets if s.name != name]
+            self.app_state.project.style_presets = [
+                s for s in self.app_state.project.style_presets if s.name != name
+            ]
             self.app_state.project.touch()
             self.refresh_callback()
 
     def _on_save_style(self) -> None:
         current = self.style_list.currentItem()
-        if not current or not self.app_state.project: return
+        if not current or not self.app_state.project:
+            return
         style_id = self.style_id.text()
         for style in self.app_state.project.style_presets:
             if style.style_id == style_id:
@@ -497,21 +535,27 @@ class BibleStyleTab(QWidget):
                 style.character_design_rules = self.style_char_rules.text()
                 style.background_detail_level = self.style_bg_detail.text()
                 style.camera_style = self.style_camera.text()
-                style.mood_keywords = [s.strip() for s in self.style_mood_keys.text().split(",") if s.strip()]
-                style.forbidden_terms = [s.strip() for s in self.style_forbidden.text().split(",") if s.strip()]
+                style.mood_keywords = [
+                    s.strip() for s in self.style_mood_keys.text().split(",") if s.strip()
+                ]
+                style.forbidden_terms = [
+                    s.strip() for s in self.style_forbidden.text().split(",") if s.strip()
+                ]
                 break
         self.app_state.project.touch()
         self.refresh_callback()
 
     def _on_set_default_style(self) -> None:
         current = self.style_list.currentItem()
-        if not current or not self.app_state.project: return
+        if not current or not self.app_state.project:
+            return
         style_id = self.style_id.text()
         self.app_state.project.default_art_style = style_id
         self.app_state.project.touch()
         QMessageBox.information(self, "Thông báo", f"Đã đặt '{current.text()}' làm Style mặc định.")
 
     def _on_gen_default_styles(self) -> None:
-        if not self.app_state.project: return
+        if not self.app_state.project:
+            return
         self.bible_controller.create_default_style_presets(self.app_state.project)
         self.refresh_callback()

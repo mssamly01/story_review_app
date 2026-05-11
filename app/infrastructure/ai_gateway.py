@@ -22,4 +22,3 @@ class AIGateway(Protocol):
         system_message: str | None = None,
     ) -> dict[str, Any]:
         """Generate structured JSON data for a prompt."""
-

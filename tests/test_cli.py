@@ -1,11 +1,10 @@
 import io
-import json
 import os
+import unittest
+from contextlib import redirect_stderr
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from contextlib import redirect_stderr
 from unittest.mock import patch
-import unittest
 
 from app import cli
 from app.services.project_service import ProjectService

@@ -36,13 +36,9 @@ class ExportController:
             content = self.export_service.export_episode_csv(project, episode_id)
             return self.export_service.write_text_file(content, output_path)
         if export_format == "review-txt":
-            content = self.export_service.export_review_script_txt(
-                project, episode_id
-            )
+            content = self.export_service.export_review_script_txt(project, episode_id)
             return self.export_service.write_text_file(content, output_path)
         if export_format == "prompts-txt":
-            content = self.export_service.export_image_prompts_txt(
-                project, episode_id
-            )
+            content = self.export_service.export_image_prompts_txt(project, episode_id)
             return self.export_service.write_text_file(content, output_path)
         raise ValueError(f"Unsupported export format: {export_format}")

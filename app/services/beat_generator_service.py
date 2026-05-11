@@ -224,17 +224,13 @@ class BeatGeneratorService:
         from app.services.prompt_builder_service import PromptBuilderService
         from app.services.review_rewriter_service import ReviewRewriterService
 
-        self.generate_beats_for_scene(
-            project, episode_id, scene.scene_id, retelling_density
-        )
-        ReviewRewriterService(
-            ai_gateway=self.ai_gateway, use_ai=False
-        ).rewrite_scene(
+        self.generate_beats_for_scene(project, episode_id, scene.scene_id, retelling_density)
+        ReviewRewriterService(ai_gateway=self.ai_gateway, use_ai=False).rewrite_scene(
             project, scene.scene_id, narration_style, retelling_density
         )
-        PromptBuilderService(
-            ai_gateway=self.ai_gateway, use_ai=False
-        ).build_prompts_for_scene(project, scene.scene_id, style_preset_id)
+        PromptBuilderService(ai_gateway=self.ai_gateway, use_ai=False).build_prompts_for_scene(
+            project, scene.scene_id, style_preset_id
+        )
         return scene.beats
 
     def _generate_unified_package_with_ai(
@@ -258,9 +254,7 @@ class BeatGeneratorService:
 
         chapters_by_id = {c.chapter_id: c for c in project.source_chapters}
         source_chapters = [
-            chapters_by_id[cid]
-            for cid in episode.source_chapter_ids
-            if cid in chapters_by_id
+            chapters_by_id[cid] for cid in episode.source_chapter_ids if cid in chapters_by_id
         ]
 
         input_data = {
@@ -307,9 +301,7 @@ class BeatGeneratorService:
                     review_text=str(b_data.get("review_text", "")),
                     image_prompt=str(b_data.get("image_prompt", "")),
                     negative_prompt=str(b_data.get("negative_prompt", "")),
-                    continuity_tags=[
-                        str(t) for t in b_data.get("continuity_tags", [])
-                    ],
+                    continuity_tags=[str(t) for t in b_data.get("continuity_tags", [])],
                     status="planned",
                 )
             )
@@ -399,12 +391,8 @@ class BeatGeneratorService:
                     for chapter in source_chapters
                 ],
                 "retelling_density": retelling_density,
-                "character_bible": [
-                    character.to_dict() for character in project.characters
-                ],
-                "location_bible": [
-                    location.to_dict() for location in project.locations
-                ],
+                "character_bible": [character.to_dict() for character in project.characters],
+                "location_bible": [location.to_dict() for location in project.locations],
             },
         )
         beats_data = self._ai_beats_data(response)
@@ -430,23 +418,17 @@ class BeatGeneratorService:
                     source_refs=source_refs,
                     story_function=str(beat_data.get("story_function", "")),
                     characters=[
-                        str(value)
-                        for value in beat_data.get("characters", scene.characters)
+                        str(value) for value in beat_data.get("characters", scene.characters)
                     ],
                     location=str(beat_data.get("location", scene.location)),
                     action=str(beat_data.get("action", "")),
                     emotion=str(beat_data.get("emotion", "")),
                     shot_type=str(beat_data.get("shot_type", "")),
-                    visual_description=str(
-                        beat_data.get("visual_description", "")
-                    ),
+                    visual_description=str(beat_data.get("visual_description", "")),
                     review_text="",
                     image_prompt="",
                     negative_prompt="",
-                    continuity_tags=[
-                        str(value)
-                        for value in beat_data.get("continuity_tags", [])
-                    ],
+                    continuity_tags=[str(value) for value in beat_data.get("continuity_tags", [])],
                     status="planned",
                 )
             )
@@ -458,9 +440,7 @@ class BeatGeneratorService:
             raise ValueError("beat_generator AI response must be a dict.")
         beats_data = response.get("beats", [])
         if not isinstance(beats_data, list) or not beats_data:
-            raise ValueError(
-                "beat_generator AI response field 'beats' must be a non-empty list."
-            )
+            raise ValueError("beat_generator AI response field 'beats' must be a non-empty list.")
         return beats_data
 
     def _beat_count_for_scene(self, scene: Scene, retelling_density: str) -> int:
@@ -468,9 +448,7 @@ class BeatGeneratorService:
         importance_bonus = self._importance_bonus.get(importance, 1)
 
         if scene.target_beats > 0:
-            count = round(
-                scene.target_beats * self._target_multipliers[retelling_density]
-            )
+            count = round(scene.target_beats * self._target_multipliers[retelling_density])
             return max(2, count + importance_bonus)
 
         return self._base_beat_counts[retelling_density] + importance_bonus
@@ -564,8 +542,7 @@ class BeatGeneratorService:
     ) -> list[SourceChapter]:
         episode = self.project_service.find_episode(project, episode_id)
         chapters_by_id = {
-            source_chapter.chapter_id: source_chapter
-            for source_chapter in project.source_chapters
+            source_chapter.chapter_id: source_chapter for source_chapter in project.source_chapters
         }
         return [
             chapters_by_id[chapter_id]

@@ -1,7 +1,7 @@
 import importlib
 import os
-from unittest.mock import patch
 import unittest
+from unittest.mock import patch
 
 
 class UISmokeTests(unittest.TestCase):
@@ -39,4 +39,3 @@ class UISmokeTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

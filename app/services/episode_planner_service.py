@@ -64,9 +64,7 @@ class EpisodePlannerService:
             narration_style=narration_style,
             retelling_density=retelling_density,
         )
-        source_chapters = self._find_source_chapters(
-            project, selected_source_chapter_ids
-        )
+        source_chapters = self._find_source_chapters(project, selected_source_chapter_ids)
         if self.use_ai:
             return self._plan_episode_with_ai(
                 project=project,
@@ -78,8 +76,7 @@ class EpisodePlannerService:
             )
 
         parsed_results = [
-            self.story_parser_service.parse(source_chapter)
-            for source_chapter in source_chapters
+            self.story_parser_service.parse(source_chapter) for source_chapter in source_chapters
         ]
         title = episode_title or self._build_episode_title(source_chapters)
 
@@ -103,9 +100,7 @@ class EpisodePlannerService:
                 parsed_result=parsed_result,
                 retelling_density=retelling_density,
             )
-            source_chapter.parsed_scene_ids.extend(
-                scene.scene_id for scene in planned_scenes
-            )
+            source_chapter.parsed_scene_ids.extend(scene.scene_id for scene in planned_scenes)
 
         project.touch()
         return episode
@@ -142,12 +137,8 @@ class EpisodePlannerService:
                 ],
                 "narration_style": narration_style,
                 "retelling_density": retelling_density,
-                "character_bible": [
-                    character.to_dict() for character in project.characters
-                ],
-                "location_bible": [
-                    location.to_dict() for location in project.locations
-                ],
+                "character_bible": [character.to_dict() for character in project.characters],
+                "location_bible": [location.to_dict() for location in project.locations],
             },
         )
         plan = self._normalise_ai_plan(
@@ -187,9 +178,7 @@ class EpisodePlannerService:
             )
 
         for source_chapter in source_chapters:
-            source_chapter.parsed_scene_ids.extend(
-                scene.scene_id for scene in planned_scenes
-            )
+            source_chapter.parsed_scene_ids.extend(scene.scene_id for scene in planned_scenes)
 
         project.touch()
         return episode
@@ -212,9 +201,7 @@ class EpisodePlannerService:
 
         scenes_data = response.get("scenes", [])
         if not isinstance(scenes_data, list) or not scenes_data:
-            raise ValueError(
-                "episode_planner AI response field 'scenes' must be a non-empty list."
-            )
+            raise ValueError("episode_planner AI response field 'scenes' must be a non-empty list.")
 
         scenes = [
             self._normalise_ai_scene(index, scene_data)
@@ -222,14 +209,10 @@ class EpisodePlannerService:
         ]
         return {
             "title": str(
-                episode_data.get("episode_title")
-                or response.get("episode_title")
-                or fallback_title
+                episode_data.get("episode_title") or response.get("episode_title") or fallback_title
             ),
             "summary": str(
-                episode_data.get("episode_summary")
-                or response.get("episode_summary")
-                or ""
+                episode_data.get("episode_summary") or response.get("episode_summary") or ""
             ),
             "tone": str(episode_data.get("tone") or narration_style),
             "density": str(episode_data.get("density") or retelling_density),
@@ -239,9 +222,7 @@ class EpisodePlannerService:
             "scenes": scenes,
         }
 
-    def _normalise_ai_scene(
-        self, index: int, scene_data: Any
-    ) -> dict[str, Any]:
+    def _normalise_ai_scene(self, index: int, scene_data: Any) -> dict[str, Any]:
         if not isinstance(scene_data, dict):
             raise ValueError("episode_planner AI scene items must be dicts.")
         return {
@@ -316,9 +297,7 @@ class EpisodePlannerService:
         last_title = source_chapters[-1].title
         return f"Review: {first_title} - {last_title}"
 
-    def _build_episode_summary(
-        self, parsed_results: list[ParsedChapterResult]
-    ) -> str:
+    def _build_episode_summary(self, parsed_results: list[ParsedChapterResult]) -> str:
         scene_count = sum(len(result.scene_candidates) for result in parsed_results)
         event_count = sum(len(result.important_events) for result in parsed_results)
         return (
@@ -327,17 +306,13 @@ class EpisodePlannerService:
             "important events before beat generation."
         )
 
-    def _build_hook(
-        self, parsed_results: list[ParsedChapterResult], title: str
-    ) -> str:
+    def _build_hook(self, parsed_results: list[ParsedChapterResult], title: str) -> str:
         first_event = self._first_important_event(parsed_results)
         if first_event:
             return f"{first_event.summary}"
         return f"{title} begins with a scene that should be retold in detail."
 
-    def _build_cliffhanger(
-        self, parsed_results: list[ParsedChapterResult]
-    ) -> str:
+    def _build_cliffhanger(self, parsed_results: list[ParsedChapterResult]) -> str:
         last_event = self._last_important_event(parsed_results)
         if last_event:
             return f"Continue from this unresolved moment: {last_event.summary}"
@@ -388,8 +363,7 @@ class EpisodePlannerService:
         self, project: Project, selected_source_chapter_ids: list[str]
     ) -> list[SourceChapter]:
         chapters_by_id = {
-            source_chapter.chapter_id: source_chapter
-            for source_chapter in project.source_chapters
+            source_chapter.chapter_id: source_chapter for source_chapter in project.source_chapters
         }
         missing_ids = [
             chapter_id
@@ -397,13 +371,8 @@ class EpisodePlannerService:
             if chapter_id not in chapters_by_id
         ]
         if missing_ids:
-            raise LookupError(
-                "SourceChapter not found: " + ", ".join(missing_ids)
-            )
-        return [
-            chapters_by_id[chapter_id]
-            for chapter_id in selected_source_chapter_ids
-        ]
+            raise LookupError("SourceChapter not found: " + ", ".join(missing_ids))
+        return [chapters_by_id[chapter_id] for chapter_id in selected_source_chapter_ids]
 
     def _require_ai_gateway(self) -> AIGateway:
         if self.ai_gateway is None:

@@ -1,0 +1,60 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: pytest (python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install runtime + AI extras + dev tools
+        run: |
+          python -m pip install --upgrade pip
+          # PySide6 needs system Qt libs we don't want to install in CI just for
+          # imports of non-UI modules — skip the GUI dep here. The test suite
+          # avoids importing PySide6 at module import time.
+          pip install "pytest>=8,<9"
+          pip install -r requirements-ai.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run pytest
+        run: python -m pytest tests/ -q
+
+  lint:
+    name: ruff + black --check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dev tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: ruff check
+        run: ruff check .
+
+      - name: black --check
+        run: black --check .

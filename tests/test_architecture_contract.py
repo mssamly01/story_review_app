@@ -31,9 +31,7 @@ def build_contract_project():
         personality="calm, cautious, observant",
         appearance="young man, messy black hair, gray eyes",
         default_outfit="black jacket, white shirt",
-        visual_prompt_base=(
-            "young man, messy black hair, gray eyes, black jacket, white shirt"
-        ),
+        visual_prompt_base=("young man, messy black hair, gray eyes, black jacket, white shirt"),
     )
     location = service.add_location(
         project,
@@ -47,9 +45,7 @@ def build_contract_project():
         project,
         style_id="dark_fantasy_webtoon",
         name="Dark Fantasy Webtoon",
-        positive_prompt=(
-            "dark fantasy webtoon style, cinematic lighting, detailed background"
-        ),
+        positive_prompt=("dark fantasy webtoon style, cinematic lighting, detailed background"),
         negative_prompt="low quality, blurry, watermark, text",
         lighting="moonlight, rim light, deep shadows",
         background_detail="high",
@@ -87,13 +83,9 @@ def build_contract_project():
         action="returns to the old house",
         emotion="uneasy",
         shot_type="wide shot",
-        review_text=(
-            "Sau nhiều năm xa cách, Lâm Vũ cuối cùng cũng quay lại căn nhà cũ."
-        ),
+        review_text=("Sau nhiều năm xa cách, Lâm Vũ cuối cùng cũng quay lại căn nhà cũ."),
         visual_description="Lâm Vũ đứng trước hành lang phủ bụi.",
-        image_prompt=(
-            "dark fantasy webtoon style, young man in a dusty old hallway"
-        ),
+        image_prompt=("dark fantasy webtoon style, young man in a dusty old hallway"),
         negative_prompt="low quality, blurry, watermark, text",
         continuity_tags=["lam_vu_black_jacket", "old_house_hallway"],
     )
@@ -111,9 +103,7 @@ def build_contract_project():
         shot_type="low angle close-up",
         review_text="Ngay sau đó, anh nghe thấy tiếng động sau cánh cửa bị khóa.",
         visual_description="Cánh cửa cũ rung nhẹ trong hành lang tối.",
-        image_prompt=(
-            "dark fantasy webtoon style, locked wooden door in a dusty hallway"
-        ),
+        image_prompt=("dark fantasy webtoon style, locked wooden door in a dusty hallway"),
         negative_prompt="low quality, blurry, watermark, text",
         continuity_tags=["old_house_hallway", "locked_door"],
     )

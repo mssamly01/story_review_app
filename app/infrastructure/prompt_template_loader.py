@@ -26,9 +26,7 @@ class PromptTemplateLoader:
     def load(self, prompt_name: str) -> str:
         path = self._template_path(prompt_name)
         if not path.exists():
-            raise FileNotFoundError(
-                f"Prompt template file is missing for '{prompt_name}': {path}"
-            )
+            raise FileNotFoundError(f"Prompt template file is missing for '{prompt_name}': {path}")
         return path.read_text(encoding="utf-8")
 
     def exists(self, prompt_name: str) -> bool:

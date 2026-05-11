@@ -1,5 +1,5 @@
-from types import SimpleNamespace
 import unittest
+from types import SimpleNamespace
 
 from app.services.project_service import ProjectService
 from app.services.quality.validation import ProjectValidationService
@@ -66,8 +66,7 @@ class ProjectValidationServiceTests(unittest.TestCase):
 
         self.assertTrue(
             any(
-                issue.category == "broken_reference"
-                and issue.scene_id == "sc_missing"
+                issue.category == "broken_reference" and issue.scene_id == "sc_missing"
                 for issue in issues
             )
         )
@@ -109,8 +108,7 @@ class ProjectValidationServiceTests(unittest.TestCase):
 
         self.assertTrue(
             any(
-                issue.category == "broken_reference"
-                and issue.beat_id == "b_missing"
+                issue.category == "broken_reference" and issue.beat_id == "b_missing"
                 for issue in issues
             )
         )

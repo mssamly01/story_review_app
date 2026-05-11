@@ -188,9 +188,7 @@ class ReviewRewriterService:
                 "beat_id": beat.beat_id,
                 "source_chapter_context": [
                     chapter.to_dict()
-                    for chapter in self._source_chapters_for_episode(
-                        project, episode
-                    )
+                    for chapter in self._source_chapters_for_episode(project, episode)
                 ],
                 "narration_style": narration_style,
                 "retelling_density": retelling_density,
@@ -198,9 +196,7 @@ class ReviewRewriterService:
         )
         return self._review_text_from_ai_response(response, beat.beat_id)
 
-    def _review_text_from_ai_response(
-        self, response: dict[str, Any], beat_id: str
-    ) -> str:
+    def _review_text_from_ai_response(self, response: dict[str, Any], beat_id: str) -> str:
         if not isinstance(response, dict):
             raise ValueError("review_rewriter AI response must be a dict.")
 
@@ -238,7 +234,7 @@ class ReviewRewriterService:
             style_key = "neutral"
         if style_key == "humorous":
             style_key = "friendly"
-        
+
         context_sentence = self._context_sentence(scene)
         action_sentence = self._action_sentence(beat)
         emotion_sentence = self._emotion_sentence(scene, beat)
@@ -270,8 +266,7 @@ class ReviewRewriterService:
             )
         if style == "dramatic":
             return (
-                f"Ngay trong khoảnh khắc ở {location}, tình thế được đẩy lên "
-                "một nấc căng hơn."
+                f"Ngay trong khoảnh khắc ở {location}, tình thế được đẩy lên " "một nấc căng hơn."
             )
         if style == "friendly":
             return (
@@ -323,9 +318,7 @@ class ReviewRewriterService:
             f"nhấn vào {visual}."
         )
 
-    def _continuity_sentence(
-        self, project: Project, episode: ReviewEpisode, beat: Beat
-    ) -> str:
+    def _continuity_sentence(self, project: Project, episode: ReviewEpisode, beat: Beat) -> str:
         source_labels = self._source_labels(project, episode, beat)
         continuity = ", ".join(beat.continuity_tags[:4]) or "mạch truyện hiện tại"
         return (
@@ -336,8 +329,7 @@ class ReviewRewriterService:
     def _style_closing(self, style: str, beat: Beat) -> str:
         if style == "mysterious":
             return (
-                "Vì vậy, đoạn kể nên khép lại bằng cảm giác còn điều gì đó "
-                "đang chờ được hé lộ."
+                "Vì vậy, đoạn kể nên khép lại bằng cảm giác còn điều gì đó " "đang chờ được hé lộ."
             )
         if style == "dramatic":
             return (
@@ -366,13 +358,9 @@ class ReviewRewriterService:
             return "Nhịp kể dứt khoát và chuyển nhanh sang beat sau."
         return "Beat này giữ mạch kể rõ ràng trước khi sang đoạn tiếp theo."
 
-    def _source_labels(
-        self, project: Project, episode: ReviewEpisode, beat: Beat
-    ) -> str:
+    def _source_labels(self, project: Project, episode: ReviewEpisode, beat: Beat) -> str:
         chapter_ids = beat.source_refs or episode.source_chapter_ids
-        chapter_titles = {
-            chapter.chapter_id: chapter.title for chapter in project.source_chapters
-        }
+        chapter_titles = {chapter.chapter_id: chapter.title for chapter in project.source_chapters}
         labels = [
             f"{chapter_id} ({chapter_titles.get(chapter_id, 'source chapter')})"
             for chapter_id in chapter_ids
@@ -389,9 +377,7 @@ class ReviewRewriterService:
                         return episode, scene, beat
         raise LookupError(f"Beat not found: {beat_id}")
 
-    def _find_scene_context(
-        self, project: Project, scene_id: str
-    ) -> tuple[ReviewEpisode, Scene]:
+    def _find_scene_context(self, project: Project, scene_id: str) -> tuple[ReviewEpisode, Scene]:
         for episode in project.review_episodes:
             for scene in episode.scenes:
                 if scene.scene_id == scene_id:
@@ -426,9 +412,7 @@ class ReviewRewriterService:
     def _source_chapters_for_episode(
         self, project: Project, episode: ReviewEpisode
     ) -> list[SourceChapter]:
-        chapters_by_id = {
-            chapter.chapter_id: chapter for chapter in project.source_chapters
-        }
+        chapters_by_id = {chapter.chapter_id: chapter for chapter in project.source_chapters}
         return [
             chapters_by_id[chapter_id]
             for chapter_id in episode.source_chapter_ids

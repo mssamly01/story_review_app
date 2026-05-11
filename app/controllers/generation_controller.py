@@ -215,9 +215,7 @@ class GenerationController:
     def find_episode(self, project: Project, episode_id: str) -> ReviewEpisode:
         return self.project_service.find_episode(project, episode_id)
 
-    def find_scene(
-        self, project: Project, episode_id: str, scene_id: str
-    ) -> Scene:
+    def find_scene(self, project: Project, episode_id: str, scene_id: str) -> Scene:
         return self.project_service.find_scene(project, episode_id, scene_id)
 
     def _find_chapter(self, project: Project, chapter_id: str):
@@ -226,9 +224,7 @@ class GenerationController:
                 return chapter
         raise LookupError(f"SourceChapter not found: {chapter_id}")
 
-    def _gateway_for_mode(
-        self, ai_mode: str, model: str | None
-    ) -> AIGateway | None:
+    def _gateway_for_mode(self, ai_mode: str, model: str | None) -> AIGateway | None:
         if ai_mode == "deterministic":
             return None
         if ai_mode == "mock":
@@ -239,4 +235,3 @@ class GenerationController:
 
     def _split_list_text(self, value: str) -> list[str]:
         return [part.strip() for part in value.split(",") if part.strip()]
-

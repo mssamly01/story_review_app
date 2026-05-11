@@ -25,7 +25,6 @@ from typing import Any, Callable, Iterable
 from app.infrastructure.ai_gateway import AIGateway
 from app.infrastructure.prompt_template_loader import PromptTemplateLoader
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -99,14 +98,8 @@ class OpenAIAIGateway(AIGateway):
 
         self.model = model or os.environ.get("OPENAI_MODEL") or self.DEFAULT_MODEL
         self.prompt_loader = prompt_loader or PromptTemplateLoader()
-        self.timeout = (
-            float(timeout) if timeout is not None else self.DEFAULT_TIMEOUT_SECONDS
-        )
-        self.max_retries = (
-            int(max_retries)
-            if max_retries is not None
-            else self.DEFAULT_MAX_RETRIES
-        )
+        self.timeout = float(timeout) if timeout is not None else self.DEFAULT_TIMEOUT_SECONDS
+        self.max_retries = int(max_retries) if max_retries is not None else self.DEFAULT_MAX_RETRIES
         self.token_callback = token_callback
         self.stream = stream
         self._active_prompt_name: str | None = None

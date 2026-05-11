@@ -13,8 +13,7 @@ class ContinuityCheckerServiceTests(unittest.TestCase):
 
         self.assertTrue(
             any(
-                issue.category == "broken_reference"
-                and issue.entity_type == "Character"
+                issue.category == "broken_reference" and issue.entity_type == "Character"
                 for issue in issues
             )
         )
@@ -27,8 +26,7 @@ class ContinuityCheckerServiceTests(unittest.TestCase):
 
         self.assertTrue(
             any(
-                issue.category == "broken_reference"
-                and issue.entity_type == "Location"
+                issue.category == "broken_reference" and issue.entity_type == "Location"
                 for issue in issues
             )
         )

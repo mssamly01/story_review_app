@@ -1,0 +1,9 @@
+# Force LF line endings for text files so that diffs and pre-commit hooks
+# behave identically on macOS, Linux, and Windows checkouts.
+* text=auto eol=lf
+
+# Tell GitHub which paths are tooling/docs vs. source for linguist stats.
+docs/**           linguist-documentation
+README.md         linguist-documentation
+.github/**        linguist-vendored
+requirements*.txt linguist-language=Pip\ Requirements

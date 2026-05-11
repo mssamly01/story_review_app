@@ -244,7 +244,10 @@ class ProjectTemplateService:
                     {"role": "royal or sect rival", "visual_prompt_base": ""},
                 ],
                 "location_placeholders": [
-                    {"location_type": "palace, sect hall, or ancient city", "visual_prompt_base": ""},
+                    {
+                        "location_type": "palace, sect hall, or ancient city",
+                        "visual_prompt_base": "",
+                    },
                 ],
             },
             "modern_school_webtoon": {
@@ -312,7 +315,10 @@ class ProjectTemplateService:
                     {"role": "main character", "visual_prompt_base": ""},
                 ],
                 "location_placeholders": [
-                    {"location_type": "home, cafe, or quiet outdoor place", "visual_prompt_base": ""},
+                    {
+                        "location_type": "home, cafe, or quiet outdoor place",
+                        "visual_prompt_base": "",
+                    },
                 ],
             },
         }

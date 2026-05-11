@@ -55,4 +55,3 @@ Convert planned scenes into ordered visual and narrative Beat objects.
   ]
 }
 ```
-

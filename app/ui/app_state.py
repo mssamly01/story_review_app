@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 @dataclass
 class AppState:
     """Lightweight object to store current UI selection and project context."""
+
     project: Project | None = None
     project_path: Path | None = None
     selected_chapter_id: str | None = None

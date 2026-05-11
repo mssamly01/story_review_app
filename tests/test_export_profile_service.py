@@ -1,15 +1,13 @@
 import csv
 import json
-from pathlib import Path
-from tempfile import TemporaryDirectory
 import unittest
+from tempfile import TemporaryDirectory
 
 from app.services.export_profile_service import ExportProfileService
 from tests.test_production_readiness_service import (
     build_ready_project,
     duplicate_episode,
 )
-
 
 REQUIRED_PROFILE_IDS = {
     "production_markdown",

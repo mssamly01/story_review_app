@@ -48,17 +48,11 @@ class Project:
             "default_narration_style": self.default_narration_style,
             "default_art_style": self.default_art_style,
             "retelling_density": self.retelling_density,
-            "source_chapters": [
-                chapter.to_dict() for chapter in self.source_chapters
-            ],
-            "review_episodes": [
-                episode.to_dict() for episode in self.review_episodes
-            ],
+            "source_chapters": [chapter.to_dict() for chapter in self.source_chapters],
+            "review_episodes": [episode.to_dict() for episode in self.review_episodes],
             "characters": [character.to_dict() for character in self.characters],
             "locations": [location.to_dict() for location in self.locations],
-            "style_presets": [
-                style_preset.to_dict() for style_preset in self.style_presets
-            ],
+            "style_presets": [style_preset.to_dict() for style_preset in self.style_presets],
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }
@@ -71,26 +65,17 @@ class Project:
             author_source_note=data.get("author_source_note", ""),
             genre=data.get("genre", ""),
             language=data.get("language", "vi"),
-            default_narration_style=data.get(
-                "default_narration_style", "mysterious"
-            ),
+            default_narration_style=data.get("default_narration_style", "mysterious"),
             default_art_style=data.get("default_art_style", "dark fantasy webtoon"),
             retelling_density=data.get("retelling_density", "full"),
             source_chapters=[
-                SourceChapter.from_dict(chapter)
-                for chapter in data.get("source_chapters", [])
+                SourceChapter.from_dict(chapter) for chapter in data.get("source_chapters", [])
             ],
             review_episodes=[
-                ReviewEpisode.from_dict(episode)
-                for episode in data.get("review_episodes", [])
+                ReviewEpisode.from_dict(episode) for episode in data.get("review_episodes", [])
             ],
-            characters=[
-                Character.from_dict(character)
-                for character in data.get("characters", [])
-            ],
-            locations=[
-                Location.from_dict(location) for location in data.get("locations", [])
-            ],
+            characters=[Character.from_dict(character) for character in data.get("characters", [])],
+            locations=[Location.from_dict(location) for location in data.get("locations", [])],
             style_presets=[
                 StylePreset.from_dict(style_preset)
                 for style_preset in data.get("style_presets", [])

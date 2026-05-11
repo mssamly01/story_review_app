@@ -88,9 +88,7 @@ class BatchWorkflowController:
             formats,
         )
 
-    def _gateway_for_mode(
-        self, ai_mode: str, model: str | None
-    ) -> AIGateway | None:
+    def _gateway_for_mode(self, ai_mode: str, model: str | None) -> AIGateway | None:
         if ai_mode == "deterministic":
             return None
         if ai_mode == "mock":

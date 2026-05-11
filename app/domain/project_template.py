@@ -39,9 +39,7 @@ class ProjectTemplate:
             "default_art_style": self.default_art_style,
             "recommended_chapters_per_episode": self.recommended_chapters_per_episode,
             "style_preset_ids": list(self.style_preset_ids),
-            "default_style_presets": [
-                style.to_dict() for style in self.default_style_presets
-            ],
+            "default_style_presets": [style.to_dict() for style in self.default_style_presets],
             "prompt_guidelines": list(self.prompt_guidelines),
             "review_guidelines": list(self.review_guidelines),
             "character_bible_placeholders": [
@@ -67,20 +65,13 @@ class ProjectTemplate:
             ),
             default_retelling_density=data.get("default_retelling_density", "full"),
             default_art_style=data.get("default_art_style", ""),
-            recommended_chapters_per_episode=int(
-                data.get("recommended_chapters_per_episode", 1)
-            ),
+            recommended_chapters_per_episode=int(data.get("recommended_chapters_per_episode", 1)),
             style_preset_ids=list(data.get("style_preset_ids", [])),
             default_style_presets=[
-                StylePreset.from_dict(style)
-                for style in data.get("default_style_presets", [])
+                StylePreset.from_dict(style) for style in data.get("default_style_presets", [])
             ],
-            prompt_guidelines=[
-                str(value) for value in data.get("prompt_guidelines", [])
-            ],
-            review_guidelines=[
-                str(value) for value in data.get("review_guidelines", [])
-            ],
+            prompt_guidelines=[str(value) for value in data.get("prompt_guidelines", [])],
+            review_guidelines=[str(value) for value in data.get("review_guidelines", [])],
             character_bible_placeholders=[
                 dict(value) for value in data.get("character_bible_placeholders", [])
             ],

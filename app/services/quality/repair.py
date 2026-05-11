@@ -14,12 +14,12 @@ from app.domain.scene import Scene
 from app.services.beat_generator_service import BeatGeneratorService
 from app.services.bible_service import BibleService
 from app.services.continuity_checker_service import ContinuityCheckerService
-from app.services.quality.readiness import ProductionReadinessService
 from app.services.project_service import ProjectService
-from app.services.quality.validation import ProjectValidationService
 from app.services.prompt_builder_service import PromptBuilderService
 from app.services.quality.prompt import PromptQualityService
+from app.services.quality.readiness import ProductionReadinessService
 from app.services.quality.review import ReviewQualityService
+from app.services.quality.validation import ProjectValidationService
 from app.services.review_rewriter_service import ReviewRewriterService
 
 
@@ -170,9 +170,7 @@ class RepairSuggestionService:
         results: list[RepairResult] = []
         for action in actions:
             if action.risk_level == "low" and action.can_auto_apply:
-                results.append(
-                    self.apply_repair_action(project, action.action_id, actions)
-                )
+                results.append(self.apply_repair_action(project, action.action_id, actions))
         return results
 
     def _add_actions_for_issue(
@@ -194,7 +192,9 @@ class RepairSuggestionService:
                     can_auto_apply=True,
                 ),
             )
-        elif category in {"too_short", "generic_summary"} and str(issue.get("issue_id", "")).startswith("review_"):
+        elif category in {"too_short", "generic_summary"} and str(
+            issue.get("issue_id", "")
+        ).startswith("review_"):
             self._merge_action(
                 actions_by_key,
                 self._beat_action(
@@ -490,7 +490,9 @@ class RepairSuggestionService:
             ),
         )
         self.bible_service.add_or_update_character(project, updated)
-        return self._applied_result(action, "Updated character visual base.", before, updated.to_dict())
+        return self._applied_result(
+            action, "Updated character visual base.", before, updated.to_dict()
+        )
 
     def _apply_update_location_bible(
         self,
@@ -515,7 +517,9 @@ class RepairSuggestionService:
             ),
         )
         self.bible_service.add_or_update_location(project, updated)
-        return self._applied_result(action, "Updated location visual base.", before, updated.to_dict())
+        return self._applied_result(
+            action, "Updated location visual base.", before, updated.to_dict()
+        )
 
     def _permission_result(
         self,
@@ -683,7 +687,10 @@ class RepairSuggestionService:
         return issue.to_dict() if hasattr(issue, "to_dict") else dict(issue)
 
     def _source_issue_id(self, issue: dict[str, Any]) -> str:
-        return str(issue.get("issue_id") or f"{issue.get('category', 'issue')}_{issue.get('beat_id') or issue.get('entity_id', '')}")
+        return str(
+            issue.get("issue_id")
+            or f"{issue.get('category', 'issue')}_{issue.get('beat_id') or issue.get('entity_id', '')}"
+        )
 
     def _target_entity_id(self, issue: dict[str, Any]) -> str:
         return str(

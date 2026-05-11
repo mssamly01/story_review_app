@@ -17,12 +17,9 @@ class ValidationController:
         continuity_checker_service: ContinuityCheckerService | None = None,
     ) -> None:
         self.project_service = project_service or ProjectService()
-        self.project_validation_service = (
-            project_validation_service or ProjectValidationService()
-        )
-        self.continuity_checker_service = (
-            continuity_checker_service
-            or ContinuityCheckerService(self.project_service)
+        self.project_validation_service = project_validation_service or ProjectValidationService()
+        self.continuity_checker_service = continuity_checker_service or ContinuityCheckerService(
+            self.project_service
         )
 
     def validate_project(

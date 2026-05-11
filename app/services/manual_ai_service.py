@@ -18,7 +18,6 @@ from app.services.prompt_builder_service import PromptBuilderService
 from app.services.review_rewriter_service import ReviewRewriterService
 from app.services.story_parser_service import StoryParserService
 
-
 SUPPORTED_STEPS = [
     "parse-story",
     "plan-episode",
@@ -123,24 +122,31 @@ class ManualAIService:
             return self._import_parse(project, result_data, chapter_id)
         if step == "plan-episode":
             return self._import_plan(
-                project, result_data, chapter_id, tone, density,
+                project,
+                result_data,
+                chapter_id,
+                tone,
+                density,
             )
         if step == "generate-beats":
             return self._import_beats(project, result_data, episode_id, density)
         if step == "rewrite-review":
             return self._import_rewrite(
-                project, self._flatten_grouped_result(result_data, "rewritten_beats"), 
-                episode_id, tone, density,
+                project,
+                self._flatten_grouped_result(result_data, "rewritten_beats"),
+                episode_id,
+                tone,
+                density,
             )
         if step == "build-prompts":
             return self._import_prompts(
-                project, self._flatten_grouped_result(result_data, "prompts"), 
-                episode_id, style_preset_id,
+                project,
+                self._flatten_grouped_result(result_data, "prompts"),
+                episode_id,
+                style_preset_id,
             )
         if step == "generate-unified-package":
-            return self._import_unified_package(
-                project, result_data, episode_id
-            )
+            return self._import_unified_package(project, result_data, episode_id)
         raise ValueError(f"Unsupported step: {step}")
 
     # ── Build input_data (giống hệt cách các service build) ─────
@@ -171,7 +177,9 @@ class ManualAIService:
         raise ValueError(f"Unsupported step: {step}")
 
     def _input_parse(
-        self, project: Project, chapter_id: str | None,
+        self,
+        project: Project,
+        chapter_id: str | None,
     ) -> dict[str, Any]:
         chapter = self._require_chapter(project, chapter_id)
         return {
@@ -229,7 +237,8 @@ class ManualAIService:
     ) -> dict[str, Any]:
         episode = self._require_episode(project, episode_id)
         source_chapters = self._chapters_for_episode(
-            project, episode.source_chapter_ids,
+            project,
+            episode.source_chapter_ids,
         )
         return {
             "episode": episode.to_dict(),
@@ -256,16 +265,19 @@ class ManualAIService:
     ) -> dict[str, Any]:
         episode = self._require_episode(project, episode_id)
         source_chapters = self._chapters_for_episode(
-            project, episode.source_chapter_ids,
+            project,
+            episode.source_chapter_ids,
         )
         scenes_input = []
         for scene in episode.scenes:
-            scenes_input.append({
-                "scene": scene.to_dict(),
-                "beats": [beat.to_dict() for beat in scene.ordered_beats()],
-                "narration_style": tone or episode.tone,
-                "retelling_density": density or episode.density,
-            })
+            scenes_input.append(
+                {
+                    "scene": scene.to_dict(),
+                    "beats": [beat.to_dict() for beat in scene.ordered_beats()],
+                    "narration_style": tone or episode.tone,
+                    "retelling_density": density or episode.density,
+                }
+            )
         return {
             "episode_id": episode.episode_id,
             "episode_title": episode.title,
@@ -290,10 +302,12 @@ class ManualAIService:
         style_preset = self._find_style_preset(project, style_preset_id)
         scenes_input = []
         for scene in episode.scenes:
-            scenes_input.append({
-                "scene": scene.to_dict(),
-                "beats": [beat.to_dict() for beat in scene.ordered_beats()],
-            })
+            scenes_input.append(
+                {
+                    "scene": scene.to_dict(),
+                    "beats": [beat.to_dict() for beat in scene.ordered_beats()],
+                }
+            )
         return {
             "episode_id": episode.episode_id,
             "episode_title": episode.title,
@@ -303,13 +317,9 @@ class ManualAIService:
             "scenes": scenes_input,
         }
 
-    def _input_unified_package(
-        self, project: Project, episode_id: str | None
-    ) -> dict[str, Any]:
+    def _input_unified_package(self, project: Project, episode_id: str | None) -> dict[str, Any]:
         episode = self._require_episode(project, episode_id)
-        source_chapters = self._chapters_for_episode(
-            project, episode.source_chapter_ids
-        )
+        source_chapters = self._chapters_for_episode(project, episode.source_chapter_ids)
         style_preset = self._find_style_preset(project, project.default_art_style)
 
         return {
@@ -362,11 +372,7 @@ class ManualAIService:
         existing_char_names = {c.name.lower() for c in project.characters}
         for det_char in parsed.detected_characters:
             if det_char.name.lower() not in existing_char_names:
-                self.project_service.add_character(
-                    project,
-                    name=det_char.name,
-                    role=det_char.role
-                )
+                self.project_service.add_character(project, name=det_char.name, role=det_char.role)
                 existing_char_names.add(det_char.name.lower())
                 new_chars += 1
 
@@ -374,11 +380,7 @@ class ManualAIService:
         existing_loc_names = {l.name.lower() for l in project.locations}
         for det_loc in parsed.detected_locations:
             if det_loc.name.lower() not in existing_loc_names:
-                self.project_service.add_location(
-                    project,
-                    name=det_loc.name,
-                    mood=det_loc.mood
-                )
+                self.project_service.add_location(project, name=det_loc.name, mood=det_loc.mood)
                 existing_loc_names.add(det_loc.name.lower())
                 new_locs += 1
 
@@ -409,10 +411,7 @@ class ManualAIService:
             narration_style=tone or project.default_narration_style,
             retelling_density=density or project.retelling_density,
         )
-        return (
-            f"Imported episode: {episode.episode_id} "
-            f"({len(episode.scenes)} scenes)"
-        )
+        return f"Imported episode: {episode.episode_id} " f"({len(episode.scenes)} scenes)"
 
     def _import_beats(
         self,
@@ -493,9 +492,7 @@ class ManualAIService:
                 scene_id = scene_data.get("scene_id")
                 if not scene_id:
                     continue
-                scene_gateway = _SingleResponseGateway(
-                    {"beats": scene_data.get("beats", [])}
-                )
+                scene_gateway = _SingleResponseGateway({"beats": scene_data.get("beats", [])})
                 scene_service = BeatGeneratorService(
                     project_service=self.project_service,
                     ai_gateway=scene_gateway,
@@ -509,23 +506,23 @@ class ManualAIService:
 
     # ── Helpers ───────────────────────────────────────────────────
 
-    def _flatten_grouped_result(
-        self, result: dict[str, Any], target_key: str
-    ) -> dict[str, Any]:
+    def _flatten_grouped_result(self, result: dict[str, Any], target_key: str) -> dict[str, Any]:
         """Convert grouped scene beats into a flat list for legacy services."""
         if target_key in result:
             return result
-        
+
         flat_list = []
         if "scenes" in result and isinstance(result["scenes"], list):
             for scene in result["scenes"]:
                 if "beats" in scene and isinstance(scene["beats"], list):
                     flat_list.extend(scene["beats"])
-        
+
         return {target_key: flat_list}
 
     def _require_chapter(
-        self, project: Project, chapter_id: str | None,
+        self,
+        project: Project,
+        chapter_id: str | None,
     ) -> SourceChapter:
         if not chapter_id:
             if not project.source_chapters:
@@ -544,7 +541,9 @@ class ManualAIService:
         return self.project_service.find_episode(project, episode_id)
 
     def _chapters_for_episode(
-        self, project: Project, chapter_ids: list[str],
+        self,
+        project: Project,
+        chapter_ids: list[str],
     ):
         chapters = []
         for cid in chapter_ids:
@@ -566,8 +565,7 @@ class ManualAIService:
     def _validate_step(self, step: str) -> None:
         if step not in SUPPORTED_STEPS:
             raise ValueError(
-                f"Unsupported step '{step}'. "
-                f"Supported: {', '.join(SUPPORTED_STEPS)}"
+                f"Unsupported step '{step}'. " f"Supported: {', '.join(SUPPORTED_STEPS)}"
             )
 
 

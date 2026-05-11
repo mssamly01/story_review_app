@@ -1,10 +1,9 @@
 import ast
-from io import StringIO
-from pathlib import Path
 import re
 import tokenize
 import unittest
-
+from io import StringIO
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 APP_DIR = ROOT / "app"
@@ -109,8 +108,7 @@ class ProductDirectionGuardTests(unittest.TestCase):
         self.assertEqual(
             violations,
             [],
-            "Forbidden video-editor concepts found in app source: "
-            + ", ".join(violations),
+            "Forbidden video-editor concepts found in app source: " + ", ".join(violations),
         )
 
     def test_tests_do_not_call_live_ai_or_network_dependencies(self) -> None:
