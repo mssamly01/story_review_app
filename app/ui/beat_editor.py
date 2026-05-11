@@ -1,12 +1,28 @@
-"""Beat editor for structured beat fields."""
+"""PySide6 beat editor for structured beat fields."""
 
 from __future__ import annotations
 
-import tkinter as tk
-from tkinter import ttk
+from collections.abc import Callable
+from typing import Any
+
+from PySide6.QtWidgets import (
+    QGridLayout,
+    QGroupBox,
+    QLabel,
+    QLineEdit,
+    QPlainTextEdit,
+    QPushButton,
+    QWidget,
+)
 
 
-class BeatEditor(ttk.LabelFrame):
+class BeatEditor(QGroupBox):
+    MULTILINE_FIELDS = {
+        "review_text",
+        "visual_description",
+        "image_prompt",
+        "negative_prompt",
+    }
     FIELD_NAMES = [
         "review_text",
         "visual_description",
@@ -19,63 +35,63 @@ class BeatEditor(ttk.LabelFrame):
         "continuity_tags",
     ]
 
-    def __init__(self, master: tk.Misc, callbacks: dict[str, object]) -> None:
-        super().__init__(master, text="Beat Editor")
-        self.callbacks = callbacks
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+        callbacks: dict[str, Callable[..., Any]] | None = None,
+    ) -> None:
+        super().__init__("Beat Editor", parent)
+        self.callbacks = callbacks or {}
         self._beat_id: str | None = None
-        self.fields: dict[str, tk.Text | tk.StringVar] = {}
+        self.fields: dict[str, QLineEdit | QPlainTextEdit] = {}
 
-        row = 0
-        for name in self.FIELD_NAMES:
-            ttk.Label(self, text=name.replace("_", " ").title()).grid(
-                row=row, column=0, sticky="nw"
-            )
-            if name in {
-                "review_text",
-                "visual_description",
-                "image_prompt",
-                "negative_prompt",
-            }:
-                widget = tk.Text(self, height=3, wrap="word")
-                widget.grid(row=row, column=1, sticky="ew", pady=2)
-                self.fields[name] = widget
+        layout = QGridLayout(self)
+        for row, name in enumerate(self.FIELD_NAMES):
+            label = QLabel(name.replace("_", " ").title())
+            layout.addWidget(label, row, 0)
+            if name in self.MULTILINE_FIELDS:
+                widget = QPlainTextEdit()
+                widget.setMaximumBlockCount(5000)
+                layout.addWidget(widget, row, 1)
             else:
-                value = tk.StringVar()
-                ttk.Entry(self, textvariable=value).grid(row=row, column=1, sticky="ew")
-                self.fields[name] = value
-            row += 1
+                widget = QLineEdit()
+                layout.addWidget(widget, row, 1)
+            self.fields[name] = widget
 
-        ttk.Button(self, text="Apply Beat Edits", command=self._apply).grid(
-            row=row, column=0, columnspan=2, sticky="ew", pady=4
-        )
-        self.columnconfigure(1, weight=1)
+        apply_button = QPushButton("Apply Beat Edits")
+        apply_button.clicked.connect(self._apply)
+        layout.addWidget(apply_button, len(self.FIELD_NAMES), 0, 1, 2)
+        layout.setColumnStretch(1, 1)
 
     def set_beat(self, beat) -> None:
         self._beat_id = beat.beat_id
         for name in self.FIELD_NAMES:
             value = getattr(beat, name)
-            if isinstance(value, list):
-                display_value = ", ".join(value)
-            else:
-                display_value = value
+            display_value = ", ".join(value) if isinstance(value, list) else str(value)
             widget = self.fields[name]
-            if isinstance(widget, tk.Text):
-                widget.delete("1.0", tk.END)
-                widget.insert("1.0", display_value)
+            if isinstance(widget, QPlainTextEdit):
+                widget.setPlainText(display_value)
             else:
-                widget.set(display_value)
+                widget.setText(display_value)
+
+    def clear(self) -> None:
+        self._beat_id = None
+        for widget in self.fields.values():
+            if isinstance(widget, QPlainTextEdit):
+                widget.clear()
+            else:
+                widget.setText("")
 
     def values(self) -> dict[str, str]:
         result: dict[str, str] = {}
         for name, widget in self.fields.items():
-            if isinstance(widget, tk.Text):
-                result[name] = widget.get("1.0", "end-1c")
+            if isinstance(widget, QPlainTextEdit):
+                result[name] = widget.toPlainText()
             else:
-                result[name] = widget.get()
+                result[name] = widget.text()
         return result
 
     def _apply(self) -> None:
         handler = self.callbacks.get("update_beat")
         if self._beat_id and callable(handler):
             handler(self._beat_id, self.values())
-

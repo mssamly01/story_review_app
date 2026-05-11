@@ -1,73 +1,97 @@
-"""Source chapter panel for the Tkinter UI."""
+"""PySide6 source chapter panel."""
 
 from __future__ import annotations
 
-import tkinter as tk
-from tkinter import ttk
+from collections.abc import Callable
+from typing import Any
+
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QGridLayout,
+    QGroupBox,
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QListWidgetItem,
+    QPlainTextEdit,
+    QPushButton,
+    QSpinBox,
+    QWidget,
+)
 
 
-class SourceChapterPanel(ttk.LabelFrame):
-    def __init__(self, master: tk.Misc, callbacks: dict[str, object]) -> None:
-        super().__init__(master, text="Source Chapters")
-        self.callbacks = callbacks
-        self.title_var = tk.StringVar()
-        self.number_var = tk.StringVar(value="1")
-        self.chapter_list = tk.Listbox(self, height=6, exportselection=False)
-        self.raw_text = tk.Text(self, height=12, wrap="word")
+ITEM_ROLE = Qt.ItemDataRole.UserRole
 
-        self.chapter_list.grid(row=0, column=0, rowspan=5, sticky="nsew", padx=3)
-        self.chapter_list.bind("<<ListboxSelect>>", self._on_select)
-        ttk.Label(self, text="Title").grid(row=0, column=1, sticky="w")
-        ttk.Entry(self, textvariable=self.title_var).grid(row=0, column=2, sticky="ew")
-        ttk.Label(self, text="Number").grid(row=1, column=1, sticky="w")
-        ttk.Entry(self, textvariable=self.number_var, width=8).grid(
-            row=1, column=2, sticky="w"
-        )
-        ttk.Button(self, text="Add From File", command=self._call("add_chapter")).grid(
-            row=2, column=1, columnspan=2, sticky="ew", pady=2
-        )
-        ttk.Button(self, text="Apply Source Edits", command=self._apply_edits).grid(
-            row=3, column=1, columnspan=2, sticky="ew", pady=2
-        )
-        self.raw_text.grid(row=5, column=0, columnspan=3, sticky="nsew", pady=3)
-        self.columnconfigure(0, weight=1)
-        self.columnconfigure(2, weight=1)
-        self.rowconfigure(5, weight=1)
-        self._chapter_ids: list[str] = []
+
+class SourceChapterPanel(QGroupBox):
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+        callbacks: dict[str, Callable[..., Any]] | None = None,
+    ) -> None:
+        super().__init__("Source Chapters", parent)
+        self.callbacks = callbacks or {}
+        self.chapter_list = QListWidget()
+        self.title_edit = QLineEdit()
+        self.number_spin = QSpinBox()
+        self.number_spin.setRange(1, 9999)
+        self.raw_text_edit = QPlainTextEdit()
+
+        layout = QGridLayout(self)
+        layout.addWidget(self.chapter_list, 0, 0, 5, 1)
+        layout.addWidget(QLabel("Title"), 0, 1)
+        layout.addWidget(self.title_edit, 0, 2)
+        layout.addWidget(QLabel("Number"), 1, 1)
+        layout.addWidget(self.number_spin, 1, 2)
+
+        add_button = QPushButton("Add From File")
+        add_button.clicked.connect(self._call("add_chapter"))
+        layout.addWidget(add_button, 2, 1, 1, 2)
+
+        apply_button = QPushButton("Apply Source Edits")
+        apply_button.clicked.connect(self._apply_edits)
+        layout.addWidget(apply_button, 3, 1, 1, 2)
+
+        layout.addWidget(self.raw_text_edit, 5, 0, 1, 3)
+        layout.setColumnStretch(0, 1)
+        layout.setColumnStretch(2, 1)
+        layout.setRowStretch(5, 1)
+
+        self.chapter_list.currentItemChanged.connect(self._on_select)
 
     def set_chapters(self, chapters) -> None:
-        self._chapter_ids = [chapter.chapter_id for chapter in chapters]
-        self.chapter_list.delete(0, tk.END)
+        self.chapter_list.clear()
         for chapter in chapters:
-            self.chapter_list.insert(
-                tk.END,
-                f"{chapter.chapter_id} | {chapter.chapter_number} | {chapter.title}",
+            item = QListWidgetItem(
+                f"{chapter.chapter_id} | {chapter.chapter_number} | {chapter.title}"
             )
+            item.setData(ITEM_ROLE, chapter.chapter_id)
+            self.chapter_list.addItem(item)
 
     def set_current_chapter(self, chapter) -> None:
-        self.title_var.set(chapter.title)
-        self.number_var.set(str(chapter.chapter_number))
-        self.raw_text.delete("1.0", tk.END)
-        self.raw_text.insert("1.0", chapter.raw_text)
+        self.title_edit.setText(chapter.title)
+        self.number_spin.setValue(int(chapter.chapter_number))
+        self.raw_text_edit.setPlainText(chapter.raw_text)
 
     def selected_chapter_id(self) -> str | None:
-        selected = self.chapter_list.curselection()
-        if not selected:
+        item = self.chapter_list.currentItem()
+        if item is None:
             return None
-        return self._chapter_ids[selected[0]]
+        return item.data(ITEM_ROLE)
 
     def edited_values(self) -> dict[str, object]:
         return {
-            "title": self.title_var.get(),
-            "chapter_number": int(self.number_var.get()),
-            "raw_text": self.raw_text.get("1.0", "end-1c"),
+            "title": self.title_edit.text(),
+            "chapter_number": int(self.number_spin.value()),
+            "raw_text": self.raw_text_edit.toPlainText(),
         }
 
-    def _on_select(self, event: object) -> None:
-        chapter_id = self.selected_chapter_id()
+    def _on_select(self, current: QListWidgetItem | None, previous: object) -> None:
+        if current is None:
+            return
         handler = self.callbacks.get("select_chapter")
-        if chapter_id and callable(handler):
-            handler(chapter_id)
+        if callable(handler):
+            handler(current.data(ITEM_ROLE))
 
     def _apply_edits(self) -> None:
         chapter_id = self.selected_chapter_id()
@@ -75,11 +99,10 @@ class SourceChapterPanel(ttk.LabelFrame):
         if chapter_id and callable(handler):
             handler(chapter_id, self.edited_values())
 
-    def _call(self, name: str):
+    def _call(self, name: str) -> Callable[[], None]:
         def callback() -> None:
             handler = self.callbacks.get(name)
             if callable(handler):
                 handler()
 
         return callback
-

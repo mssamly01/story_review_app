@@ -1,16 +1,29 @@
-"""Main Tkinter window for the minimal desktop UI."""
+"""Main PySide6 window for the minimal desktop UI."""
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-import tkinter as tk
-from tkinter import filedialog, messagebox, simpledialog, ttk
+from typing import Any
+
+from PySide6.QtWidgets import (
+    QApplication,
+    QFileDialog,
+    QGridLayout,
+    QGroupBox,
+    QInputDialog,
+    QMainWindow,
+    QMessageBox,
+    QPlainTextEdit,
+    QPushButton,
+    QWidget,
+)
 
 from app.controllers.export_controller import ExportController
+from app.controllers.export_profile_controller import ExportProfileController
 from app.controllers.generation_controller import GenerationController
 from app.controllers.project_controller import ProjectController
 from app.domain.beat import Beat
-from app.domain.episode import ReviewEpisode
 from app.domain.scene import Scene
 from app.ui.beat_browser import BeatBrowser
 from app.ui.beat_editor import BeatEditor
@@ -20,16 +33,16 @@ from app.ui.project_panel import ProjectPanel
 from app.ui.source_chapter_panel import SourceChapterPanel
 
 
-class MainWindow(ttk.Frame):
+class MainWindow(QMainWindow):
     def __init__(
         self,
-        master: tk.Tk,
+        parent: QWidget | None = None,
         project_controller: ProjectController | None = None,
         generation_controller: GenerationController | None = None,
         export_controller: ExportController | None = None,
+        export_profile_controller: ExportProfileController | None = None,
     ) -> None:
-        super().__init__(master)
-        self.master = master
+        super().__init__(parent)
         self.project_controller = project_controller or ProjectController()
         self.generation_controller = generation_controller or GenerationController(
             self.project_controller.project_service
@@ -37,19 +50,27 @@ class MainWindow(ttk.Frame):
         self.export_controller = export_controller or ExportController(
             self.project_controller.project_service
         )
+        self.export_profile_controller = (
+            export_profile_controller
+            or ExportProfileController(self.project_controller.project_service)
+        )
         self.selected_chapter_id: str | None = None
         self.selected_episode_id: str | None = None
         self.selected_scene_id: str | None = None
         self.selected_beat_id: str | None = None
-        self.status_var = tk.StringVar(value="Ready")
 
-        self.master.title("Story Review Studio")
-        self.pack(fill="both", expand=True)
+        self.setWindowTitle("Story Review Studio")
+        self.resize(1320, 820)
         self._build_layout()
+        self._load_export_profiles()
 
     def _build_layout(self) -> None:
+        central = QWidget(self)
+        self.setCentralWidget(central)
+        layout = QGridLayout(central)
+
         self.project_panel = ProjectPanel(
-            self,
+            central,
             {
                 "new_project": self.new_project,
                 "open_project": self.open_project,
@@ -57,90 +78,99 @@ class MainWindow(ttk.Frame):
                 "save_project_as": self.save_project_as,
             },
         )
-        self.project_panel.grid(row=0, column=0, columnspan=3, sticky="ew", padx=6, pady=4)
+        layout.addWidget(self.project_panel, 0, 0, 1, 3)
 
         self.source_panel = SourceChapterPanel(
-            self,
+            central,
             {
                 "add_chapter": self.add_chapter,
                 "select_chapter": self.select_chapter,
                 "update_chapter": self.update_chapter,
             },
         )
-        self.source_panel.grid(row=1, column=0, sticky="nsew", padx=6, pady=4)
+        layout.addWidget(self.source_panel, 1, 0)
 
         self.episode_panel = EpisodePanel(
-            self,
+            central,
             {
                 "plan_episode": self.plan_episode,
                 "run_pipeline": self.run_full_pipeline,
                 "select_episode": self.select_episode,
             },
         )
-        self.episode_panel.grid(row=1, column=1, sticky="nsew", padx=6, pady=4)
+        layout.addWidget(self.episode_panel, 1, 1)
 
         self.browser = BeatBrowser(
-            self,
+            central,
             {
                 "select_scene": self.select_scene,
                 "select_beat": self.select_beat,
             },
         )
-        self.browser.grid(row=2, column=0, columnspan=2, sticky="nsew", padx=6, pady=4)
+        layout.addWidget(self.browser, 2, 0, 1, 2)
 
         self.beat_editor = BeatEditor(
-            self,
+            central,
             {
                 "update_beat": self.update_beat,
             },
         )
-        self.beat_editor.grid(row=1, column=2, rowspan=2, sticky="nsew", padx=6, pady=4)
+        layout.addWidget(self.beat_editor, 1, 2, 2, 1)
 
-        actions = ttk.LabelFrame(self, text="Pipeline")
-        actions.grid(row=3, column=0, columnspan=2, sticky="ew", padx=6, pady=4)
-        ttk.Button(actions, text="Parse Story", command=self.parse_story).grid(
-            row=0, column=0, sticky="ew", padx=2
-        )
-        ttk.Button(actions, text="Generate Beats", command=self.generate_beats).grid(
-            row=0, column=1, sticky="ew", padx=2
-        )
-        ttk.Button(actions, text="Rewrite Review", command=self.rewrite_review).grid(
-            row=0, column=2, sticky="ew", padx=2
-        )
-        ttk.Button(actions, text="Build Prompts", command=self.build_prompts).grid(
-            row=0, column=3, sticky="ew", padx=2
-        )
-        for column in range(4):
-            actions.columnconfigure(column, weight=1)
+        layout.addWidget(self._pipeline_group(), 3, 0, 1, 2)
 
         self.export_panel = ExportPanel(
-            self,
+            central,
             {
                 "export_episode": self.export_episode,
+                "export_profile": self.export_profile,
             },
         )
-        self.export_panel.grid(row=3, column=2, sticky="ew", padx=6, pady=4)
+        layout.addWidget(self.export_panel, 3, 2)
 
-        ttk.Label(self, textvariable=self.status_var).grid(
-            row=4, column=0, columnspan=3, sticky="ew", padx=6, pady=4
-        )
-        self.columnconfigure(0, weight=1)
-        self.columnconfigure(1, weight=1)
-        self.columnconfigure(2, weight=1)
-        self.rowconfigure(1, weight=1)
-        self.rowconfigure(2, weight=1)
+        self.status_area = QPlainTextEdit()
+        self.status_area.setReadOnly(True)
+        self.status_area.setMaximumHeight(96)
+        layout.addWidget(self.status_area, 4, 0, 1, 3)
+        self.set_status("Ready")
+
+        layout.setColumnStretch(0, 1)
+        layout.setColumnStretch(1, 1)
+        layout.setColumnStretch(2, 1)
+        layout.setRowStretch(1, 1)
+        layout.setRowStretch(2, 1)
+
+    def _pipeline_group(self) -> QGroupBox:
+        group = QGroupBox("Pipeline")
+        layout = QGridLayout(group)
+        buttons = [
+            ("Parse Story", self.parse_story),
+            ("Generate Beats", self.generate_beats),
+            ("Rewrite Review", self.rewrite_review),
+            ("Build Prompts", self.build_prompts),
+        ]
+        for column, (label, callback) in enumerate(buttons):
+            button = QPushButton(label)
+            button.clicked.connect(callback)
+            layout.addWidget(button, 0, column)
+            layout.setColumnStretch(column, 1)
+        return group
 
     def new_project(self) -> None:
+        title = self.project_panel.project_title() or "Untitled Project"
         self._run_ui_action(
-            lambda: self.project_controller.create_project(
-                self.project_panel.title_var.get() or "Untitled Project"
-            ),
+            lambda: self.project_controller.create_project(title),
             "Created project",
         )
         self.refresh_all()
 
     def open_project(self) -> None:
-        path = filedialog.askopenfilename(filetypes=[("Project JSON", "*.json")])
+        path, _selected_filter = QFileDialog.getOpenFileName(
+            self,
+            "Open Project",
+            "",
+            "Project JSON (*.json);;All Files (*)",
+        )
         if not path:
             return
         self._run_ui_action(lambda: self.project_controller.open_project(path), "Opened project")
@@ -154,9 +184,11 @@ class MainWindow(ttk.Frame):
         self.refresh_project_info()
 
     def save_project_as(self) -> None:
-        path = filedialog.asksaveasfilename(
-            defaultextension=".json",
-            filetypes=[("Project JSON", "*.json")],
+        path, _selected_filter = QFileDialog.getSaveFileName(
+            self,
+            "Save Project",
+            "",
+            "Project JSON (*.json);;All Files (*)",
         )
         if not path:
             return
@@ -164,15 +196,27 @@ class MainWindow(ttk.Frame):
         self.refresh_project_info()
 
     def add_chapter(self) -> None:
-        project = self.project_controller.require_project()
-        path = filedialog.askopenfilename(filetypes=[("Text files", "*.txt"), ("All files", "*.*")])
+        self.project_controller.require_project()
+        path, _selected_filter = QFileDialog.getOpenFileName(
+            self,
+            "Add Source Chapter",
+            "",
+            "Text Files (*.txt);;All Files (*)",
+        )
         if not path:
             return
-        title = simpledialog.askstring("Chapter title", "Chapter title")
-        if not title:
+        title, ok = QInputDialog.getText(self, "Chapter Title", "Chapter title")
+        if not ok or not title:
             return
-        chapter_number = simpledialog.askinteger("Chapter number", "Chapter number", minvalue=1)
-        if chapter_number is None:
+        chapter_number, ok = QInputDialog.getInt(
+            self,
+            "Chapter Number",
+            "Chapter number",
+            1,
+            1,
+            9999,
+        )
+        if not ok:
             return
         self._run_ui_action(
             lambda: self.project_controller.add_chapter_from_file(
@@ -182,7 +226,7 @@ class MainWindow(ttk.Frame):
             ),
             "Added chapter",
         )
-        self.refresh_all(project)
+        self.refresh_all()
 
     def select_chapter(self, chapter_id: str) -> None:
         self.selected_chapter_id = chapter_id
@@ -203,16 +247,17 @@ class MainWindow(ttk.Frame):
             episode_id,
         )
         self.browser.set_scenes(episode.scenes)
+        self.beat_editor.clear()
 
     def select_scene(self, scene_id: str) -> None:
         self.selected_scene_id = scene_id
         scene = self._current_scene(scene_id)
         self.browser.set_beats(scene.ordered_beats())
+        self.beat_editor.clear()
 
     def select_beat(self, beat_id: str) -> None:
         self.selected_beat_id = beat_id
-        beat = self._find_beat(beat_id)
-        self.beat_editor.set_beat(beat)
+        self.beat_editor.set_beat(self._find_beat(beat_id))
 
     def parse_story(self) -> None:
         chapter_id = self._require_chapter_id()
@@ -221,7 +266,7 @@ class MainWindow(ttk.Frame):
             lambda: self.generation_controller.parse_story(
                 self.project_controller.require_project(),
                 chapter_id,
-                ai_mode=settings["ai_mode"],
+                ai_mode=str(settings["ai_mode"]),
                 model=settings["model"],
             ),
             "Parsed story",
@@ -234,10 +279,10 @@ class MainWindow(ttk.Frame):
             lambda: self.generation_controller.plan_episode(
                 self.project_controller.require_project(),
                 chapter_id=chapter_id,
-                episode_title=settings["episode_title"],
-                tone=settings["tone"],
-                density=settings["density"],
-                ai_mode=settings["ai_mode"],
+                episode_title=str(settings["episode_title"]),
+                tone=str(settings["tone"]),
+                density=str(settings["density"]),
+                ai_mode=str(settings["ai_mode"]),
                 model=settings["model"],
             ),
             "Planned episode",
@@ -253,8 +298,8 @@ class MainWindow(ttk.Frame):
             lambda: self.generation_controller.generate_beats(
                 self.project_controller.require_project(),
                 episode_id,
-                density=settings["density"],
-                ai_mode=settings["ai_mode"],
+                density=str(settings["density"]),
+                ai_mode=str(settings["ai_mode"]),
                 model=settings["model"],
             ),
             "Generated beats",
@@ -268,9 +313,9 @@ class MainWindow(ttk.Frame):
             lambda: self.generation_controller.rewrite_review(
                 self.project_controller.require_project(),
                 episode_id,
-                tone=settings["tone"],
-                density=settings["density"],
-                ai_mode=settings["ai_mode"],
+                tone=str(settings["tone"]),
+                density=str(settings["density"]),
+                ai_mode=str(settings["ai_mode"]),
                 model=settings["model"],
             ),
             "Rewrote review",
@@ -284,7 +329,8 @@ class MainWindow(ttk.Frame):
             lambda: self.generation_controller.build_prompts(
                 self.project_controller.require_project(),
                 episode_id,
-                ai_mode=settings["ai_mode"],
+                style_preset_id=settings["style_preset_id"],
+                ai_mode=str(settings["ai_mode"]),
                 model=settings["model"],
             ),
             "Built prompts",
@@ -298,10 +344,11 @@ class MainWindow(ttk.Frame):
             lambda: self.generation_controller.run_full_pipeline(
                 self.project_controller.require_project(),
                 chapter_id=chapter_id,
-                episode_title=settings["episode_title"],
-                tone=settings["tone"],
-                density=settings["density"],
-                ai_mode=settings["ai_mode"],
+                episode_title=str(settings["episode_title"]),
+                tone=str(settings["tone"]),
+                density=str(settings["density"]),
+                style_preset_id=settings["style_preset_id"],
+                ai_mode=str(settings["ai_mode"]),
                 model=settings["model"],
             ),
             "Pipeline complete",
@@ -326,8 +373,11 @@ class MainWindow(ttk.Frame):
             "review-txt": ".txt",
             "prompts-txt": ".txt",
         }
-        path = filedialog.asksaveasfilename(
-            defaultextension=suffix_by_format.get(export_format, ".txt")
+        path, _selected_filter = QFileDialog.getSaveFileName(
+            self,
+            "Export Episode",
+            "",
+            f"Output (*{suffix_by_format.get(export_format, '.txt')});;All Files (*)",
         )
         if not path:
             return
@@ -341,8 +391,29 @@ class MainWindow(ttk.Frame):
             f"Exported {Path(path).name}",
         )
 
-    def refresh_all(self, project=None) -> None:
-        project = project or self.project_controller.project
+    def export_profile(self, profile_id: str) -> None:
+        episode_id = self._require_episode_id()
+        output_dir = QFileDialog.getExistingDirectory(
+            self,
+            "Export Profile",
+            "",
+        )
+        if not output_dir:
+            return
+        paths = self._run_ui_action(
+            lambda: self.export_profile_controller.export_episode_with_profile(
+                self.project_controller.require_project(),
+                episode_id,
+                profile_id,
+                output_dir,
+            ),
+            f"Exported profile {profile_id}",
+        )
+        if paths:
+            self.set_status("Created files: " + ", ".join(str(path) for path in paths))
+
+    def refresh_all(self) -> None:
+        project = self.project_controller.project
         if project is None:
             return
         self.refresh_project_info()
@@ -353,6 +424,16 @@ class MainWindow(ttk.Frame):
                 self.select_episode(self.selected_episode_id)
             except LookupError:
                 self.selected_episode_id = None
+        if self.selected_scene_id and self.selected_episode_id:
+            try:
+                self.select_scene(self.selected_scene_id)
+            except LookupError:
+                self.selected_scene_id = None
+        if self.selected_beat_id:
+            try:
+                self.select_beat(self.selected_beat_id)
+            except LookupError:
+                self.selected_beat_id = None
 
     def refresh_project_info(self) -> None:
         project = self.project_controller.project
@@ -362,14 +443,20 @@ class MainWindow(ttk.Frame):
         self.project_panel.set_project_info(project.title, path)
 
     def set_status(self, message: str) -> None:
-        self.status_var.set(message)
+        self.status_area.appendPlainText(message)
 
-    def _run_ui_action(self, action, success_message: str):
+    def _load_export_profiles(self) -> None:
+        try:
+            self.export_panel.set_profiles(self.export_profile_controller.list_profiles())
+        except Exception as exc:
+            self.set_status(f"Export profiles unavailable: {exc}")
+
+    def _run_ui_action(self, action: Callable[[], Any], success_message: str):
         try:
             result = action()
         except Exception as exc:
             self.set_status(str(exc))
-            messagebox.showerror("Story Review", str(exc))
+            QMessageBox.critical(self, "Story Review", str(exc))
             return None
         self.set_status(success_message)
         return result
@@ -401,7 +488,7 @@ class MainWindow(ttk.Frame):
         raise LookupError(f"Beat not found: {beat_id}")
 
 
-def create_main_window() -> tuple[tk.Tk, MainWindow]:
-    root = tk.Tk()
-    return root, MainWindow(root)
-
+def create_main_window() -> tuple[QApplication, MainWindow]:
+    app = QApplication.instance() or QApplication([])
+    window = MainWindow()
+    return app, window

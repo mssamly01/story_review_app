@@ -1,2 +1,1 @@
-"""Tkinter desktop UI for the story review workflow."""
-
+"""PySide6 desktop UI for the story review workflow."""

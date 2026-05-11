@@ -1,70 +1,90 @@
-"""Scene and beat browser for the Tkinter UI."""
+"""PySide6 scene and beat browser."""
 
 from __future__ import annotations
 
-import tkinter as tk
-from tkinter import ttk
+from collections.abc import Callable
+from typing import Any
+
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QGridLayout,
+    QGroupBox,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QWidget,
+)
 
 
-class BeatBrowser(ttk.LabelFrame):
-    def __init__(self, master: tk.Misc, callbacks: dict[str, object]) -> None:
-        super().__init__(master, text="Scenes and Beats")
-        self.callbacks = callbacks
-        self.scene_list = tk.Listbox(self, height=5, exportselection=False)
-        self.beat_list = tk.Listbox(self, height=8, exportselection=False)
-        self._scene_ids: list[str] = []
-        self._beat_ids: list[str] = []
+ITEM_ROLE = Qt.ItemDataRole.UserRole
 
-        ttk.Label(self, text="Scenes").grid(row=0, column=0, sticky="w")
-        ttk.Label(self, text="Beats").grid(row=0, column=1, sticky="w")
-        self.scene_list.grid(row=1, column=0, sticky="nsew", padx=3)
-        self.beat_list.grid(row=1, column=1, sticky="nsew", padx=3)
-        self.scene_list.bind("<<ListboxSelect>>", self._on_scene_select)
-        self.beat_list.bind("<<ListboxSelect>>", self._on_beat_select)
-        self.columnconfigure(0, weight=1)
-        self.columnconfigure(1, weight=1)
-        self.rowconfigure(1, weight=1)
+
+class BeatBrowser(QGroupBox):
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+        callbacks: dict[str, Callable[..., Any]] | None = None,
+    ) -> None:
+        super().__init__("Scenes and Beats", parent)
+        self.callbacks = callbacks or {}
+        self.scene_list = QListWidget()
+        self.beat_list = QListWidget()
+
+        layout = QGridLayout(self)
+        layout.addWidget(QLabel("Scenes"), 0, 0)
+        layout.addWidget(QLabel("Beats"), 0, 1)
+        layout.addWidget(self.scene_list, 1, 0)
+        layout.addWidget(self.beat_list, 1, 1)
+        layout.setColumnStretch(0, 1)
+        layout.setColumnStretch(1, 1)
+        layout.setRowStretch(1, 1)
+
+        self.scene_list.currentItemChanged.connect(self._on_scene_select)
+        self.beat_list.currentItemChanged.connect(self._on_beat_select)
 
     def set_scenes(self, scenes) -> None:
-        self._scene_ids = [scene.scene_id for scene in scenes]
-        self.scene_list.delete(0, tk.END)
+        self.scene_list.clear()
         for scene in scenes:
-            self.scene_list.insert(tk.END, f"{scene.scene_id} | {scene.title}")
+            item = QListWidgetItem(f"{scene.scene_id} | {scene.title}")
+            item.setData(ITEM_ROLE, scene.scene_id)
+            self.scene_list.addItem(item)
         self.set_beats([])
 
     def set_beats(self, beats) -> None:
-        self._beat_ids = [beat.beat_id for beat in beats]
-        self.beat_list.delete(0, tk.END)
+        self.beat_list.clear()
         for beat in beats:
             preview = beat.review_text or beat.action
-            if len(preview) > 60:
-                preview = preview[:57] + "..."
-            self.beat_list.insert(
-                tk.END,
-                f"{beat.beat_id} | {beat.order_index} | {beat.story_function} | {preview}",
+            if len(preview) > 70:
+                preview = preview[:67] + "..."
+            item = QListWidgetItem(
+                f"{beat.beat_id} | {beat.order_index} | "
+                f"{beat.story_function} | {preview}"
             )
+            item.setData(ITEM_ROLE, beat.beat_id)
+            self.beat_list.addItem(item)
 
     def selected_scene_id(self) -> str | None:
-        selected = self.scene_list.curselection()
-        if not selected:
+        item = self.scene_list.currentItem()
+        if item is None:
             return None
-        return self._scene_ids[selected[0]]
+        return item.data(ITEM_ROLE)
 
     def selected_beat_id(self) -> str | None:
-        selected = self.beat_list.curselection()
-        if not selected:
+        item = self.beat_list.currentItem()
+        if item is None:
             return None
-        return self._beat_ids[selected[0]]
+        return item.data(ITEM_ROLE)
 
-    def _on_scene_select(self, event: object) -> None:
-        scene_id = self.selected_scene_id()
+    def _on_scene_select(self, current: QListWidgetItem | None, previous: object) -> None:
+        if current is None:
+            return
         handler = self.callbacks.get("select_scene")
-        if scene_id and callable(handler):
-            handler(scene_id)
+        if callable(handler):
+            handler(current.data(ITEM_ROLE))
 
-    def _on_beat_select(self, event: object) -> None:
-        beat_id = self.selected_beat_id()
+    def _on_beat_select(self, current: QListWidgetItem | None, previous: object) -> None:
+        if current is None:
+            return
         handler = self.callbacks.get("select_beat")
-        if beat_id and callable(handler):
-            handler(beat_id)
-
+        if callable(handler):
+            handler(current.data(ITEM_ROLE))
