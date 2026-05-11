@@ -4,7 +4,7 @@ from app.domain.export_profile import ExportProfile
 from app.services.export_profile_service import ExportProfileService
 
 
-class PhaseTwentyOneExportProfileTests(unittest.TestCase):
+class ExportProfilesWorkflowTests(unittest.TestCase):
     def test_export_profile_roundtrip_dict(self) -> None:
         profile = ExportProfileService().get_profile("full_json_handoff")
 

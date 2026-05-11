@@ -97,10 +97,11 @@ CI ở [`.github/workflows/ci.yml`](.github/workflows/ci.yml) chạy `pytest`,
 - [`docs/DESIGN.md`](docs/DESIGN.md) — thiết kế domain model + 9 màn hình UI
 - [`docs/PLAN.md`](docs/PLAN.md) — 7 nguyên tắc sản phẩm + MVP roadmap
 - [`docs/SKILL.md`](docs/SKILL.md) — chi tiết prompt engineering cho từng bước AI
+- [`examples/`](examples/) — sample project JSON sẵn sàng load (xem `examples/README.md`)
 
 ## Trạng thái
 
-- **Tests:** 301 test, 48 subtest — passing
+- **Tests:** 302 test, 48 subtest — passing
 - **Stage:** Pre-production, hoàn thiện kiến trúc 7-bước, đang polish
 
 ## License

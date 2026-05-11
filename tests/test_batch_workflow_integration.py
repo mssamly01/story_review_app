@@ -6,7 +6,7 @@ from app.services.batch_workflow_service import BatchWorkflowService
 from tests.test_batch_workflow_service import build_project_with_chapters
 
 
-class PhaseFourteenBatchWorkflowTests(unittest.TestCase):
+class BatchWorkflowIntegrationTests(unittest.TestCase):
     def test_batch_workflow_mock_ai_offline(self) -> None:
         project = build_project_with_chapters(2)
         service = BatchWorkflowService(ai_gateway=MockAIGateway())

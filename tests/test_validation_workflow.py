@@ -10,7 +10,7 @@ from app.services.project_service import ProjectService
 from tests.test_project_validation_service import build_complete_project
 
 
-class PhaseThirteenValidationWorkflowTests(unittest.TestCase):
+class ValidationWorkflowTests(unittest.TestCase):
     def test_cli_validate_project_text_output(self) -> None:
         with TemporaryDirectory() as temp_dir:
             project_path = Path(temp_dir) / "project.json"

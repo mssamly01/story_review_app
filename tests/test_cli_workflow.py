@@ -7,7 +7,7 @@ from app import cli
 from app.services.project_service import ProjectService
 
 
-class PhaseElevenCliWorkflowTests(unittest.TestCase):
+class CliWorkflowTests(unittest.TestCase):
     def test_cli_full_deterministic_workflow(self) -> None:
         with TemporaryDirectory() as temp_dir:
             project_path = Path(temp_dir) / "project.json"

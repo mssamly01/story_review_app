@@ -4,7 +4,7 @@ from app.services.quality.readiness import ProductionReadinessService
 from tests.test_production_readiness_service import build_ready_project
 
 
-class PhaseEighteenProductionReadinessTests(unittest.TestCase):
+class ProductionReadinessWorkflowTests(unittest.TestCase):
     def test_batch_report_markdown_contains_episode_rows(self) -> None:
         project, _beat = build_ready_project()
 

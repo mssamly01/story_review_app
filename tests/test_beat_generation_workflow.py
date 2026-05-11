@@ -6,7 +6,7 @@ from app.services.export_service import ExportService
 from app.services.project_service import ProjectService
 
 
-class PhaseFiveWorkflowTests(unittest.TestCase):
+class BeatGenerationWorkflowTests(unittest.TestCase):
     def test_planned_episode_can_generate_beat_plans(self) -> None:
         project_service = ProjectService()
         planner = EpisodePlannerService(project_service)

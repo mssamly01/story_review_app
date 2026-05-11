@@ -6,7 +6,7 @@ from app.services.project_service import ProjectService
 from app.services.review_rewriter_service import ReviewRewriterService
 
 
-class PhaseSixWorkflowTests(unittest.TestCase):
+class ReviewRewriteWorkflowTests(unittest.TestCase):
     def test_phase_6_rewrites_generated_beats_only_as_review_text(self) -> None:
         project_service = ProjectService()
         planner = EpisodePlannerService(project_service)

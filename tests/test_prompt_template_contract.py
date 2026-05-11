@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PROMPTS_DIR = ROOT / "app" / "prompts"
 
 
-class PhaseNineAIGatewayContractTests(unittest.TestCase):
+class PromptTemplateContractTests(unittest.TestCase):
     def test_prompt_templates_follow_product_direction(self) -> None:
         forbidden_terms = [
             "video editor",

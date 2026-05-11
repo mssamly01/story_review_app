@@ -13,7 +13,7 @@ from tests.test_batch_workflow_service import build_project_with_chapters
 from tests.test_prompt_builder_advanced_bible import build_prompt_ready_project
 
 
-class PhaseFifteenBibleAndStyleTests(unittest.TestCase):
+class BibleAndStylePresetsTests(unittest.TestCase):
     def test_validation_detects_incomplete_bible_entries(self) -> None:
         project = ProjectService().create_project("Incomplete Bible")
         BibleService().add_or_update_character(

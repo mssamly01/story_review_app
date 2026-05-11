@@ -4,7 +4,7 @@ from app.domain.project_template import ProjectTemplate
 from app.services.project_template_service import ProjectTemplateService
 
 
-class PhaseTwentyProjectTemplatesTests(unittest.TestCase):
+class ProjectTemplatesWorkflowTests(unittest.TestCase):
     def test_template_roundtrip_dict(self) -> None:
         template = ProjectTemplateService().get_template("dark_fantasy_webtoon")
 

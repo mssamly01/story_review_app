@@ -11,7 +11,7 @@ from app.infrastructure.openai_ai_gateway import AIConfigurationError
 from app.services.project_service import ProjectService
 
 
-class PhaseTwelveBMinimalUITests(unittest.TestCase):
+class MinimalUiControllersTests(unittest.TestCase):
     def test_controllers_can_create_and_save_project(self) -> None:
         with TemporaryDirectory() as temp_dir:
             path = Path(temp_dir) / "project.json"

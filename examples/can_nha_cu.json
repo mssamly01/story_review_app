@@ -1,0 +1,207 @@
+{
+  "project_id": "example_can_nha_cu",
+  "title": "Căn nhà cũ",
+  "author_source_note": "",
+  "genre": "dark fantasy",
+  "language": "vi",
+  "default_narration_style": "mysterious",
+  "default_art_style": "dark fantasy webtoon",
+  "retelling_density": "full",
+  "source_chapters": [
+    {
+      "chapter_id": "ch_001",
+      "title": "Chương 1 — Trở về",
+      "chapter_number": 1,
+      "raw_text": "Lâm Vũ đứng trước căn nhà cũ. Cánh cửa gỗ mục nát kêu kẽo kẹt trong gió chiều. Anh chưa từng nghĩ mình sẽ quay lại nơi này, sau ngần ấy năm.\n\nBên trong, bụi phủ một lớp mỏng trên tấm ảnh gia đình. Không khí lạnh hơn nhiều so với bên ngoài. Một tiếng động nhỏ vang lên từ tầng trên.",
+      "notes": "Mở đầu — thiết lập không gian căn nhà cũ và nhân vật chính.",
+      "import_date": "2026-05-11T08:09:19.543558+00:00",
+      "word_count": 62,
+      "parsed_scene_ids": []
+    }
+  ],
+  "review_episodes": [
+    {
+      "episode_id": "ep_001",
+      "title": "Trở về căn nhà cũ",
+      "source_chapter_ids": [
+        "ch_001"
+      ],
+      "tone": "mysterious",
+      "density": "full",
+      "status": "draft",
+      "summary": "",
+      "hook": "",
+      "cliffhanger": "",
+      "scene_ids": [
+        "sc_001"
+      ],
+      "estimated_beats": 3,
+      "scenes": [
+        {
+          "scene_id": "sc_001",
+          "episode_id": "ep_001",
+          "title": "Trước cánh cửa",
+          "summary": "Lâm Vũ đứng trước căn nhà cũ, do dự rồi bước vào.",
+          "characters": [
+            "lam_vu"
+          ],
+          "location": "old_house",
+          "mood": "mysterious",
+          "importance": "high",
+          "target_beats": 3,
+          "beat_ids": [
+            "b_001",
+            "b_002",
+            "b_003"
+          ],
+          "beats": [
+            {
+              "beat_id": "b_001",
+              "scene_id": "sc_001",
+              "order_index": 1,
+              "source_refs": [],
+              "story_function": "opening",
+              "characters": [
+                "lam_vu"
+              ],
+              "location": "old_house",
+              "action": "Lâm Vũ dừng lại trước cánh cửa gỗ",
+              "emotion": "hoài niệm, bồn chồn",
+              "shot_type": "wide shot",
+              "review_text": "Lâm Vũ dừng bước trước cánh cửa gỗ đã mục, ngần ngừ trong gió chiều. Anh không ngờ mình sẽ quay lại nơi này.",
+              "visual_description": "Người đàn ông trẻ đứng trước căn nhà cũ, ánh chiều phía sau lưng.",
+              "image_prompt": "dark fantasy webtoon style, dramatic lighting, cinematic composition, young Vietnamese man, late 20s, slim build, tired expression, black jacket, dark jeans, Lâm Vũ, nam, khoảng 28 tuổi, dáng người gầy, gương mặt mệt mỏi, wearing áo khoác đen, quần jean tối màu, old countryside Vietnamese house at dusk, weathered wooden door, creaking, dust motes in the air, Căn nhà cũ, nhà ở nông thôn, lạnh lẽo, ám ảnh, hiện đại, ánh chiều vàng pha tím, nhà gỗ Bắc Bộ cũ, visual focus: Người đàn ông trẻ đứng trước căn nhà cũ, ánh chiều phía sau lưng., action: Lâm Vũ dừng lại trước cánh cửa gỗ, emotion: hoài niệm, bồn chồn, camera: wide shot, mood: mysterious, single clear visual moment, coherent composition, masterpiece, high details",
+              "negative_prompt": "low quality, blurry, distorted anatomy, extra fingers, inconsistent face, wrong outfit, text, watermark, logo, deformed",
+              "continuity_tags": [
+                "old_house",
+                "dusk",
+                "opening"
+              ],
+              "status": "planned",
+              "images": []
+            },
+            {
+              "beat_id": "b_002",
+              "scene_id": "sc_001",
+              "order_index": 2,
+              "source_refs": [],
+              "story_function": "rising_action",
+              "characters": [
+                "lam_vu"
+              ],
+              "location": "old_house",
+              "action": "Lâm Vũ đẩy cánh cửa bước vào",
+              "emotion": "căng thẳng",
+              "shot_type": "medium shot",
+              "review_text": "Cánh cửa kêu kẽo kẹt khi anh đẩy ra. Không khí bên trong lạnh buốt, mùi bụi và gỗ mục xộc thẳng vào mũi.",
+              "visual_description": "Cánh cửa hé mở, Lâm Vũ bước qua ngưỡng, ánh sáng phía sau cắt thành vệt dài trên sàn nhà.",
+              "image_prompt": "dark fantasy webtoon style, dramatic lighting, cinematic composition, young Vietnamese man, late 20s, slim build, tired expression, black jacket, dark jeans, Lâm Vũ, nam, khoảng 28 tuổi, dáng người gầy, gương mặt mệt mỏi, wearing áo khoác đen, quần jean tối màu, old countryside Vietnamese house at dusk, weathered wooden door, creaking, dust motes in the air, Căn nhà cũ, nhà ở nông thôn, lạnh lẽo, ám ảnh, hiện đại, ánh chiều vàng pha tím, nhà gỗ Bắc Bộ cũ, visual focus: Cánh cửa hé mở, Lâm Vũ bước qua ngưỡng, ánh sáng phía sau cắt thành vệt dài trên sàn nhà., action: Lâm Vũ đẩy cánh cửa bước vào, emotion: căng thẳng, camera: medium shot, mood: mysterious, single clear visual moment, coherent composition, masterpiece, high details",
+              "negative_prompt": "low quality, blurry, distorted anatomy, extra fingers, inconsistent face, wrong outfit, text, watermark, logo, deformed",
+              "continuity_tags": [
+                "old_house",
+                "dusk",
+                "interior"
+              ],
+              "status": "planned",
+              "images": []
+            },
+            {
+              "beat_id": "b_003",
+              "scene_id": "sc_001",
+              "order_index": 3,
+              "source_refs": [],
+              "story_function": "hook",
+              "characters": [
+                "lam_vu"
+              ],
+              "location": "old_house",
+              "action": "Một tiếng động vang lên từ tầng trên",
+              "emotion": "kinh ngạc, sợ hãi",
+              "shot_type": "close up",
+              "review_text": "Anh khựng lại. Một tiếng động khô khốc vang lên từ phía trên — rõ ràng là tiếng bước chân.",
+              "visual_description": "Cận cảnh khuôn mặt Lâm Vũ nhìn lên, mắt căng ra, nửa khuôn mặt khuất trong bóng tối.",
+              "image_prompt": "dark fantasy webtoon style, dramatic lighting, cinematic composition, young Vietnamese man, late 20s, slim build, tired expression, black jacket, dark jeans, Lâm Vũ, nam, khoảng 28 tuổi, dáng người gầy, gương mặt mệt mỏi, wearing áo khoác đen, quần jean tối màu, old countryside Vietnamese house at dusk, weathered wooden door, creaking, dust motes in the air, Căn nhà cũ, nhà ở nông thôn, lạnh lẽo, ám ảnh, hiện đại, ánh chiều vàng pha tím, nhà gỗ Bắc Bộ cũ, visual focus: Cận cảnh khuôn mặt Lâm Vũ nhìn lên, mắt căng ra, nửa khuôn mặt khuất trong bóng tối., action: Một tiếng động vang lên từ tầng trên, emotion: kinh ngạc, sợ hãi, camera: close up, mood: mysterious, single clear visual moment, coherent composition, masterpiece, high details",
+              "negative_prompt": "low quality, blurry, distorted anatomy, extra fingers, inconsistent face, wrong outfit, text, watermark, logo, deformed",
+              "continuity_tags": [
+                "old_house",
+                "hook",
+                "tension"
+              ],
+              "status": "planned",
+              "images": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "characters": [
+    {
+      "character_id": "lam_vu",
+      "name": "Lâm Vũ",
+      "aliases": [],
+      "role": "nhân vật chính",
+      "gender": "nam",
+      "age_description": "khoảng 28 tuổi",
+      "personality": "",
+      "appearance": "dáng người gầy, gương mặt mệt mỏi",
+      "face_details": "",
+      "hair": "",
+      "eyes": "",
+      "body_type": "",
+      "default_outfit": "áo khoác đen, quần jean tối màu",
+      "outfit_variants": [],
+      "negative_prompt_terms": [],
+      "voice_notes": "",
+      "visual_prompt_base": "young Vietnamese man, late 20s, slim build, tired expression, black jacket, dark jeans",
+      "relationship_notes": "",
+      "continuity_tags": [],
+      "reference_image_paths": [],
+      "sd_lora_name": "",
+      "ip_adapter_image_path": "",
+      "character_embedding_hash": ""
+    }
+  ],
+  "locations": [
+    {
+      "location_id": "old_house",
+      "name": "Căn nhà cũ",
+      "aliases": [],
+      "location_type": "nhà ở nông thôn",
+      "description": "",
+      "mood": "lạnh lẽo, ám ảnh",
+      "time_period": "hiện đại",
+      "lighting": "ánh chiều vàng pha tím",
+      "color_palette": "",
+      "architecture_style": "nhà gỗ Bắc Bộ cũ",
+      "recurring_props": [],
+      "visual_prompt_base": "old countryside Vietnamese house at dusk, weathered wooden door, creaking, dust motes in the air",
+      "negative_prompt_terms": [],
+      "continuity_tags": [],
+      "related_scene_ids": []
+    }
+  ],
+  "style_presets": [
+    {
+      "style_id": "dark_fantasy_webtoon",
+      "name": "Dark Fantasy Webtoon",
+      "description": "",
+      "positive_prompt": "dark fantasy webtoon style, dramatic lighting, cinematic composition",
+      "negative_prompt": "low quality, watermark, text, blurry, deformed",
+      "genre": "",
+      "line_style": "",
+      "color_palette": "",
+      "lighting": "",
+      "lighting_style": "",
+      "rendering_style": "",
+      "character_design_rules": "",
+      "background_detail": "",
+      "background_detail_level": "",
+      "camera_style": "",
+      "mood_keywords": [],
+      "forbidden_terms": []
+    }
+  ],
+  "created_at": "2026-05-11T08:09:19.543541+00:00",
+  "updated_at": "2026-05-11T08:09:47.184443+00:00"
+}

@@ -136,7 +136,7 @@ def build_export_project():
     }
 
 
-class PhaseEightExportTests(unittest.TestCase):
+class ExportPipelineTests(unittest.TestCase):
     def test_export_episode_markdown_full_content(self) -> None:
         sample = build_export_project()
         project = sample["project"]
