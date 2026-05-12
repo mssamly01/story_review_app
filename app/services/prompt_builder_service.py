@@ -10,7 +10,7 @@ import re
 from typing import Any
 
 from app.domain.beat import Beat
-from app.domain.character import Character
+from app.domain.character import Character, CharacterOutfit, CharacterVariant
 from app.domain.episode import ReviewEpisode
 from app.domain.location import Location
 from app.domain.project import Project
@@ -20,26 +20,41 @@ from app.infrastructure.ai_gateway import AIGateway
 
 
 class PromptBuilderService:
-    _safe_default_style = "cinematic webtoon style, high quality illustration"
+    _safe_default_style = (
+        "high quality comic/webtoon illustration style, clean line art, "
+        "detailed background"
+    )
     _base_negative_terms = [
         "low quality",
         "blurry",
-        "bad anatomy",
-        "bad composition",
         "distorted anatomy",
+        "bad hands",
         "extra fingers",
+        "missing fingers",
         "inconsistent face",
         "wrong outfit",
+        "different hairstyle",
+        "wrong age",
+        "wrong body proportions",
+        "inconsistent location",
+        "modern objects",
         "text",
-        "text overlay",
-        "caption",
-        "captions",
-        "subtitle",
         "subtitles",
+        "captions",
         "speech bubble",
-        "speech bubbles",
         "watermark",
         "logo",
+        "signature",
+        "duplicate character",
+        "extra character",
+        "multiple scenes in one image",
+    ]
+    _base_negative_aliases = [
+        "caption",
+        "subtitle",
+        "speech bubble",
+        "speech bubbles",
+        "text overlay",
     ]
     _positive_blocked_terms = [
         "subtitles",
@@ -234,17 +249,26 @@ class PromptBuilderService:
         beat: Beat,
         style_preset: StylePreset | None,
     ) -> str:
+        location = self._find_location(project, beat.location or scene.location)
+        camera = self._camera_block(beat)
+        time_of_day = self._time_of_day_block(beat, scene)
+        location_block = self._location_block(location, beat, scene)
+        lighting = self._lighting_block(beat, location, style_preset)
+        character_block = self._characters_block(project, beat)
+        action_block = self._action_block(beat)
+
         components = [
             self._style_positive_prompt(style_preset),
-            self._character_prompt(project, beat),
-            self._location_prompt(project, beat, scene),
-            f"visual focus: {beat.visual_description}" if beat.visual_description else "",
-            f"action: {beat.action}" if beat.action else "",
-            f"emotion: {beat.emotion}" if beat.emotion else "",
-            f"camera: {beat.shot_type}" if beat.shot_type else "",
-            f"mood: {scene.mood}" if scene.mood else "",
-            "single clear visual moment",
-            "coherent composition, masterpiece, high details",
+            camera,
+            time_of_day,
+            location_block,
+            lighting,
+            character_block,
+            action_block,
+            (
+                "one clear visual moment, high quality illustration, "
+                "consistent character design, consistent location design, no text"
+            ),
         ]
 
         cleaned_components = [
@@ -252,7 +276,7 @@ class PromptBuilderService:
             for component in components
             if component and component.strip()
         ]
-        return ", ".join(cleaned_components)
+        return ",\n".join(cleaned_components)
 
     def _build_negative_prompt(
         self,
@@ -261,7 +285,7 @@ class PromptBuilderService:
         scene: Scene,
         style_preset: StylePreset | None,
     ) -> str:
-        terms = list(self._base_negative_terms)
+        terms = list(self._base_negative_terms) + list(self._base_negative_aliases)
         if style_preset and style_preset.negative_prompt:
             terms.extend(self._split_terms(style_preset.negative_prompt))
         if style_preset:
@@ -270,26 +294,302 @@ class PromptBuilderService:
             character = self._find_character(project, character_id)
             if character:
                 terms.extend(character.negative_prompt_terms)
+                variant = self._resolve_character_variant(character, beat, character_id)
+                if variant:
+                    terms.extend(variant.negative_prompt_terms)
+                outfit = self._resolve_character_outfit(character, variant, beat, character_id)
+                if outfit:
+                    terms.extend(outfit.negative_prompt_terms)
         location = self._find_location(project, beat.location or scene.location)
         if location:
             terms.extend(location.negative_prompt_terms)
-        return ", ".join(dict.fromkeys(terms))
+        return ", ".join(self._dedupe_terms(terms))
 
     def _style_positive_prompt(self, style_preset: StylePreset | None) -> str:
         if not style_preset:
             return self._safe_default_style
         parts = [
-            style_preset.positive_prompt or f"{style_preset.name}, high quality illustration",
+            style_preset.name,
+            style_preset.positive_prompt,
             style_preset.line_style,
-            style_preset.color_palette,
-            style_preset.lighting_style,
             style_preset.rendering_style,
+            style_preset.color_palette,
             style_preset.character_design_rules,
-            style_preset.background_detail_level,
             style_preset.camera_style,
+            style_preset.lighting_style or style_preset.lighting,
             ", ".join(style_preset.mood_keywords),
         ]
+        style = self._join_unique_parts(parts)
+        return style or self._safe_default_style
+
+    def _camera_block(self, beat: Beat) -> str:
+        return beat.camera or beat.shot_type or "medium shot"
+
+    def _time_of_day_block(self, beat: Beat, scene: Scene) -> str:
+        value = beat.timeOfDay or getattr(beat, "time_of_day", "")
+        value = value or getattr(scene, "timeOfDay", "") or getattr(scene, "time_of_day", "")
+        if value:
+            return str(value)
+
+        lighting = " ".join([beat.lighting, beat.atmosphere]).lower()
+        if any(term in lighting for term in ["moon", "night", "candle", "dark"]):
+            return "Night"
+        if "morning" in lighting or "sunrise" in lighting or "dawn" in lighting:
+            return "Morning"
+        if "dusk" in lighting or "sunset" in lighting or "twilight" in lighting:
+            return "Dusk"
+        return "daytime"
+
+    def _location_block(
+        self,
+        location: Location | None,
+        beat: Beat,
+        scene: Scene,
+    ) -> str:
+        location_id = beat.location or scene.location
+        cues = beat.location_cues or beat.visual_description or "no special location cues"
+        asmr_visuals = beat.asmr_visuals or "subtle atmospheric details"
+
+        if not location:
+            location_name = location_id or "unknown location"
+            return (
+                f"Location: {location_name} (missing location profile), "
+                f"location cues: {cues}, ASMR visuals: {asmr_visuals}"
+            )
+
+        profile = self._join_unique_parts(
+            [
+                location.visual_prompt_base,
+                location.location_type,
+                location.description,
+                location.mood,
+                location.time_period,
+                location.lighting,
+                location.color_palette,
+                location.architecture_style,
+                ", ".join(location.recurring_props),
+                ", ".join(location.continuity_tags),
+            ]
+        )
+        if not profile:
+            profile = "missing location profile"
+        return (
+            f"Location: {location.name} ({profile}), "
+            f"location cues: {cues}, ASMR visuals: {asmr_visuals}"
+        )
+
+    def _lighting_block(
+        self,
+        beat: Beat,
+        location: Location | None,
+        style_preset: StylePreset | None,
+    ) -> str:
+        parts = [
+            beat.lighting,
+            beat.atmosphere,
+            location.lighting if location else "",
+            style_preset.lighting_style if style_preset else "",
+            style_preset.lighting if style_preset else "",
+        ]
+        return self._join_unique_parts(parts) or "cinematic lighting"
+
+    def _characters_block(self, project: Project, beat: Beat) -> str:
+        if not beat.characters:
+            return "unknown character (missing character profile)"
+
+        character_blocks: list[str] = []
+        for character_id in beat.characters:
+            character = self._find_character(project, character_id)
+            if not character:
+                character_blocks.append(f"{character_id} (missing character profile)")
+                continue
+            variant = self._resolve_character_variant(character, beat, character_id)
+            outfit = self._resolve_character_outfit(character, variant, beat, character_id)
+            character_blocks.append(
+                self._character_full_description(
+                    character,
+                    beat,
+                    character_id=character_id,
+                    variant=variant,
+                    outfit=outfit,
+                )
+            )
+        return ", ".join(character_blocks)
+
+    def _character_full_description(
+        self,
+        character: Character,
+        beat: Beat,
+        *,
+        character_id: str,
+        variant: CharacterVariant | None,
+        outfit: CharacterOutfit | None,
+    ) -> str:
+        variant_display = variant.display_name if variant and variant.display_name else ""
+        display_name = character.name
+        if variant_display:
+            if display_name.lower() not in variant_display.lower():
+                display_name = f"{display_name} - {variant_display}"
+            else:
+                display_name = variant_display
+
+        gender = variant.gender if variant and variant.gender else character.gender
+        age = (
+            variant.age_description
+            if variant and variant.age_description
+            else character.age_description
+        )
+        height = variant.height if variant and variant.height else getattr(character, "height", "")
+        
+        # Prioritize variant fields
+        appearance = variant.appearance if variant and variant.appearance else character.appearance
+        face = variant.face_details if variant and variant.face_details else character.face_details
+        hair = variant.hair if variant and variant.hair else character.hair
+        eyes = variant.eyes if variant and variant.eyes else character.eyes
+        body = variant.body_type if variant and variant.body_type else character.body_type
+        
+        signature = self._join_unique_parts(
+            [
+                ", ".join(variant.signature_features) if variant else "",
+                ", ".join(character.signature_features) if isinstance(character.signature_features, list) else character.signature_features if not variant else "",
+            ]
+        )
+        visual_base = (
+            variant.visual_prompt_base
+            if variant and variant.visual_prompt_base
+            else character.visual_prompt_base
+        )
+        
+        # Per-character states from beat.character_states
+        char_states = beat.character_states.get(character_id, {})
+        posture = char_states.get("posture") or beat.posture
+        expression = char_states.get("expression") or beat.expression
+        body_language = char_states.get("body_language") or beat.body_language
+        current_state = char_states.get("character_state") or beat.character_state
+        wardrobe_notes = char_states.get("wardrobe_notes") or beat.wardrobe_notes
+        # Outfit logic: build from variant > explicit outfit object > base character fields
+        src_char_wardrobe = self._join_unique_parts([
+            character.outfit_details or "",
+            ", ".join(character.outfit_colors) if character.outfit_colors else "",
+            ", ".join(character.outfit_materials) if character.outfit_materials else "",
+            ", ".join(character.accessories) if character.accessories else "",
+            character.footwear or "",
+            ", ".join(character.wardrobe_details) if isinstance(character.wardrobe_details, list) else character.wardrobe_details or "",
+        ])
+
+        if variant and variant.default_outfit:
+            outfit_description = self._join_unique_parts([
+                variant.default_outfit,
+                variant.outfit_details,
+                ", ".join(variant.outfit_colors) if variant.outfit_colors else "",
+                ", ".join(variant.outfit_materials) if variant.outfit_materials else "",
+                ", ".join(variant.accessories) if variant.accessories else "",
+                variant.footwear,
+                wardrobe_notes
+            ])
+        else:
+            outfit_description = self._join_unique_parts(
+                [
+                    self._outfit_description(outfit),
+                    character.default_outfit if not outfit else "",
+                    src_char_wardrobe if not outfit else "",
+                    wardrobe_notes,
+                ]
+            )
+
+        # Props and palette from character profile (character-level reference)
+        char_props = ", ".join(character.prop_details) if isinstance(character.prop_details, list) else character.prop_details or ""
+        char_palette = ", ".join(character.color_palette) if isinstance(character.color_palette, list) else character.color_palette or ""
+
+        labelled_parts = [
+            self._label("Gender", gender),
+            self._label("Age", age),
+            self._label("Height", height),
+            self._label("Appearance", appearance),
+            self._label("Face", face),
+            self._label("Hair", hair),
+            self._label("Eyes", eyes),
+            self._label("Body", body),
+            self._label("Visual base", visual_base),
+            self._label("Signature features", signature),
+            self._label("Posture", posture),
+            self._label("Expression", expression),
+            self._label("Body language", body_language),
+            self._label("Current state", current_state),
+            self._label("Outfit", outfit_description),
+            self._label("Props", char_props),
+            self._label("Color palette", char_palette),
+        ]
+
+        profile_content = ",\n".join([p for p in labelled_parts if p])
+        if not profile_content:
+            profile_content = "missing character profile"
+
+        return f"{display_name} (\n{profile_content}\n)"
+
+
+    def _action_block(self, beat: Beat) -> str:
+        parts = [
+            beat.action or "clear focused action",
+            f"Visual description: {beat.visual_description}" if beat.visual_description else "",
+            f"Emotion: {beat.emotion}" if beat.emotion else "",
+            f"Composition: {beat.composition}" if beat.composition else "",
+            f"Props: {', '.join(beat.props)}" if beat.props else "",
+            f"Location state: {beat.location_state}" if beat.location_state else "",
+            f"Transition note: {beat.transition_note}" if beat.transition_note else "",
+        ]
         return self._join_unique_parts(parts)
+
+    def _resolve_character_variant(
+        self,
+        character: Character,
+        beat: Beat,
+        character_id: str,
+    ) -> CharacterVariant | None:
+        variant_id = beat.character_variants.get(character_id)
+        if not variant_id:
+            variant_id = beat.character_variants.get(character.character_id, "")
+        
+        if variant_id:
+            return character.find_variant(variant_id)
+            
+        # Fallback: if character has variants, use the first one as a safe default
+        if len(character.variants) > 0:
+            return character.variants[0]
+            
+        return None
+
+    def _resolve_character_outfit(
+        self,
+        character: Character,
+        variant: CharacterVariant | None,
+        beat: Beat,
+        character_id: str,
+    ) -> CharacterOutfit | None:
+        outfit_id = beat.character_outfits.get(character_id)
+        if not outfit_id:
+            outfit_id = beat.character_outfits.get(character.character_id, "")
+        if not outfit_id and variant and variant.default_outfit_id:
+            outfit_id = variant.default_outfit_id
+        if not outfit_id:
+            return None
+        return character.find_outfit(outfit_id)
+
+    def _outfit_description(self, outfit: CharacterOutfit | None) -> str:
+        if not outfit:
+            return ""
+        parts = [
+            outfit.description,
+            ", ".join(outfit.colors),
+            ", ".join(outfit.materials),
+            ", ".join(outfit.accessories),
+            outfit.footwear,
+        ]
+        return self._join_unique_parts(parts)
+
+    def _label(self, label: str, value: str) -> str:
+        value = str(value or "").strip()
+        return f"{label}: {value}" if value else ""
 
     def _character_prompt(self, project: Project, beat: Beat) -> str:
         character_prompts: list[str] = []
@@ -425,24 +725,117 @@ class PromptBuilderService:
                 "order_index": beat.order_index,
                 "story_function": beat.story_function,
                 "characters": list(beat.characters),
+                "character_variants": dict(beat.character_variants),
+                "character_outfits": dict(beat.character_outfits),
+                "character_states": [
+                    {
+                        "character_id": character_id,
+                        "variant_id": beat.character_variants.get(character_id, ""),
+                        "outfit_id": beat.character_outfits.get(character_id, ""),
+                        **beat.character_states.get(character_id, {})
+                    }
+                    for character_id in beat.characters
+                ],
                 "location": beat.location,
                 "action": beat.action,
                 "emotion": beat.emotion,
+                "camera": beat.camera,
                 "shot_type": beat.shot_type,
+                "timeOfDay": beat.timeOfDay,
+                "lighting": beat.lighting,
+                "atmosphere": beat.atmosphere,
+                "location_cues": beat.location_cues,
+                "asmr_visuals": beat.asmr_visuals,
+                "composition": beat.composition,
+                "posture": beat.posture,
+                "expression": beat.expression,
+                "body_language": beat.body_language,
                 "visual_description": beat.visual_description,
                 "review_text_excerpt": self._shorten(beat.review_text, 260),
                 "continuity_tags": list(beat.continuity_tags),
+                "props": list(beat.props),
+                "wardrobe_notes": beat.wardrobe_notes,
+                "character_state": beat.character_state,
+                "location_state": beat.location_state,
+                "transition_note": beat.transition_note,
             }
         )
 
     def _compact_character(self, character: Character) -> dict[str, Any]:
+        has_variants = len(character.variants) > 0
         return self._drop_empty(
             {
                 "character_id": character.character_id,
                 "name": character.name,
+                "gender": character.gender,
+                "age_description": character.age_description,
                 "aliases": list(character.aliases),
                 "visual_prompt_base": character.visual_prompt_base,
+                "appearance": character.appearance,
+                "face_details": character.face_details,
+                "hair": character.hair,
+                "eyes": character.eyes,
+                "body_type": character.body_type,
+                "height": character.height,
+                "skin_tone": character.skin_tone,
+                "signature_features": list(character.signature_features),
                 "default_outfit": character.default_outfit,
+                "outfit_details": character.outfit_details,
+                "outfit_colors": list(character.outfit_colors),
+                "outfit_materials": list(character.outfit_materials),
+                "accessories": list(character.accessories),
+                "footwear": character.footwear,
+                "continuity_must_keep": list(character.continuity_must_keep),
+                "continuity_forbidden": list(character.continuity_forbidden),
+                "negative_prompt_terms": list(character.negative_prompt_terms),
+                "variants": [
+                    self._drop_empty(
+                        {
+                            "variant_id": item.variant_id,
+                            "display_name": item.display_name or item.variant_id,
+                            "age_stage": item.age_stage,
+                            "age_description": item.age_description,
+                            "gender": item.gender,
+                            "visual_prompt_base": item.visual_prompt_base,
+                            "appearance": item.appearance,
+                            "face_details": item.face_details,
+                            "hair": item.hair,
+                            "eyes": item.eyes,
+                            "body_type": item.body_type,
+                            "height": item.height,
+                            "skin_tone": item.skin_tone,
+                            "default_outfit": item.default_outfit,
+                            "outfit_details": item.outfit_details,
+                            "outfit_colors": list(item.outfit_colors),
+                            "outfit_materials": list(item.outfit_materials),
+                            "accessories": list(item.accessories),
+                            "footwear": item.footwear,
+                            "signature_features": list(item.signature_features),
+                            "continuity_must_keep": list(item.continuity_must_keep),
+                            "continuity_forbidden": list(item.continuity_forbidden),
+                            "negative_prompt_terms": list(item.negative_prompt_terms),
+                        }
+                    )
+                    for item in character.variants
+                ],
+                "outfits": [
+                    self._drop_empty(
+                        {
+                            "outfit_id": item.outfit_id,
+                            "variant_id": item.variant_id,
+                            "display_name": item.display_name or item.outfit_id,
+                            "outfit_type": item.outfit_type,
+                            "description": item.description,
+                            "colors": list(item.colors),
+                            "materials": list(item.materials),
+                            "accessories": list(item.accessories),
+                            "footwear": item.footwear,
+                            "negative_prompt_terms": list(item.negative_prompt_terms),
+                        }
+                    )
+                    for item in character.outfits
+                ],
+                # For single-form characters: combined appearance note for prompt
                 "appearance_notes": self._join_unique_parts(
                     [
                         character.appearance,
@@ -450,11 +843,12 @@ class PromptBuilderService:
                         character.hair,
                         character.eyes,
                         character.body_type,
+                        character.height,
+                        character.skin_tone,
                         character.signature_features,
                         character.continuity_must_keep,
                     ]
-                ),
-                "negative_prompt_terms": list(character.negative_prompt_terms),
+                ) if not has_variants else "",
             }
         )
 
@@ -571,6 +965,8 @@ class PromptBuilderService:
 
     def _sanitize_positive_component(self, component: str) -> str:
         cleaned = re.sub(r"\s+", " ", component).strip(" ,")
+        no_text_marker = "__NO_TEXT_IN_IMAGE__"
+        cleaned = re.sub(r"\bno text\b", no_text_marker, cleaned, flags=re.IGNORECASE)
         for blocked_term in self._positive_blocked_terms:
             cleaned = re.sub(
                 rf"\b{re.escape(blocked_term)}\b",
@@ -578,22 +974,44 @@ class PromptBuilderService:
                 cleaned,
                 flags=re.IGNORECASE,
             )
+        cleaned = cleaned.replace(no_text_marker, "no text")
         return re.sub(r"\s+,", ",", re.sub(r"\s{2,}", " ", cleaned)).strip(" ,")
 
     def _split_terms(self, value: str) -> list[str]:
         return [term.strip() for term in value.split(",") if term.strip()]
 
-    def _join_unique_parts(self, parts: list[str]) -> str:
+    def _join_unique_parts(self, parts: list[Any]) -> str:
         seen = set()
         cleaned_parts = []
         for part in parts:
             if not part:
                 continue
+            
+            # Robustness: ensure we are working with a string for regex operations
+            if isinstance(part, list):
+                part = ", ".join(str(i) for i in part)
+            else:
+                part = str(part)
+                
             cleaned = re.sub(r"\s+", " ", part).strip(" ,")
             if cleaned and cleaned.lower() not in seen:
                 cleaned_parts.append(cleaned)
                 seen.add(cleaned.lower())
         return ", ".join(cleaned_parts)
+
+    def _dedupe_terms(self, terms: list[str]) -> list[str]:
+        seen = set()
+        cleaned_terms: list[str] = []
+        for term in terms:
+            cleaned = re.sub(r"\s+", " ", str(term or "")).strip(" ,")
+            if not cleaned:
+                continue
+            key = cleaned.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            cleaned_terms.append(cleaned)
+        return cleaned_terms
 
     def _slug(self, value: str) -> str:
         return re.sub(r"[^a-zA-Z0-9]+", "_", value.strip().lower()).strip("_")

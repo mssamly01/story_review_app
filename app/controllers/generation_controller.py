@@ -119,6 +119,32 @@ class GenerationController:
             style_preset_id=style_preset_id,
         )
 
+    def build_prompt_for_beat(
+        self,
+        project: Project,
+        beat_id: str,
+        *,
+        style_preset_id: str | None = None,
+    ) -> Beat:
+        return PromptBuilderService(use_ai=False).build_prompt_for_beat(
+            project,
+            beat_id,
+            style_preset_id=style_preset_id,
+        )
+
+    def build_prompts_for_scene(
+        self,
+        project: Project,
+        scene_id: str,
+        *,
+        style_preset_id: str | None = None,
+    ) -> list[Beat]:
+        return PromptBuilderService(use_ai=False).build_prompts_for_scene(
+            project,
+            scene_id,
+            style_preset_id=style_preset_id,
+        )
+
     def generate_beat_package(
         self,
         project: Project,

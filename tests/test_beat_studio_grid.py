@@ -149,7 +149,10 @@ class InspectorGroupsTests(unittest.TestCase):
 
     def test_inspector_has_three_named_groups(self) -> None:
         names = [name for name, _ in self.window.studio_tab.FIELD_GROUPS]
-        self.assertEqual(names, ["Narration", "Prompt", "Context"])
+        self.assertEqual(
+            names,
+            ["Core", "Story", "Storyboard Fields", "References", "Prompt anh"],
+        )
 
 
 class BeatCardDelegateTests(unittest.TestCase):

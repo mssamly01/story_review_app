@@ -118,13 +118,37 @@ class ManualAIEpisodePlannerService:
                                 "conflict | reveal | transition | cliffhanger"
                             ),
                             "characters": ["character_id"],
+                            "character_variants": {
+                                "char_001": "char_001_young"
+                            },
+                            "character_outfits": {
+                                "char_001": "outfit_char_001_young_inner_robe"
+                            },
                             "location": "location_id",
                             "action": "string",
                             "emotion": "string",
+                            "camera": "string",
                             "shot_type": "string",
+                            "timeOfDay": (
+                                "Morning | Noon | Afternoon | Evening | Night | "
+                                "Twilight | Dawn | Dusk"
+                            ),
+                            "lighting": "string",
+                            "atmosphere": "string",
+                            "location_cues": "string",
+                            "asmr_visuals": "string",
+                            "composition": "string",
+                            "posture": "string",
+                            "expression": "string",
+                            "body_language": "string",
                             "visual_description": "string",
                             "review_text": "Vietnamese rewritten review narration",
                             "continuity_tags": ["human-readable tag name"],
+                            "props": ["string"],
+                            "wardrobe_notes": "string",
+                            "character_state": "string",
+                            "location_state": "string",
+                            "transition_note": "string",
                         }
                     ],
                 }
@@ -198,12 +222,41 @@ class ManualAIEpisodePlannerService:
             "- Create scenes/screens first; each scene needs title, summary, mood, "
             "characters, location, target_beats, and beats.\n"
             "- Each beat represents one clear narrative moment.\n"
+            "- For each beat, choose the correct character age variant based on story context ONLY if the character actually has variants (major age/form difference only, e.g., young form vs old form, child vs adult).\n"
+            "- DO NOT invent 'default' variant IDs for characters that do not have variants.\n"
+            "- If a character has only one form, leave the character_variants mapping empty for that character ID.\n"
+            "- Do NOT choose a different variant for temporary states like 'injured', 'angry', 'soul burning', 'battle pose', etc.\n"
+            "- Instead, put temporary visual/emotional states into beat storyboard fields: emotion, posture, expression, body_language, character_state, and visual_description.\n"
+            "- For each beat, choose the correct outfit based on scene/time/action (e.g., sleepwear vs battle robes, travel vs formal).\n"
+            "- Example: Old Cổ Thần in final battle must use old age variant and battle outfit. The 'soul-burning' state goes into character_state field.\n"
+            "- Example: Young Cổ Thần in bedroom must use young age variant and inner robe/sleepwear. The 'shocked' emotion goes into emotion field.\n"
+            "- Store beat character variant mapping as character_variants and outfit mapping as character_outfits.\n"
+            "- For each beat, resolve exact character variant/state IDs from the Character Bible.\n"
+            "- For each beat, resolve exact outfit IDs from the Character Bible.\n"
+            "- Character variants mapping schema: {\"char_id\": \"variant_id\"}.\n"
+            "- Character outfits mapping schema: {\"char_id\": \"outfit_id\"}.\n"
+
+            "- Generate storyboard support fields for each beat: camera, shot_type, "
+            "timeOfDay, lighting, atmosphere, location_cues, asmr_visuals, "
+            "composition, posture, expression, body_language, props, wardrobe_notes, "
+            "character_state, location_state, and transition_note.\n"
+
+
+            "- timeOfDay must never be empty.\n"
+            "- camera and shot_type must describe the framing.\n"
+            "- location_cues must describe the shot-specific state of the location.\n"
+            "- asmr_visuals must describe small visual atmosphere details such as "
+            "floating dust, steam, mist, candle flicker, rain, drifting ash, blood "
+            "drops, or a shaking curtain.\n"
+            "- lighting must be explicit.\n"
+            "- posture, expression, and body_language must be specific.\n"
             "- order_index must restart from 1 inside each scene.\n"
             "- scene_id must be stable.\n"
             "- beat_id should follow beat_{scene_id}_{number}.\n"
             "- Every beat must include review_text in Vietnamese.\n"
             "- Do not generate image_prompt for this task.\n"
             "- Do not generate negative_prompt for this task.\n"
+            "- But do generate all storyboard fields needed later for image_prompt.\n"
             "- Return JSON only. No markdown. No explanation.\n\n"
             "Output JSON schema:\n"
             f"{json.dumps(schema, ensure_ascii=False, indent=2)}\n\n"
@@ -378,15 +431,50 @@ class ManualAIEpisodePlannerService:
         beat.order_index = int(beat_data.get("order_index") or beat_index)
         beat.story_function = str(beat_data.get("story_function") or beat.story_function)
         beat.characters = self._as_str_list(beat_data.get("characters", []))
+        beat.character_variants = self._parse_character_mapping(
+            beat_data,
+            primary_key="character_variants",
+            state_key="variant_id",
+        )
+        beat.character_outfits = self._parse_character_mapping(
+            beat_data,
+            primary_key="character_outfits",
+            state_key="outfit_id",
+        )
         beat.location = str(beat_data.get("location") or beat.location or scene.location)
         beat.action = str(beat_data.get("action") or beat.action)
         beat.emotion = str(beat_data.get("emotion") or beat.emotion)
+        beat.camera = str(beat_data.get("camera") or beat.camera)
         beat.shot_type = str(beat_data.get("shot_type") or beat.shot_type)
+        beat.timeOfDay = str(
+            beat_data.get("timeOfDay")
+            or beat_data.get("time_of_day")
+            or beat.timeOfDay
+        )
+        beat.lighting = str(beat_data.get("lighting") or beat.lighting)
+        beat.atmosphere = str(beat_data.get("atmosphere") or beat.atmosphere)
+        beat.location_cues = str(beat_data.get("location_cues") or beat.location_cues)
+        beat.asmr_visuals = str(beat_data.get("asmr_visuals") or beat.asmr_visuals)
+        beat.composition = str(beat_data.get("composition") or beat.composition)
+        beat.posture = str(beat_data.get("posture") or beat.posture)
+        beat.expression = str(beat_data.get("expression") or beat.expression)
+        beat.body_language = str(beat_data.get("body_language") or beat.body_language)
         beat.visual_description = str(
             beat_data.get("visual_description") or beat.visual_description
         )
         beat.review_text = str(beat_data.get("review_text") or beat.review_text)
         beat.continuity_tags = self._as_str_list(beat_data.get("continuity_tags", []))
+        beat.props = self._as_str_list(beat_data.get("props", beat.props))
+        beat.wardrobe_notes = str(
+            beat_data.get("wardrobe_notes") or beat.wardrobe_notes
+        )
+        beat.character_state = str(
+            beat_data.get("character_state") or beat.character_state
+        )
+        beat.location_state = str(beat_data.get("location_state") or beat.location_state)
+        beat.transition_note = str(
+            beat_data.get("transition_note") or beat.transition_note
+        )
         beat.status = "reviewed" if beat.review_text else "planned"
         return beat
 
@@ -420,6 +508,32 @@ class ManualAIEpisodePlannerService:
                 "role": character.role,
                 "visual_prompt_base": character.visual_prompt_base,
                 "default_outfit": character.default_outfit,
+                "variants": [
+                    self._drop_empty(
+                        {
+                            "variant_id": item.variant_id,
+                            "display_name": item.display_name or item.variant_id,
+                            "age_stage": item.age_stage,
+                            "visual_prompt_base": item.visual_prompt_base,
+                            "continuity_must_keep": list(item.continuity_must_keep),
+                            "continuity_forbidden": list(item.continuity_forbidden),
+                            "default_outfit_id": item.default_outfit_id,
+                        }
+                    )
+                    for item in character.variants
+                ],
+                "outfits": [
+                    self._drop_empty(
+                        {
+                            "outfit_id": item.outfit_id,
+                            "variant_id": item.variant_id,
+                            "display_name": item.display_name or item.outfit_id,
+                            "outfit_type": item.outfit_type,
+                            "description": item.description,
+                        }
+                    )
+                    for item in character.outfits
+                ],
                 "appearance_notes": self._join_compact(
                     [
                         character.appearance,
@@ -496,6 +610,36 @@ class ManualAIEpisodePlannerService:
         if isinstance(value, list):
             return [str(item) for item in value if item]
         return [str(value)]
+
+    def _parse_character_mapping(
+        self,
+        beat_data: dict[str, Any],
+        *,
+        primary_key: str,
+        state_key: str,
+    ) -> dict[str, str]:
+        raw_mapping = beat_data.get(primary_key, {})
+        if isinstance(raw_mapping, dict):
+            resolved = {
+                str(char_id): str(target_id)
+                for char_id, target_id in raw_mapping.items()
+                if str(char_id).strip() and str(target_id).strip()
+            }
+            if resolved:
+                return resolved
+
+        states = beat_data.get("character_states", [])
+        if not isinstance(states, list):
+            return {}
+        resolved: dict[str, str] = {}
+        for item in states:
+            if not isinstance(item, dict):
+                continue
+            character_id = str(item.get("character_id", "")).strip()
+            target_id = str(item.get(state_key, "")).strip()
+            if character_id and target_id:
+                resolved[character_id] = target_id
+        return resolved
 
     def _normalise_density(self, value: str | None) -> str:
         key = (value or "full").strip().lower().replace("-", "_").replace(" ", "_")

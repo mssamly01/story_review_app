@@ -339,9 +339,20 @@ class PromptQualityService:
                     penalty=10,
                 )
 
+            # Resolve variant for visual checks
+            variant_id = beat.character_variants.get(character_id)
+            if not variant_id:
+                variant_id = beat.character_variants.get(character.character_id, "")
+            
+            variant = character.find_variant(variant_id)
+            if not variant and len(character.variants) == 1:
+                variant = character.variants[0]
+                
+            source_obj = variant if variant else character
+
             # High Fidelity Checks
             for field_name in ["hair", "eyes", "body_type"]:
-                val = getattr(character, field_name, "")
+                val = getattr(source_obj, field_name, "")
                 if val and not self._contains_visual_terms(image_prompt, val):
                     penalty += self._add_issue(
                         issues,
@@ -352,6 +363,21 @@ class PromptQualityService:
                         suggestion=f"Add character {field_name} details for better consistency.",
                         penalty=4,
                     )
+
+            # Full block structure check
+            # Pattern: Name followed by open parenthesis, some content, and close parenthesis
+            # We use character.name because IDs shouldn't be in the prompt.
+            block_pattern = rf"{re.escape(character.name)}[^(]*\([^)]+\)"
+            if not re.search(block_pattern, image_prompt, re.IGNORECASE | re.DOTALL):
+                penalty += self._add_issue(
+                    issues,
+                    beat.beat_id,
+                    severity="warning",
+                    category="missing_character_block",
+                    message=f"Prompt lacks a full structured block for character: {character.name}.",
+                    suggestion=f"Every character must have a detailed block like: {character.name} (Gender: ..., Age: ..., Outfit: ...)",
+                    penalty=15,
+                )
         return penalty
 
     def _score_location_terms(
@@ -640,9 +666,16 @@ class PromptQualityService:
             return "D"
         return "F"
 
-    def _contains_visual_terms(self, prompt: str, source: str) -> bool:
+    def _contains_visual_terms(self, prompt: str, source: Any) -> bool:
         if not source:
             return False
+        
+        # Robustness: handle lists if they somehow leaked in
+        if isinstance(source, list):
+            source = ", ".join(str(i) for i in source)
+        else:
+            source = str(source)
+
         prompt_text = prompt.lower()
         terms = self._meaningful_terms(source)
         if not terms:
@@ -650,7 +683,13 @@ class PromptQualityService:
         matches = sum(1 for term in terms if term in prompt_text)
         return matches >= min(2, len(terms))
 
-    def _meaningful_terms(self, value: str) -> list[str]:
+    def _meaningful_terms(self, value: Any) -> list[str]:
+        # Robustness: Ensure value is a string before lower() and regex
+        if isinstance(value, list):
+            value = ", ".join(str(i) for i in value)
+        else:
+            value = str(value)
+
         words = re.findall(r"[a-zA-Z0-9]+", value.lower())
         terms: list[str] = []
         for word in words:

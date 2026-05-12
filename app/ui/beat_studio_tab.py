@@ -7,6 +7,7 @@ the inspector form stays in sync regardless of which view is active.
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QSize, Qt
@@ -85,6 +86,103 @@ class BeatStudioTab(QWidget):
         ("Context", ["characters", "location", "emotion", "shot_type", "continuity_tags"]),
     ]
 
+    FIELD_LABELS = {
+        "beat_id": "Beat ID",
+        "scene_id": "Scene ID",
+        "order_index": "Thu tu",
+        "story_function": "Story Function",
+        "action": "Action",
+        "emotion": "Cam xuc",
+        "review_text": "Noi dung Review",
+        "visual_description": "Mo ta hinh anh",
+        "camera": "Camera",
+        "shot_type": "Goc may",
+        "timeOfDay": "Time of Day",
+        "lighting": "Lighting",
+        "atmosphere": "Atmosphere",
+        "location_cues": "Location Cues",
+        "asmr_visuals": "ASMR Visuals",
+        "composition": "Composition",
+        "posture": "Posture",
+        "expression": "Expression",
+        "body_language": "Body Language",
+        "characters": "Nhan vat",
+        "character_variants": "Biến thể tuổi (Age Variant)",
+        "character_outfits": "Trang phục (Outfit)",
+        "location": "Boi canh",
+        "continuity_tags": "Continuity Tags",
+        "image_prompt": "Image Prompt",
+        "negative_prompt": "Negative Prompt",
+    }
+    FIELD_NAMES = [
+        "beat_id",
+        "scene_id",
+        "order_index",
+        "story_function",
+        "action",
+        "emotion",
+        "review_text",
+        "visual_description",
+        "camera",
+        "shot_type",
+        "timeOfDay",
+        "lighting",
+        "atmosphere",
+        "location_cues",
+        "asmr_visuals",
+        "composition",
+        "posture",
+        "expression",
+        "body_language",
+        "characters",
+        "character_variants",
+        "character_outfits",
+        "location",
+        "continuity_tags",
+        "image_prompt",
+        "negative_prompt",
+    ]
+    MULTILINE_FIELDS = {
+        "review_text",
+        "visual_description",
+        "location_cues",
+        "asmr_visuals",
+        "composition",
+        "image_prompt",
+        "negative_prompt",
+    }
+    FIELD_GROUPS: list[tuple[str, list[str]]] = [
+        ("Core", ["beat_id", "scene_id", "order_index", "story_function"]),
+        ("Story", ["action", "emotion", "visual_description", "review_text"]),
+        (
+            "Storyboard Fields",
+            [
+                "camera",
+                "shot_type",
+                "timeOfDay",
+                "lighting",
+                "atmosphere",
+                "location_cues",
+                "asmr_visuals",
+                "composition",
+                "posture",
+                "expression",
+                "body_language",
+            ],
+        ),
+        (
+            "References",
+            [
+                "characters",
+                "character_variants",
+                "character_outfits",
+                "location",
+                "continuity_tags",
+            ],
+        ),
+        ("Prompt anh", ["image_prompt", "negative_prompt"]),
+    ]
+
     VIEW_GRID = "grid"
     VIEW_TABLE = "table"
 
@@ -135,7 +233,20 @@ class BeatStudioTab(QWidget):
         header_row.addWidget(self.btn_view_table)
         main_layout.addLayout(header_row)
 
-        # Manual AI workflow card
+        self.local_prompt_group = QGroupBox("Tao prompt anh local")
+        local_prompt_layout = QHBoxLayout(self.local_prompt_group)
+        local_prompt_layout.setContentsMargins(12, 10, 12, 10)
+        local_prompt_layout.setSpacing(10)
+        self.btn_build_selected_prompt = QPushButton("Tao prompt anh cho nhip dang chon")
+        self.btn_build_selected_prompt.setObjectName("primary")
+        self.btn_build_scene_prompts = QPushButton("Tao prompt anh cho phan canh dang chon")
+        self.btn_build_episode_prompts = QPushButton("Tao prompt anh cho toan tap")
+        local_prompt_layout.addWidget(self.btn_build_selected_prompt)
+        local_prompt_layout.addWidget(self.btn_build_scene_prompts)
+        local_prompt_layout.addWidget(self.btn_build_episode_prompts)
+        main_layout.addWidget(self.local_prompt_group)
+
+        # Advanced Manual AI workflow card
         self.manual_group = QWidget()
         self.manual_group.setObjectName("manual-ai-card")
         manual_layout = QHBoxLayout(self.manual_group)
@@ -144,6 +255,7 @@ class BeatStudioTab(QWidget):
 
         manual_title = QLabel("Quy trình AI")
         manual_title.setObjectName("manual-ai-title")
+        manual_title.setText("Advanced: dung AI viet lai prompt anh")
         manual_layout.addWidget(manual_title)
 
         self.manual_step_combo = QComboBox()
@@ -153,6 +265,10 @@ class BeatStudioTab(QWidget):
         self.manual_step_combo.addItem("Chỉ tạo nhịp truyện", "generate-beats")
         self.manual_step_combo.addItem("Chỉ viết lại Review", "rewrite-review")
         self.manual_step_combo.addItem("Chỉ xây dựng Prompt ảnh", "build-prompts")
+        self.manual_step_combo.setItemText(0, "Tao goi nhip truyen day du")
+        self.manual_step_combo.setItemText(1, "Chi tao nhip truyen")
+        self.manual_step_combo.setItemText(2, "Chi viet lai Review")
+        self.manual_step_combo.setItemText(3, "Advanced: dung AI viet lai prompt anh")
         manual_layout.addWidget(self.manual_step_combo, 1)
 
         self.btn_export_prompt = QPushButton("1. Lấy Prompt")
@@ -200,6 +316,9 @@ class BeatStudioTab(QWidget):
         self.beat_table.itemSelectionChanged.connect(self._on_table_beat_select)
         self.beat_grid.itemSelectionChanged.connect(self._on_grid_beat_select)
         self.btn_save_beat.clicked.connect(self._on_save_beat)
+        self.btn_build_selected_prompt.clicked.connect(self._on_build_selected_prompt)
+        self.btn_build_scene_prompts.clicked.connect(self._on_build_scene_prompts)
+        self.btn_build_episode_prompts.clicked.connect(self._on_build_episode_prompts)
         self.btn_export_prompt.clicked.connect(self._on_prompt)
         self.btn_import_result.clicked.connect(self._on_import)
         self.btn_delete_scene.clicked.connect(self._on_delete_scene)
@@ -306,11 +425,25 @@ class BeatStudioTab(QWidget):
                 elif name == "location":
                     widget = QComboBox()
                     widget.setEditable(True)
+                elif name in {"character_variants", "character_outfits"}:
+                    # We will handle these dynamically below the characters field
+                    widget = QWidget()
+                    widget.setVisible(False) 
                 else:
                     widget = QLineEdit()
 
+                if name in {"beat_id", "scene_id"} and isinstance(widget, QLineEdit):
+                    widget.setReadOnly(True)
+
                 grid.addWidget(widget, row * 2 + 1, 0)
                 self.fields[name] = widget
+                
+                # Special: Add character states area after "characters" field
+                if name == "characters":
+                    self.char_states_area = QWidget()
+                    self.char_states_layout = QVBoxLayout(self.char_states_area)
+                    self.char_states_layout.setContentsMargins(0, 5, 0, 5)
+                    grid.addWidget(self.char_states_area, row * 2 + 2, 0)
 
             inner_layout.addWidget(group)
 
@@ -399,15 +532,20 @@ class BeatStudioTab(QWidget):
         has_ep = self.app_state.selected_episode_id is not None
         self.btn_export_prompt.setEnabled(has_ep)
         self.btn_import_result.setEnabled(has_ep)
+        self.btn_build_episode_prompts.setEnabled(has_ep)
 
         # Keep advanced buttons disabled if they were visible
         self.btn_gen_package.setEnabled(False)
         self.btn_gen_beats.setEnabled(False)
 
         has_beats = self._beat_count() > 0
+        has_scene = self.app_state.selected_scene_id is not None
+        has_selected_beat = self.app_state.selected_beat_id is not None
+        self.btn_build_scene_prompts.setEnabled(has_scene and has_beats)
+        self.btn_build_selected_prompt.setEnabled(has_selected_beat)
         self.btn_gen_review.setEnabled(has_beats)
         self.btn_gen_prompts.setEnabled(has_beats)
-        self.btn_save_beat.setEnabled(self.app_state.selected_beat_id is not None)
+        self.btn_save_beat.setEnabled(has_selected_beat)
 
         # Refresh location combo box items
         if self.app_state.project:
@@ -434,6 +572,8 @@ class BeatStudioTab(QWidget):
     def _load_beats(self, scene) -> None:
         beats = scene.ordered_beats()
         self._current_beats = list(beats)
+        self.beat_table.blockSignals(True)
+        self.beat_grid.blockSignals(True)
 
         # Populate table view
         self.beat_table.setRowCount(len(beats))
@@ -457,6 +597,8 @@ class BeatStudioTab(QWidget):
             self.beat_grid.addItem(item)
 
         self._sync_selection_to_views()
+        self.beat_table.blockSignals(False)
+        self.beat_grid.blockSignals(False)
 
     def _sync_selection_to_views(self) -> None:
         if not self.app_state.selected_beat_id:
@@ -487,6 +629,10 @@ class BeatStudioTab(QWidget):
                 char_ids = value if isinstance(value, list) else []
                 names = [ps.character_display_name(project, cid) for cid in char_ids]
                 display_value = ", ".join(names)
+            elif name == "character_variants" and project:
+                display_value = "" # Handled by dynamic editor
+            elif name == "character_outfits" and project:
+                display_value = "" # Handled by dynamic editor
             elif name == "location" and project:
                 display_value = ps.location_display_name(project, value)
             elif name == "continuity_tags" and project:
@@ -501,8 +647,106 @@ class BeatStudioTab(QWidget):
                 widget.setPlainText(display_value)
             elif isinstance(widget, QComboBox):
                 widget.setCurrentText(display_value)
-            else:
+            elif isinstance(widget, QLineEdit):
                 widget.setText(display_value)
+
+        self._refresh_character_states_editor(beat)
+
+    def _refresh_character_states_editor(self, beat: Beat) -> None:
+        # Clear previous widgets
+        while self.char_states_layout.count():
+            item = self.char_states_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        
+        project = self.app_state.project
+        if not project or not beat.characters:
+            return
+
+        self.char_state_widgets = {} # Store widgets for saving
+
+        for char_id in beat.characters:
+            char = next((c for c in project.characters if c.character_id == char_id), None)
+            if not char: continue
+
+            row_widget = QFrame()
+            row_widget.setFrameShape(QFrame.Shape.StyledPanel)
+            row_layout = QGridLayout(row_widget)
+            row_layout.setContentsMargins(8, 8, 8, 8)
+            row_layout.setSpacing(6)
+            
+            row_layout.addWidget(QLabel(f"<b>{char.name}</b>"), 0, 0, 1, 2)
+            
+            # Variant Combo
+            v_combo = QComboBox()
+            v_combo.addItem("-- Mặc định (Base) --", "")
+            for v in char.variants:
+                v_combo.addItem(f"Tuổi: {v.display_name or v.variant_id}", v.variant_id)
+            
+            current_variant = beat.character_variants.get(char_id, "")
+            idx = v_combo.findData(current_variant)
+            if idx >= 0: v_combo.setCurrentIndex(idx)
+            
+            row_layout.addWidget(QLabel("Hình thái tuổi:"), 1, 0)
+            row_layout.addWidget(v_combo, 1, 1)
+            
+            # Outfit Combo
+            o_combo = QComboBox()
+            o_combo.addItem("-- Mặc định (Base) --", "")
+            for o in char.outfits:
+                o_combo.addItem(f"Trang phục: {o.display_name or o.outfit_id}", o.outfit_id)
+                
+            current_outfit = beat.character_outfits.get(char_id, "")
+            idx = o_combo.findData(current_outfit)
+            if idx >= 0: o_combo.setCurrentIndex(idx)
+            
+            row_layout.addWidget(QLabel("Outfit:"), 2, 0)
+            row_layout.addWidget(o_combo, 2, 1)
+            
+            # States mapping
+            states = beat.character_states.get(char_id, {})
+            
+            # Posture
+            p_edit = QLineEdit(states.get("posture", ""))
+            p_edit.setPlaceholderText("Gợi ý: đứng, ngồi, nằm...")
+            row_layout.addWidget(QLabel("Posture:"), 3, 0)
+            row_layout.addWidget(p_edit, 3, 1)
+            
+            # Expression
+            e_edit = QLineEdit(states.get("expression", ""))
+            e_edit.setPlaceholderText("Gợi ý: vui, buồn, tức giận...")
+            row_layout.addWidget(QLabel("Expression:"), 4, 0)
+            row_layout.addWidget(e_edit, 4, 1)
+            
+            # Body Language
+            bl_edit = QLineEdit(states.get("body_language", ""))
+            bl_edit.setPlaceholderText("Gợi ý: khoanh tay, chỉ trỏ...")
+            row_layout.addWidget(QLabel("Body Lang:"), 5, 0)
+            row_layout.addWidget(bl_edit, 5, 1)
+
+            # Character State
+            cs_edit = QLineEdit(states.get("character_state", ""))
+            cs_edit.setPlaceholderText("Gợi ý: đang bị thương, tỏa hào quang...")
+            row_layout.addWidget(QLabel("State:"), 6, 0)
+            row_layout.addWidget(cs_edit, 6, 1)
+
+            # Wardrobe Notes
+            wn_edit = QLineEdit(states.get("wardrobe_notes", ""))
+            wn_edit.setPlaceholderText("Gợi ý: áo rách, dính máu...")
+            row_layout.addWidget(QLabel("Wardrobe:"), 7, 0)
+            row_layout.addWidget(wn_edit, 7, 1)
+            
+            self.char_state_widgets[char_id] = {
+                "variant": v_combo,
+                "outfit": o_combo,
+                "posture": p_edit,
+                "expression": e_edit,
+                "body_language": bl_edit,
+                "character_state": cs_edit,
+                "wardrobe_notes": wn_edit
+            }
+            
+            self.char_states_layout.addWidget(row_widget)
 
     def _clear_editor(self) -> None:
         for widget in self.fields.values():
@@ -510,7 +754,7 @@ class BeatStudioTab(QWidget):
                 widget.clear()
             elif isinstance(widget, QComboBox):
                 widget.setCurrentIndex(-1)
-            else:
+            elif isinstance(widget, QLineEdit):
                 widget.setText("")
 
     # =========================================================================
@@ -593,12 +837,51 @@ class BeatStudioTab(QWidget):
             if beat:
                 project = self.app_state.project
                 ps = self.generation_controller.project_service
+                values.pop("beat_id", None)
+                values.pop("scene_id", None)
+                if "order_index" in values:
+                    values["order_index"] = int(str(values["order_index"]).strip() or 0)
 
                 # Resolve Name back to ID before saving
                 if "characters" in values and project:
                     names = [n.strip() for n in values["characters"].split(",") if n.strip()]
                     ids = [ps.resolve_character_id(project, n) for n in names]
                     values["characters"] = ids
+
+                if "character_variants" in values and project:
+                    # Use the dynamic widgets instead of the text field
+                    new_variants = {}
+                    new_outfits = {}
+                    new_states = {}
+                    for cid, widgets in getattr(self, "char_state_widgets", {}).items():
+                        if isinstance(widgets, dict):
+                            # New dict-style storage
+                            vid = widgets["variant"].currentData()
+                            oid = widgets["outfit"].currentData()
+                            if vid: new_variants[cid] = vid
+                            if oid: new_outfits[cid] = oid
+                            
+                            char_state = {}
+                            for field_name in ["posture", "expression", "body_language", "character_state", "wardrobe_notes"]:
+                                val = widgets[field_name].text().strip()
+                                if val: char_state[field_name] = val
+                            if char_state:
+                                new_states[cid] = char_state
+                        else:
+                            # Legacy tuple-style storage fallback
+                            v_cb, o_cb = widgets
+                            vid = v_cb.currentData()
+                            oid = o_cb.currentData()
+                            if vid: new_variants[cid] = vid
+                            if oid: new_outfits[cid] = oid
+                    
+                    values["character_variants"] = new_variants
+                    values["character_outfits"] = new_outfits
+                    values["character_states"] = new_states
+                
+                # Remove fields already handled by the logic above
+                values.pop("character_outfits", None)
+                values.pop("character_states", None)
                 
                 if "location" in values and project:
                     values["location"] = ps.resolve_location_id(project, values["location"])
@@ -612,6 +895,74 @@ class BeatStudioTab(QWidget):
                 self.refresh_callback()
         except Exception as exc:
             QMessageBox.critical(self, "Lỗi", str(exc))
+
+    def _on_build_selected_prompt(self) -> None:
+        if not self.app_state.project or not self.app_state.selected_beat_id:
+            QMessageBox.warning(self, "Canh bao", "Hay chon mot beat truoc.")
+            return
+        prev = self._selection_snapshot()
+        try:
+            self.generation_controller.build_prompt_for_beat(
+                self.app_state.project,
+                self.app_state.selected_beat_id,
+            )
+            self._finish_local_prompt_build(1, prev)
+        except Exception as exc:
+            QMessageBox.critical(self, "Loi", str(exc))
+
+    def _on_build_scene_prompts(self) -> None:
+        if not self.app_state.project or not self.app_state.selected_scene_id:
+            QMessageBox.warning(self, "Canh bao", "Hay chon mot phan canh truoc.")
+            return
+        prev = self._selection_snapshot()
+        try:
+            beats = self.generation_controller.build_prompts_for_scene(
+                self.app_state.project,
+                self.app_state.selected_scene_id,
+            )
+            self._finish_local_prompt_build(len(beats), prev)
+        except Exception as exc:
+            QMessageBox.critical(self, "Loi", str(exc))
+
+    def _on_build_episode_prompts(self) -> None:
+        if not self.app_state.project or not self.app_state.selected_episode_id:
+            QMessageBox.warning(self, "Canh bao", "Hay chon mot tap truyen truoc.")
+            return
+        prev = self._selection_snapshot()
+        try:
+            beats = self.generation_controller.build_prompts(
+                self.app_state.project,
+                self.app_state.selected_episode_id,
+                ai_mode="deterministic",
+            )
+            self._finish_local_prompt_build(len(beats), prev)
+        except Exception as exc:
+            QMessageBox.critical(self, "Loi", str(exc))
+
+    def _selection_snapshot(self) -> tuple[str | None, str | None, str | None]:
+        return (
+            self.app_state.selected_episode_id,
+            self.app_state.selected_scene_id,
+            self.app_state.selected_beat_id,
+        )
+
+    def _finish_local_prompt_build(
+        self,
+        beat_count: int,
+        selection: tuple[str | None, str | None, str | None],
+    ) -> None:
+        if self.app_state.project:
+            self.app_state.project.touch()
+        self.app_state.selected_episode_id = selection[0]
+        self.app_state.selected_scene_id = selection[1]
+        self.app_state.selected_beat_id = selection[2]
+        self.refresh_callback()
+        self.refresh()
+        QMessageBox.information(
+            self,
+            "Thong bao",
+            f"Da tao prompt anh cho {beat_count} nhip.",
+        )
 
     def _on_prompt(self) -> None:
         """Hiện cửa sổ prompt cho step đã chọn từ dropdown."""

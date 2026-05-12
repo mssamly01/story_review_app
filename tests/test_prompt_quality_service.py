@@ -216,7 +216,8 @@ def build_quality_project():
         review_text="Lam Vu slows down when he sees the footprints.",
         image_prompt=(
             "dark fantasy webtoon style, cinematic shadows, high quality illustration, "
-            "young man with messy black hair and gray eyes, black jacket and white shirt, "
+            "Lam Vu (Gender: male, Hair: messy black hair, Eyes: gray eyes, Body: slim build, "
+            "Outfit: black jacket and white shirt), "
             "dusty old hallway, wooden floor, moonlight through broken windows, "
             "mysterious atmosphere, discovers fresh footprints, tense expression, "
             "low angle close-up, fresh footprints on dusty floor near locked door, "
@@ -224,7 +225,8 @@ def build_quality_project():
         ),
         negative_prompt=(
             "low quality, blurry, distorted anatomy, extra fingers, "
-            "inconsistent face, wrong outfit, text, watermark, logo"
+            "inconsistent face, wrong outfit, text, watermark, logo, "
+            "captions, subtitles, speech bubble"
         ),
     )
     return project, beat

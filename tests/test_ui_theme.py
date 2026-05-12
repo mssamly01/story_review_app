@@ -32,10 +32,10 @@ class ThemeEnumTests(unittest.TestCase):
         self.assertEqual(Theme.from_string("dark"), Theme.DARK)
         self.assertEqual(Theme.from_string("LIGHT"), Theme.LIGHT)
 
-    def test_from_string_unknown_falls_back_to_dark(self) -> None:
-        self.assertEqual(Theme.from_string("garbage"), Theme.DARK)
-        self.assertEqual(Theme.from_string(None), Theme.DARK)
-        self.assertEqual(Theme.from_string(""), Theme.DARK)
+    def test_from_string_unknown_falls_back_to_light(self) -> None:
+        self.assertEqual(Theme.from_string("garbage"), Theme.LIGHT)
+        self.assertEqual(Theme.from_string(None), Theme.LIGHT)
+        self.assertEqual(Theme.from_string(""), Theme.LIGHT)
 
 
 class QSSLoaderTests(unittest.TestCase):

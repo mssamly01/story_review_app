@@ -45,10 +45,11 @@ class BibleController:
         self,
         project: Project,
         character_id: str,
-        style_preset_id: str | None = None
+        style_preset_id: str | None = None,
+        variant_id: str | None = None
     ) -> str:
         return self.char_ref_service.build_reference_sheet_prompt(
-            project, character_id, style_preset_id
+            project, character_id, style_preset_id, variant_id=variant_id
         )
 
     def add_or_update_character(

@@ -23,7 +23,8 @@ class StoryflowPromptRuleTests(unittest.TestCase):
         self.assertIn("worn black jacket", prompt)
         self.assertIn("small brass compass", prompt)
         self.assertIn("muted black and silver palette", prompt)
-        self.assertIn("wearing black jacket and white shirt", prompt)
+        # Outfit info is labelled as 'Outfit: <value>' in prompt output
+        self.assertIn("black jacket and white shirt", prompt)
 
     def test_prompt_builder_includes_full_location_profile(self) -> None:
         project, beat = build_storyflow_prompt_project()

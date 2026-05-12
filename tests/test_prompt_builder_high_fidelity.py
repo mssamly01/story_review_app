@@ -94,7 +94,7 @@ class PromptBuilderHighFidelityTests(unittest.TestCase):
         self.assertIn("messy black hair", p)
         self.assertIn("gray eyes", p)
         self.assertIn("slim build", p)
-        self.assertIn("wearing black jacket and white shirt", p)
+        self.assertIn("Outfit: black jacket and white shirt", p)
         self.assertIn("old narrow hallway", p)
         self.assertIn("dusty wooden floor", p)
         self.assertIn("dim moonlight", p)

@@ -139,6 +139,49 @@ def _episode_result(chapter_id: str) -> dict:
     }
 
 
+def _episode_result_with_storyboard_fields(chapter_id: str) -> dict:
+    result = _episode_result(chapter_id)
+    beat = result["scenes"][0]["beats"][0]
+    beat.update(
+        {
+            "camera": "slow dolly-in from hallway",
+            "timeOfDay": "Night",
+            "lighting": "dim moonlight through broken window",
+            "atmosphere": "cold dust-heavy silence",
+            "location_cues": "rotting doorframe, cracked floorboards, hanging cobwebs",
+            "asmr_visuals": "floating dust, weak candle flicker, curtain trembling",
+            "composition": "character small in frame, doorway looming above him",
+            "posture": "one hand on the door, shoulders tense",
+            "expression": "wide anxious eyes",
+            "body_language": "hesitant step forward",
+            "props": ["old key", "dusty letter"],
+            "wardrobe_notes": "black jacket slightly wet from rain",
+            "character_state": "exhausted but alert",
+            "location_state": "abandoned house disturbed after years of silence",
+            "transition_note": "cuts from exterior rain to interior darkness",
+        }
+    )
+    return result
+
+
+def _episode_result_with_variant_outfit_refs(chapter_id: str) -> dict:
+    result = _episode_result_with_storyboard_fields(chapter_id)
+    first_beat = result["scenes"][0]["beats"][0]
+    second_beat = result["scenes"][0]["beats"][1]
+    first_beat["character_variants"] = {"char_lam_vu": "char_lam_vu_young"}
+    first_beat["character_outfits"] = {
+        "char_lam_vu": "outfit_char_lam_vu_young_sleepwear"
+    }
+    second_beat["character_states"] = [
+        {
+            "character_id": "char_lam_vu",
+            "variant_id": "char_lam_vu_old",
+            "outfit_id": "outfit_char_lam_vu_old_battle",
+        }
+    ]
+    return result
+
+
 def _long_project_with_context():
     project, project_service, _chapter = _project_with_context()
     project.source_chapters.clear()
@@ -324,6 +367,49 @@ def test_episode_planner_prompt_excludes_image_prompt_by_default():
     assert "Do not generate negative_prompt" in prompt
 
 
+def test_episode_planner_prompt_requests_storyboard_fields():
+    project, _, chapter = _project_with_context()
+
+    prompt = ManualAIEpisodePlannerService().build_episode_plan_with_review_prompt(
+        project,
+        [chapter.chapter_id],
+    )
+
+    for field_name in [
+        "camera",
+        "timeOfDay",
+        "lighting",
+        "atmosphere",
+        "location_cues",
+        "asmr_visuals",
+        "composition",
+        "posture",
+        "expression",
+        "body_language",
+        "wardrobe_notes",
+        "character_state",
+        "location_state",
+        "transition_note",
+    ]:
+        assert field_name in prompt
+    assert "timeOfDay must never be empty" in prompt
+    assert "Do not generate image_prompt" in prompt
+    assert "Do not generate negative_prompt" in prompt
+
+
+def test_episode_planner_prompt_requires_variant_outfit_per_beat():
+    project, _, chapter = _project_with_context()
+    prompt = ManualAIEpisodePlannerService().build_episode_plan_with_review_prompt(
+        project,
+        [chapter.chapter_id],
+    )
+
+    assert '"character_variants"' in prompt
+    assert '"character_outfits"' in prompt
+    assert "resolve exact character variant/state IDs" in prompt
+    assert "resolve exact outfit IDs" in prompt
+
+
 def test_episode_planner_apply_warns_when_full_density_too_few_beats():
     project, project_service, chapter = _long_project_with_context()
 
@@ -369,6 +455,75 @@ def test_apply_episode_plan_with_review_creates_scenes_and_beats():
     assert all(beat.review_text for scene in episode.scenes for beat in scene.beats)
     assert all(beat.image_prompt == "" for scene in episode.scenes for beat in scene.beats)
     assert all(beat.negative_prompt == "" for scene in episode.scenes for beat in scene.beats)
+
+
+def test_apply_episode_plan_persists_storyboard_fields():
+    project, project_service, chapter = _project_with_context()
+
+    ManualAIEpisodePlannerService(project_service).apply_episode_plan_with_review_result(
+        project,
+        _episode_result_with_storyboard_fields(chapter.chapter_id),
+    )
+
+    beat = project.review_episodes[0].scenes[0].beats[0]
+    assert beat.camera == "slow dolly-in from hallway"
+    assert beat.timeOfDay == "Night"
+    assert beat.lighting == "dim moonlight through broken window"
+    assert beat.atmosphere == "cold dust-heavy silence"
+    assert beat.location_cues == "rotting doorframe, cracked floorboards, hanging cobwebs"
+    assert beat.asmr_visuals == "floating dust, weak candle flicker, curtain trembling"
+    assert beat.composition == "character small in frame, doorway looming above him"
+    assert beat.posture == "one hand on the door, shoulders tense"
+    assert beat.expression == "wide anxious eyes"
+    assert beat.body_language == "hesitant step forward"
+    assert beat.props == ["old key", "dusty letter"]
+    assert beat.wardrobe_notes == "black jacket slightly wet from rain"
+    assert beat.character_state == "exhausted but alert"
+    assert beat.location_state == "abandoned house disturbed after years of silence"
+    assert beat.transition_note == "cuts from exterior rain to interior darkness"
+    assert beat.image_prompt == ""
+    assert beat.negative_prompt == ""
+
+
+def test_apply_episode_plan_persists_character_variant_outfit_refs():
+    project, project_service, chapter = _project_with_context()
+    ManualAIEpisodePlannerService(project_service).apply_episode_plan_with_review_result(
+        project,
+        _episode_result_with_variant_outfit_refs(chapter.chapter_id),
+    )
+
+    beat_1 = project.review_episodes[0].scenes[0].beats[0]
+    beat_2 = project.review_episodes[0].scenes[0].beats[1]
+
+    assert beat_1.character_variants == {"char_lam_vu": "char_lam_vu_young"}
+    assert beat_1.character_outfits == {
+        "char_lam_vu": "outfit_char_lam_vu_young_sleepwear"
+    }
+    assert beat_2.character_variants == {"char_lam_vu": "char_lam_vu_old"}
+    assert beat_2.character_outfits == {"char_lam_vu": "outfit_char_lam_vu_old_battle"}
+
+
+def test_episode_planner_storyboard_fields_survive_save_load(tmp_path):
+    project, project_service, chapter = _project_with_context()
+    service = ManualAIEpisodePlannerService(project_service)
+    service.apply_episode_plan_with_review_result(
+        project,
+        _episode_result_with_storyboard_fields(chapter.chapter_id),
+    )
+
+    output_path = tmp_path / "project.json"
+    project_service.save_project(project, output_path)
+    loaded = project_service.load_project(output_path)
+
+    loaded_beat = loaded.review_episodes[0].scenes[0].beats[0]
+    assert loaded_beat.camera == "slow dolly-in from hallway"
+    assert loaded_beat.timeOfDay == "Night"
+    assert loaded_beat.location_cues == "rotting doorframe, cracked floorboards, hanging cobwebs"
+    assert loaded_beat.asmr_visuals == "floating dust, weak candle flicker, curtain trembling"
+    assert loaded_beat.posture == "one hand on the door, shoulders tense"
+    assert loaded_beat.expression == "wide anxious eyes"
+    assert loaded_beat.body_language == "hesitant step forward"
+    assert loaded.source_chapters[0].raw_text == chapter.raw_text
 
 
 def test_apply_episode_plan_groups_beats_by_scene_id():
