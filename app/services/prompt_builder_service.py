@@ -24,11 +24,20 @@ class PromptBuilderService:
     _base_negative_terms = [
         "low quality",
         "blurry",
+        "bad anatomy",
+        "bad composition",
         "distorted anatomy",
         "extra fingers",
         "inconsistent face",
         "wrong outfit",
         "text",
+        "text overlay",
+        "caption",
+        "captions",
+        "subtitle",
+        "subtitles",
+        "speech bubble",
+        "speech bubbles",
         "watermark",
         "logo",
     ]
@@ -41,7 +50,10 @@ class PromptBuilderService:
         "speech bubble",
         "watermark",
         "logo",
+        "text",
         "text overlay",
+        "visible text",
+        "written words",
     ]
 
     def __init__(
@@ -171,13 +183,19 @@ class PromptBuilderService:
         response = gateway.generate_json(
             "image_prompt_builder",
             {
-                "episode": episode.to_dict(),
-                "scene": scene.to_dict(),
-                "beat": beat.to_dict(),
+                "episode": self._compact_episode(episode),
+                "scene": self._compact_scene(scene),
+                "beat": self._compact_beat(beat),
                 "beat_id": beat.beat_id,
-                "character_bible": [character.to_dict() for character in project.characters],
-                "location_bible": [location.to_dict() for location in project.locations],
-                "style_preset": style_preset.to_dict() if style_preset else {},
+                "character_bible": [
+                    self._compact_character(character)
+                    for character in self._characters_for_beat(project, beat)
+                ],
+                "location_bible": [
+                    self._compact_location(location)
+                    for location in self._locations_for_beat(project, beat, scene)
+                ],
+                "style_preset": self._compact_style(style_preset),
             },
         )
         return self._prompts_from_ai_response(response, beat.beat_id)
@@ -291,8 +309,10 @@ class PromptBuilderService:
 
             parts = [
                 character.visual_prompt_base,
+                self._character_identity_block(character),
                 name_part,
                 f"wearing {character.default_outfit}" if character.default_outfit else "",
+                self._character_outfit_variants(character),
                 character.signature_features,
                 f"keep consistent: {character.continuity_must_keep}" if character.continuity_must_keep else "",
             ]
@@ -312,20 +332,44 @@ class PromptBuilderService:
         location = self._find_location(project, location_id)
         if not location:
             return location_id
+        profile = self._join_unique_parts(
+            [
+                location.visual_prompt_base,
+                location.description,
+                location.location_type,
+                location.architecture_style,
+                ", ".join(location.recurring_props),
+                ", ".join(location.continuity_tags),
+            ]
+        )
         parts = [
-            location.visual_prompt_base,
-            location.name,
-            location.location_type,
-            location.description,
+            f"Location: {location.name} ({profile})" if profile else f"Location: {location.name}",
             location.mood,
-            location.time_period,
             location.lighting,
             location.color_palette,
-            location.architecture_style,
-            ", ".join(location.recurring_props),
-            ", ".join(location.continuity_tags),
         ]
         return self._join_unique_parts(parts)
+
+    def _character_identity_block(self, character: Character) -> str:
+        parts = [
+            character.gender,
+            character.age_description,
+            character.appearance,
+            character.face_details,
+            character.hair,
+            character.eyes,
+            character.body_type,
+            character.wardrobe_details,
+            character.prop_details,
+            character.color_palette,
+        ]
+        block = self._join_unique_parts(parts)
+        return f"{character.name} ({block})" if block else character.name
+
+    def _character_outfit_variants(self, character: Character) -> str:
+        if not character.outfit_variants:
+            return ""
+        return "outfit variants: " + "; ".join(character.outfit_variants)
 
     def _select_style_preset(
         self, project: Project, style_preset_id: str | None
@@ -348,6 +392,142 @@ class PromptBuilderService:
         if project.style_presets:
             return project.style_presets[0]
         return None
+
+    def _compact_episode(self, episode: ReviewEpisode) -> dict[str, Any]:
+        return self._drop_empty(
+            {
+                "episode_id": episode.episode_id,
+                "title": episode.title,
+                "summary": episode.summary,
+                "tone": episode.tone,
+                "density": episode.density,
+            }
+        )
+
+    def _compact_scene(self, scene: Scene) -> dict[str, Any]:
+        return self._drop_empty(
+            {
+                "scene_id": scene.scene_id,
+                "title": scene.title,
+                "summary": scene.summary,
+                "characters": list(scene.characters),
+                "location": scene.location,
+                "mood": scene.mood,
+                "importance": scene.importance,
+            }
+        )
+
+    def _compact_beat(self, beat: Beat) -> dict[str, Any]:
+        return self._drop_empty(
+            {
+                "beat_id": beat.beat_id,
+                "scene_id": beat.scene_id,
+                "order_index": beat.order_index,
+                "story_function": beat.story_function,
+                "characters": list(beat.characters),
+                "location": beat.location,
+                "action": beat.action,
+                "emotion": beat.emotion,
+                "shot_type": beat.shot_type,
+                "visual_description": beat.visual_description,
+                "review_text_excerpt": self._shorten(beat.review_text, 260),
+                "continuity_tags": list(beat.continuity_tags),
+            }
+        )
+
+    def _compact_character(self, character: Character) -> dict[str, Any]:
+        return self._drop_empty(
+            {
+                "character_id": character.character_id,
+                "name": character.name,
+                "aliases": list(character.aliases),
+                "visual_prompt_base": character.visual_prompt_base,
+                "default_outfit": character.default_outfit,
+                "appearance_notes": self._join_unique_parts(
+                    [
+                        character.appearance,
+                        character.face_details,
+                        character.hair,
+                        character.eyes,
+                        character.body_type,
+                        character.signature_features,
+                        character.continuity_must_keep,
+                    ]
+                ),
+                "negative_prompt_terms": list(character.negative_prompt_terms),
+            }
+        )
+
+    def _compact_location(self, location: Location) -> dict[str, Any]:
+        return self._drop_empty(
+            {
+                "location_id": location.location_id,
+                "name": location.name,
+                "aliases": list(location.aliases),
+                "visual_prompt_base": location.visual_prompt_base,
+                "mood": location.mood,
+                "lighting": location.lighting,
+                "setting_notes": self._join_unique_parts(
+                    [
+                        location.location_type,
+                        location.description,
+                        location.architecture_style,
+                        ", ".join(location.recurring_props),
+                        location.color_palette,
+                    ]
+                ),
+                "negative_prompt_terms": list(location.negative_prompt_terms),
+            }
+        )
+
+    def _compact_style(self, style_preset: StylePreset | None) -> dict[str, Any]:
+        if not style_preset:
+            return {}
+        return self._drop_empty(
+            {
+                "style_id": style_preset.style_id,
+                "name": style_preset.name,
+                "positive_prompt": style_preset.positive_prompt,
+                "negative_prompt": style_preset.negative_prompt,
+                "forbidden_terms": list(style_preset.forbidden_terms),
+                "lighting_style": style_preset.lighting_style,
+                "color_palette": style_preset.color_palette,
+                "character_design_rules": style_preset.character_design_rules,
+            }
+        )
+
+    def _characters_for_beat(self, project: Project, beat: Beat) -> list[Character]:
+        ids = set(beat.characters)
+        return [
+            character
+            for character in project.characters
+            if character.character_id in ids or character.name in ids
+        ]
+
+    def _locations_for_beat(
+        self,
+        project: Project,
+        beat: Beat,
+        scene: Scene,
+    ) -> list[Location]:
+        location_id = beat.location or scene.location
+        if not location_id:
+            return []
+        location = self._find_location(project, location_id)
+        return [location] if location else []
+
+    def _drop_empty(self, data: dict[str, Any]) -> dict[str, Any]:
+        return {
+            key: value
+            for key, value in data.items()
+            if value not in (None, "", [], {})
+        }
+
+    def _shorten(self, value: str, limit: int) -> str:
+        text = re.sub(r"\s+", " ", value).strip()
+        if len(text) <= limit:
+            return text
+        return text[: limit - 1].rstrip() + "..."
 
     def _find_character(self, project: Project, character_id: str) -> Character | None:
         for character in project.characters:

@@ -42,11 +42,10 @@ from app.ui.beat_preview_tab import BeatPreviewTab
 from app.ui.beat_studio_tab import BeatStudioTab
 from app.ui.bible_style_tab import BibleStyleTab
 from app.ui.episode_planner_tab import EpisodePlannerTab
-from app.ui.project_tab import ProjectTab
+from app.ui.project_source_tab import ProjectSourceTab
 from app.ui.quality_repair_tab import QualityRepairTab
 from app.ui.settings_tab import SettingsTab
 from app.ui.sidebar_tabs import SidebarTabWidget
-from app.ui.source_tab import SourceTab
 from app.ui.theme import (
     Theme,
     apply_theme,
@@ -120,7 +119,7 @@ class MainWindow(QMainWindow):
         title_layout.setContentsMargins(0, 0, 0, 0)
         title_layout.setSpacing(10)
 
-        self._app_title_label = QLabel("Story Review Studio")
+        self._app_title_label = QLabel("Workspace")
         self._app_title_label.setObjectName("app-title")
         title_layout.addWidget(self._app_title_label)
 
@@ -135,6 +134,10 @@ class MainWindow(QMainWindow):
             spacer.sizePolicy().horizontalPolicy(), spacer.sizePolicy().verticalPolicy()
         )
         header.addWidget(spacer)
+
+        self._step_chip = QLabel("BÆ°á»›c 1 / 7")
+        self._step_chip.setObjectName("status-chip")
+        header.addWidget(self._step_chip)
 
         self._ai_chip = QLabel("AI: deterministic")
         self._ai_chip.setObjectName("status-chip")
@@ -160,16 +163,11 @@ class MainWindow(QMainWindow):
         self.tabs = SidebarTabWidget()
 
         # Create Tabs
-        self.project_tab = ProjectTab(
+        self.project_source_tab = ProjectSourceTab(
             self.app_state, self.project_controller, self.refresh_all_tabs
         )
-        self.source_tab = SourceTab(
-            self.app_state,
-            self.project_controller,
-            self.generation_controller,
-            self.manual_ai_controller,
-            self.refresh_all_tabs,
-        )
+        self.project_tab = self.project_source_tab
+        self.source_tab = self.project_source_tab
         self.planner_tab = EpisodePlannerTab(
             self.app_state,
             self.project_controller,
@@ -212,8 +210,7 @@ class MainWindow(QMainWindow):
         # Track the ordered list of inner tabs so _on_tab_changed can call
         # ``refresh()`` without having to dig through the wrapper widget tree.
         self._ordered_tabs: list[QWidget] = [
-            self.project_tab,
-            self.source_tab,
+            self.project_source_tab,
             self.bible_tab,
             self.planner_tab,
             self.studio_tab,
@@ -221,8 +218,7 @@ class MainWindow(QMainWindow):
             self.quality_tab,
             self.settings_tab,
         ]
-        self.tabs.addTab(_wrap(self.project_tab), "Dự án")
-        self.tabs.addTab(_wrap(self.source_tab), "Nguồn")
+        self.tabs.addTab(_wrap(self.project_source_tab), "Dự án & Nguồn")
         self.tabs.addTab(_wrap(self.bible_tab), "Bible / Style")
         self.tabs.addTab(_wrap(self.planner_tab), "Kế hoạch tập")
         self.tabs.addTab(_wrap(self.studio_tab), "Beat Studio")
@@ -248,14 +244,14 @@ class MainWindow(QMainWindow):
             tab = self._ordered_tabs[index]
             if hasattr(tab, "refresh"):
                 tab.refresh()
+        self._update_header()
 
     def refresh_all_tabs(self) -> None:
         """Sync AppState with controllers and refresh every tab."""
         self.app_state.project = self.project_controller.project
         self.app_state.project_path = self.project_controller.project_path
 
-        self.project_tab.refresh()
-        self.source_tab.refresh()
+        self.project_source_tab.refresh()
         self.planner_tab.refresh()
         self.studio_tab.refresh()
         self.preview_tab.refresh()
@@ -284,6 +280,9 @@ class MainWindow(QMainWindow):
         else:
             self._project_label.setText("Chưa mở dự án nào")
 
+        current_index = self.tabs.currentIndex() if hasattr(self, "tabs") else 0
+        total = self.tabs.count() if hasattr(self, "tabs") else 7
+        self._step_chip.setText(f"BÆ°á»›c {current_index + 1} / {total}")
         self._ai_chip.setText(f"AI: {self.app_state.ai_mode}")
 
     def _theme_button_text(self) -> str:

@@ -13,6 +13,7 @@ from app.domain.source_chapter import SourceChapter
 from app.infrastructure.prompt_template_loader import PromptTemplateLoader
 from app.services.beat_generator_service import BeatGeneratorService
 from app.services.episode_planner_service import EpisodePlannerService
+from app.services.manual_ai_episode_planner_service import ManualAIEpisodePlannerService
 from app.services.project_service import ProjectService
 from app.services.prompt_builder_service import PromptBuilderService
 from app.services.review_rewriter_service import ReviewRewriterService
@@ -21,6 +22,7 @@ from app.services.story_parser_service import StoryParserService
 SUPPORTED_STEPS = [
     "parse-story",
     "plan-episode",
+    "plan-episode-with-review",
     "generate-beats",
     "rewrite-review",
     "build-prompts",
@@ -30,6 +32,7 @@ SUPPORTED_STEPS = [
 _STEP_TO_PROMPT_NAME = {
     "parse-story": "story_parser",
     "plan-episode": "episode_planner",
+    "plan-episode-with-review": "episode_planner",
     "generate-beats": "beat_generator",
     "rewrite-review": "review_rewriter",
     "build-prompts": "image_prompt_builder",
@@ -55,13 +58,35 @@ class ManualAIService:
         *,
         step: str,
         chapter_id: str | None = None,
+        chapter_ids: list[str] | None = None,
         episode_id: str | None = None,
+        episode_title: str | None = None,
         tone: str | None = None,
         density: str | None = None,
         style_preset_id: str | None = None,
     ) -> dict[str, Any]:
         """Trả về dict chứa prompt_template + input_data + output_schema."""
         self._validate_step(step)
+        if step == "plan-episode-with-review":
+            selected_chapter_ids = chapter_ids or ([chapter_id] if chapter_id else [])
+            prompt_text = ManualAIEpisodePlannerService(
+                self.project_service
+            ).build_episode_plan_with_review_prompt(
+                project,
+                source_chapter_ids=selected_chapter_ids,
+                narration_style=tone,
+                retelling_density=density,
+                episode_id=episode_id,
+                episode_title=episode_title,
+            )
+            return {
+                "step": step,
+                "prompt_name": "episode_plan_with_review",
+                "prompt_text": prompt_text,
+                "prompt_template": prompt_text,
+                "input_data": {},
+            }
+
         prompt_name = _STEP_TO_PROMPT_NAME[step]
         template_text = self.prompt_loader.load(prompt_name)
 
@@ -92,6 +117,9 @@ class ManualAIService:
         exported: dict[str, Any],
     ) -> str:
         """Tạo chuỗi text sẵn sàng paste vào AI chat."""
+        if exported.get("prompt_text"):
+            return str(exported["prompt_text"])
+
         template = exported["prompt_template"]
         payload = json.dumps(
             exported["input_data"],
@@ -110,6 +138,7 @@ class ManualAIService:
         step: str,
         result_data: dict[str, Any],
         chapter_id: str | None = None,
+        chapter_ids: list[str] | None = None,
         episode_id: str | None = None,
         tone: str | None = None,
         density: str | None = None,
@@ -117,6 +146,16 @@ class ManualAIService:
     ) -> str:
         """Áp dụng AI result vào project. Trả về summary message."""
         self._validate_step(step)
+
+        if step == "plan-episode-with-review":
+            summary = ManualAIEpisodePlannerService(
+                self.project_service
+            ).apply_episode_plan_with_review_result(project, result_data)
+            message = str(summary["message"])
+            warnings = summary.get("warnings", [])
+            if warnings:
+                message += "\n" + "\n".join(str(item) for item in warnings)
+            return message
 
         if step == "parse-story":
             return self._import_parse(project, result_data, chapter_id)
@@ -196,8 +235,14 @@ class ManualAIService:
             "chapter_title": chapter.title,
             "chapter_number": chapter.chapter_number,
             "source_text": chapter.raw_text,
-            "character_bible": [c.to_dict() for c in project.characters],
-            "location_bible": [loc.to_dict() for loc in project.locations],
+            "character_bible": [
+                self._compact_character_for_prompt(character)
+                for character in project.characters
+            ],
+            "location_bible": [
+                self._compact_location_for_prompt(location)
+                for location in project.locations
+            ],
             "notes": chapter.notes,
         }
 
@@ -216,19 +261,17 @@ class ManualAIService:
                 "language": project.language,
             },
             "source_chapter_ids": [chapter.chapter_id],
-            "source_chapters": [
-                {
-                    "chapter_id": chapter.chapter_id,
-                    "title": chapter.title,
-                    "chapter_number": chapter.chapter_number,
-                    "raw_text": chapter.raw_text,
-                    "notes": chapter.notes,
-                }
-            ],
+            "source_chapters": [self._compact_source_chapter_for_prompt(chapter)],
             "narration_style": tone or project.default_narration_style,
             "retelling_density": density or project.retelling_density,
-            "character_bible": [c.to_dict() for c in project.characters],
-            "location_bible": [loc.to_dict() for loc in project.locations],
+            "character_bible": [
+                self._compact_character_for_prompt(character)
+                for character in project.characters
+            ],
+            "location_bible": [
+                self._compact_location_for_prompt(location)
+                for location in project.locations
+            ],
         }
 
     def _input_beats(
@@ -243,20 +286,27 @@ class ManualAIService:
             episode.source_chapter_ids,
         )
         return {
-            "episode": episode.to_dict(),
+            "episode": self._compact_episode_for_prompt(episode),
             "source_chapters": [
-                {
-                    "chapter_id": ch.chapter_id,
-                    "title": ch.title,
-                    "raw_text": ch.raw_text,
-                }
-                for ch in source_chapters
+                self._compact_source_chapter_for_prompt(chapter)
+                for chapter in source_chapters
             ],
-            "scenes": [scene.to_dict() for scene in episode.scenes],
+            "scenes": [
+                self._compact_scene_for_prompt(scene, len(scene.ordered_beats()))
+                for scene in episode.scenes
+            ],
             "retelling_density": density or episode.density,
-            "character_bible": [c.to_dict() for c in project.characters],
-            "location_bible": [loc.to_dict() for loc in project.locations],
-            "style_preset": (self._find_style_preset(project, project.default_art_style).to_dict() if self._find_style_preset(project, project.default_art_style) else {}),
+            "character_bible": [
+                self._compact_character_for_prompt(character)
+                for character in project.characters
+            ],
+            "location_bible": [
+                self._compact_location_for_prompt(location)
+                for location in project.locations
+            ],
+            "style_preset": self._compact_style_for_prompt(
+                self._find_style_preset(project, project.default_art_style)
+            ),
         }
 
     def _input_rewrite(
@@ -273,10 +323,14 @@ class ManualAIService:
         )
         scenes_input = []
         for scene in episode.scenes:
+            ordered_beats = scene.ordered_beats()
             scenes_input.append(
                 {
-                    "scene": scene.to_dict(),
-                    "beats": [beat.to_dict() for beat in scene.ordered_beats()],
+                    "scene": self._compact_scene_for_prompt(scene, len(ordered_beats)),
+                    "beats": [
+                        self._compact_beat_for_prompt(beat, include_review_excerpt=False)
+                        for beat in ordered_beats
+                    ],
                     "narration_style": tone or episode.tone,
                     "retelling_density": density or episode.density,
                 }
@@ -285,12 +339,8 @@ class ManualAIService:
             "episode_id": episode.episode_id,
             "episode_title": episode.title,
             "source_chapter_context": [
-                {
-                    "chapter_id": ch.chapter_id,
-                    "title": ch.title,
-                    "raw_text": ch.raw_text,
-                }
-                for ch in source_chapters
+                self._compact_source_chapter_for_prompt(chapter)
+                for chapter in source_chapters
             ],
             "scenes": scenes_input,
         }
@@ -303,22 +353,197 @@ class ManualAIService:
     ) -> dict[str, Any]:
         episode = self._require_episode(project, episode_id)
         style_preset = self._find_style_preset(project, style_preset_id)
+
+        used_character_ids: set[str] = set()
+        used_location_ids: set[str] = set()
         scenes_input = []
         for scene in episode.scenes:
+            ordered_beats = scene.ordered_beats()
+            used_character_ids.update(scene.characters)
+            if scene.location:
+                used_location_ids.add(scene.location)
+            for beat in ordered_beats:
+                used_character_ids.update(beat.characters)
+                if beat.location:
+                    used_location_ids.add(beat.location)
+
             scenes_input.append(
                 {
-                    "scene": scene.to_dict(),
-                    "beats": [beat.to_dict() for beat in scene.ordered_beats()],
+                    "scene": self._compact_scene_for_prompt(scene, len(ordered_beats)),
+                    "beats": [self._compact_beat_for_prompt(beat) for beat in ordered_beats],
                 }
             )
+
+        characters = [
+            self._compact_character_for_prompt(character)
+            for character in project.characters
+            if not used_character_ids
+            or character.character_id in used_character_ids
+            or character.name in used_character_ids
+        ]
+        locations = [
+            self._compact_location_for_prompt(location)
+            for location in project.locations
+            if not used_location_ids
+            or location.location_id in used_location_ids
+            or location.name in used_location_ids
+        ]
+
         return {
             "episode_id": episode.episode_id,
             "episode_title": episode.title,
-            "character_bible": [c.to_dict() for c in project.characters],
-            "location_bible": [loc.to_dict() for loc in project.locations],
-            "style_preset": style_preset.to_dict() if style_preset else {},
+            "task": "build concise English image prompts for existing beats only",
+            "prompt_length_guidance": "Use only the compact context below. Aim for 45-90 words per image_prompt.",
+            "character_bible": characters,
+            "location_bible": locations,
+            "style_preset": self._compact_style_for_prompt(style_preset),
             "scenes": scenes_input,
         }
+
+    def _compact_scene_for_prompt(self, scene, beat_count: int) -> dict[str, Any]:
+        return self._drop_empty(
+            {
+                "scene_id": scene.scene_id,
+                "title": scene.title,
+                "summary": scene.summary,
+                "mood": scene.mood,
+                "characters": list(scene.characters),
+                "location": scene.location,
+                "importance": scene.importance,
+                "target_beats": scene.target_beats,
+                "beat_count": beat_count,
+            }
+        )
+
+    def _compact_episode_for_prompt(self, episode) -> dict[str, Any]:
+        return self._drop_empty(
+            {
+                "episode_id": episode.episode_id,
+                "title": episode.title,
+                "summary": episode.summary,
+                "source_chapter_ids": list(episode.source_chapter_ids),
+                "tone": episode.tone,
+                "density": episode.density,
+                "hook": episode.hook,
+                "cliffhanger": episode.cliffhanger,
+                "scene_count": len(episode.scenes),
+            }
+        )
+
+    def _compact_source_chapter_for_prompt(self, chapter) -> dict[str, Any]:
+        return self._drop_empty(
+            {
+                "chapter_id": chapter.chapter_id,
+                "title": chapter.title,
+                "chapter_number": chapter.chapter_number,
+                "word_count": chapter.word_count,
+                "raw_text": chapter.raw_text,
+                "notes": chapter.notes,
+            }
+        )
+
+    def _compact_beat_for_prompt(
+        self,
+        beat,
+        *,
+        include_review_excerpt: bool = True,
+    ) -> dict[str, Any]:
+        data = {
+            "beat_id": beat.beat_id,
+            "scene_id": beat.scene_id,
+            "order_index": beat.order_index,
+            "story_function": beat.story_function,
+            "characters": list(beat.characters),
+            "location": beat.location,
+            "action": beat.action,
+            "emotion": beat.emotion,
+            "shot_type": beat.shot_type,
+            "visual_description": beat.visual_description,
+            "continuity_tags": list(beat.continuity_tags),
+        }
+        if include_review_excerpt:
+            data["review_text_excerpt"] = self._shorten(beat.review_text, 260)
+        return self._drop_empty(
+            data
+        )
+
+    def _compact_character_for_prompt(self, character) -> dict[str, Any]:
+        return self._drop_empty(
+            {
+                "character_id": character.character_id,
+                "name": character.name,
+                "aliases": list(character.aliases),
+                "visual_prompt_base": character.visual_prompt_base,
+                "default_outfit": character.default_outfit,
+                "appearance_notes": self._join_compact(
+                    [
+                        character.appearance,
+                        character.face_details,
+                        character.hair,
+                        character.eyes,
+                        character.body_type,
+                        character.signature_features,
+                        character.continuity_must_keep,
+                    ]
+                ),
+                "negative_prompt_terms": list(character.negative_prompt_terms),
+            }
+        )
+
+    def _compact_location_for_prompt(self, location) -> dict[str, Any]:
+        return self._drop_empty(
+            {
+                "location_id": location.location_id,
+                "name": location.name,
+                "aliases": list(location.aliases),
+                "visual_prompt_base": location.visual_prompt_base,
+                "mood": location.mood,
+                "lighting": location.lighting,
+                "setting_notes": self._join_compact(
+                    [
+                        location.location_type,
+                        location.description,
+                        location.architecture_style,
+                        ", ".join(location.recurring_props),
+                        location.color_palette,
+                    ]
+                ),
+                "negative_prompt_terms": list(location.negative_prompt_terms),
+            }
+        )
+
+    def _compact_style_for_prompt(self, style_preset) -> dict[str, Any]:
+        if not style_preset:
+            return {}
+        return self._drop_empty(
+            {
+                "style_id": style_preset.style_id,
+                "name": style_preset.name,
+                "positive_prompt": style_preset.positive_prompt,
+                "negative_prompt": style_preset.negative_prompt,
+                "forbidden_terms": list(style_preset.forbidden_terms),
+                "lighting_style": style_preset.lighting_style,
+                "color_palette": style_preset.color_palette,
+                "character_design_rules": style_preset.character_design_rules,
+            }
+        )
+
+    def _drop_empty(self, data: dict[str, Any]) -> dict[str, Any]:
+        cleaned: dict[str, Any] = {}
+        for key, value in data.items():
+            if value in (None, "", [], {}):
+                continue
+            cleaned[key] = value
+        return cleaned
+
+    def _join_compact(self, parts: list[str]) -> str:
+        return "; ".join(part.strip() for part in parts if isinstance(part, str) and part.strip())
+
+    def _shorten(self, value: str, limit: int) -> str:
+        text = " ".join(value.split())
+        if len(text) <= limit:
+            return text
+        return text[: limit - 1].rstrip() + "..."
 
     def _input_unified_package(self, project: Project, episode_id: str | None) -> dict[str, Any]:
         episode = self._require_episode(project, episode_id)
@@ -334,25 +559,36 @@ class ManualAIService:
                 "retelling_density": project.retelling_density,
                 "art_style": project.default_art_style,
             },
-            "episode": {
-                "episode_id": episode.episode_id,
-                "episode_title": episode.title,
-                "episode_summary": episode.summary,
-                "tone": episode.tone,
-                "density": episode.density,
-            },
-            "scenes": [scene.to_dict() for scene in episode.scenes],
-            "source_chapters": [
+            "episode": self._compact_episode_for_prompt(episode),
+            "scenes": [
                 {
-                    "chapter_id": ch.chapter_id,
-                    "title": ch.title,
-                    "raw_text": ch.raw_text,
+                    "scene": self._compact_scene_for_prompt(
+                        scene,
+                        len(scene.ordered_beats()),
+                    ),
+                    "beats": [
+                        self._compact_beat_for_prompt(
+                            beat,
+                            include_review_excerpt=False,
+                        )
+                        for beat in scene.ordered_beats()
+                    ],
                 }
-                for ch in source_chapters
+                for scene in episode.scenes
             ],
-            "character_bible": [c.to_dict() for c in project.characters],
-            "location_bible": [loc.to_dict() for loc in project.locations],
-            "style_preset": (style_preset.to_dict() if style_preset else {}),
+            "source_chapters": [
+                self._compact_source_chapter_for_prompt(chapter)
+                for chapter in source_chapters
+            ],
+            "character_bible": [
+                self._compact_character_for_prompt(character)
+                for character in project.characters
+            ],
+            "location_bible": [
+                self._compact_location_for_prompt(location)
+                for location in project.locations
+            ],
+            "style_preset": self._compact_style_for_prompt(style_preset),
         }
 
     # ── Import handlers ──────────────────────────────────────────
@@ -433,9 +669,8 @@ class ManualAIService:
         if len(grouped) == 1 and "unknown" in grouped and chapter_id:
             grouped[chapter_id] = grouped.pop("unknown")
         
-        # 3. If still unknown and no selection, error out
-        if "unknown" in grouped:
-            raise ValueError("Không thể xác định scene_id cho các nhịp truyện. Vui lòng cung cấp scene_id hoặc chọn một phân cảnh trước khi nhập.")
+        # 3. If still unknown and no selection, skip those beats for whole-episode import.
+        grouped.pop("unknown", None)
 
         total_beats = 0
         affected_scenes = 0
@@ -443,16 +678,10 @@ class ManualAIService:
         for sid, beats in grouped.items():
             if not beats: continue
             
-            # Ensure scene exists or create minimal one
             try:
                 self.project_service.find_scene(project, episode.episode_id, sid)
             except LookupError:
-                self.project_service.add_scene(
-                    project,
-                    episode_id=episode.episode_id,
-                    title=f"Scene {sid}",
-                    scene_id=sid
-                )
+                continue
             
             gateway = _SingleResponseGateway({"beats": beats})
             generator = BeatGeneratorService(self.project_service, ai_gateway=gateway, use_ai=True)
@@ -613,7 +842,7 @@ class ManualAIService:
         if total_beats > 0:
             return f"Đã nhập gói dữ liệu đầy đủ cho {total_beats} nhịp của {affected_scenes} phân cảnh."
         
-        return "Không tìm thấy dữ liệu phân cảnh hợp lệ để nhập."
+        return "Không tìm thấy dữ liệu phân cảnh hợp lệ để nhập. 0 beats imported."
 
     def _group_beats_by_scene(self, data: dict[str, Any] | list[Any], target_key: str) -> dict[str, list[dict[str, Any]]]:
         """Group beats by scene_id from a flat structure."""
@@ -636,8 +865,20 @@ class ManualAIService:
     # ── Helpers ───────────────────────────────────────────────────
 
     def _group_beats_by_scene(self, result: dict[str, Any], target_key: str) -> dict[str, list[dict]]:
-        """Groups flat beats by their scene_id. Returns dict {scene_id: [beats]}."""
+        """Groups flat or nested scene beats by their scene_id."""
         beats = result.get(target_key, [])
+        if not beats and isinstance(result.get("scenes"), list):
+            beats = []
+            for scene_data in result["scenes"]:
+                if not isinstance(scene_data, dict):
+                    continue
+                scene_id = scene_data.get("scene_id")
+                for beat in scene_data.get("beats", []):
+                    if isinstance(beat, dict):
+                        item = dict(beat)
+                        if scene_id and not item.get("scene_id"):
+                            item["scene_id"] = scene_id
+                        beats.append(item)
         if not isinstance(beats, list):
             return {}
             

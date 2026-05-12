@@ -67,31 +67,59 @@ QToolButton#header-button:hover {
     color: #0d1117;
 }
 
-QListWidget#nav-sidebar {
-    background-color: #ffffff;
+QFrame#storyflow-sidebar {
+    background-color: #0f172a;
     border: none;
-    border-right: 1px solid #e3e7ec;
+    border-right: 1px solid #1e293b;
+}
+
+QLabel#storyflow-brand {
+    color: #ffffff;
+    font-size: 20px;
+    font-weight: 800;
+    padding: 4px 0px 0px 0px;
+}
+
+QLabel#storyflow-tagline {
+    color: #94a3b8;
+    font-size: 11px;
+    font-weight: 600;
+    padding-bottom: 12px;
+}
+
+QLabel#storyflow-nav-heading {
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1.2px;
+    padding: 12px 0px 2px 2px;
+}
+
+QListWidget#nav-sidebar {
+    background-color: transparent;
+    border: none;
     outline: 0;
-    padding: 8px 0px;
+    padding: 0px;
 }
 
 QListWidget#nav-sidebar::item {
-    color: #4b5563;
-    padding: 10px 18px 10px 14px;
-    border-left: 3px solid transparent;
-    margin: 2px 0px;
-    min-height: 22px;
+    color: #94a3b8;
+    padding: 9px 12px;
+    border: 1px solid transparent;
+    border-radius: 14px;
+    margin: 3px 0px;
+    min-height: 42px;
 }
 
 QListWidget#nav-sidebar::item:hover {
-    background-color: #f6f8fa;
-    color: #0d1117;
+    background-color: #1e293b;
+    color: #e2e8f0;
 }
 
 QListWidget#nav-sidebar::item:selected {
-    background-color: #eaf1ff;
-    color: #0d1117;
-    border-left: 3px solid #2b6cff;
+    background-color: #4f46e5;
+    color: #ffffff;
+    border: 1px solid #6366f1;
 }
 
 QStatusBar {

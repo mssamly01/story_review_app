@@ -15,8 +15,11 @@ class BibleService:
         "text",
         "watermark",
         "logo",
+        "text overlay",
+        "visible text",
         "subtitles",
         "captions",
+        "speech bubble",
         "speech bubbles",
     ]
 

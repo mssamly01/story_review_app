@@ -76,6 +76,23 @@ class ProjectController:
         )
         return chapter
 
+    def add_chapter(
+        self,
+        *,
+        title: str,
+        chapter_number: int,
+        raw_text: str = "",
+        notes: str = "",
+    ) -> SourceChapter:
+        project = self.require_project()
+        return self.project_service.add_source_chapter(
+            project,
+            title=title,
+            chapter_number=chapter_number,
+            raw_text=raw_text,
+            notes=notes,
+        )
+
     def update_chapter(
         self,
         chapter_id: str,
@@ -100,6 +117,18 @@ class ProjectController:
             if chapter.chapter_id == chapter_id:
                 return chapter
         raise LookupError(f"SourceChapter not found: {chapter_id}")
+
+    def delete_chapter(self, chapter_id: str) -> None:
+        project = self.require_project()
+        original_count = len(project.source_chapters)
+        project.source_chapters = [
+            chapter
+            for chapter in project.source_chapters
+            if chapter.chapter_id != chapter_id
+        ]
+        if len(project.source_chapters) == original_count:
+            raise LookupError(f"SourceChapter not found: {chapter_id}")
+        project.touch()
 
     def require_project(self) -> Project:
         if self.project is None:

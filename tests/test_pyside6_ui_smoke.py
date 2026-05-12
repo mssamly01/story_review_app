@@ -14,7 +14,7 @@ class PySideUISmokeTests(unittest.TestCase):
         window = MainWindow()
 
         self.assertEqual(window.windowTitle(), "Story Review Studio")
-        self.assertIsNotNone(window.project_tab)
+        self.assertIsNotNone(window.project_source_tab)
         self.assertIsNotNone(app)
 
     def test_create_main_window_returns_app_and_window(self) -> None:

@@ -38,20 +38,21 @@ def test_pyside6_main_window_imports_without_api_key(monkeypatch):
 
 
 def test_main_window_has_required_tabs():
-    """Verify that MainWindow contains all 7 required workflow tabs."""
+    """Verify that MainWindow contains the required workflow tabs."""
     window = MainWindow()
     tabs = window.tabs
     tab_texts = [tabs.tabText(i) for i in range(tabs.count())]
 
     expected_tabs = [
-        "Dự án",
-        "Nguồn",
+        "Dự án & Nguồn",
+        "Bible / Style",
         "Kế hoạch tập",
         "Beat Studio",
-        "Bible / Style",
+        "Xem Beat",
         "Chất lượng",
-        "Xuất bản",
+        "Cài đặt",
     ]
+    assert tab_texts == expected_tabs
     for expected in expected_tabs:
         assert expected in tab_texts
 
@@ -70,7 +71,7 @@ def test_tabs_can_be_constructed_without_project():
     window = MainWindow()
     # If no crash happened during MainWindow init, it means all tabs
     # were constructed successfully without a project.
-    assert window.project_tab is not None
+    assert window.project_source_tab is not None
     assert window.studio_tab is not None
 
 
@@ -101,26 +102,12 @@ def test_beat_studio_can_load_project_structure():
     assert window.studio_tab.scene_list.count() == 1
 
 
-def test_export_tab_delegates_to_controller():
-    """Verify Export tab uses ExportProfileController."""
+def test_export_tab_not_registered_in_main_navigation():
+    """Verify publishing/export is not a main navigation tab."""
     window = MainWindow()
-    mock_project = MagicMock()
-    window.app_state.project = mock_project
+    tab_texts = [window.tabs.tabText(i) for i in range(window.tabs.count())]
 
-    # Setup combos
-    window.export_tab.ep_combo.addItem("Ep 1", "ep1")
-    window.export_tab.profile_combo.addItem("Profile 1", "p1")
-    window.export_tab.output_dir_label.setText("/tmp/out")
-
-    # Mock controller
-    window.export_profile_controller.export_episode_with_profile = MagicMock(
-        return_value=[Path("file.txt")]
-    )
-
-    # Trigger export
-    window.export_tab._on_export_profile()
-
-    window.export_profile_controller.export_episode_with_profile.assert_called_once()
+    assert "Xuất bản" not in tab_texts
 
 
 def test_ui_does_not_import_provider_sdk_directly():

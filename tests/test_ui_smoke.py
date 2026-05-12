@@ -15,6 +15,7 @@ class UISmokeTests(unittest.TestCase):
             modules = [
                 "app.ui.main_window",
                 "app.ui.app_state",
+                "app.ui.project_source_tab",
                 "app.ui.project_tab",
                 "app.ui.source_tab",
                 "app.ui.episode_planner_tab",

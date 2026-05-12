@@ -18,8 +18,24 @@ from app.services.project_service import ProjectService
 
 
 class PromptQualityService:
-    REQUIRED_NEGATIVE_TERMS = ["low quality", "blurry", "text", "watermark", "logo"]
-    TEXT_REQUEST_TERMS = ["text", "subtitle", "subtitles", "caption", "captions"]
+    REQUIRED_NEGATIVE_TERMS = [
+        "low quality",
+        "blurry",
+        "text",
+        "watermark",
+        "logo",
+        "speech bubble",
+    ]
+    TEXT_REQUEST_TERMS = [
+        "text",
+        "text overlay",
+        "visible text",
+        "written words",
+        "subtitle",
+        "subtitles",
+        "caption",
+        "captions",
+    ]
     BRAND_REQUEST_TERMS = ["logo", "watermark"]
     SPEECH_REQUEST_TERMS = ["speech bubble", "speech bubbles"]
     SEQUENCE_TERMS = ["then", "after that", "next scene", "multiple scenes"]
@@ -295,6 +311,20 @@ class PromptQualityService:
                     suggestion="Add Character.visual_prompt_base to the image prompt.",
                     penalty=12,
                 )
+            if (
+                not character.visual_prompt_base
+                and character.appearance
+                and not self._contains_visual_terms(image_prompt, character.appearance)
+            ):
+                penalty += self._add_issue(
+                    issues,
+                    beat.beat_id,
+                    severity="warning",
+                    category="missing_character_detail",
+                    message=f"Prompt omits appearance details for {character_id}.",
+                    suggestion="Add the character appearance to the image prompt.",
+                    penalty=10,
+                )
             if character.default_outfit and not self._contains_visual_terms(
                 image_prompt,
                 character.default_outfit,
@@ -375,15 +405,16 @@ class PromptQualityService:
                 suggestion="Include the location lighting in the image prompt.",
                 penalty=6,
             )
-        penalty += self._add_issue(
-            issues,
-            beat.beat_id,
-            severity="info",
-            category="missing_location_detail",
-            message=f"Prompt omits mood for {location_id}.",
-            suggestion="Add the location mood if it matters visually.",
-            penalty=4,
-        )
+        if location.mood and not self._contains_visual_terms(image_prompt, location.mood):
+            penalty += self._add_issue(
+                issues,
+                beat.beat_id,
+                severity="info",
+                category="missing_location_detail",
+                message=f"Prompt omits mood for {location_id}.",
+                suggestion="Add the location mood if it matters visually.",
+                penalty=4,
+            )
 
         # High Fidelity Checks
         for field_name in ["architecture_style", "recurring_props"]:

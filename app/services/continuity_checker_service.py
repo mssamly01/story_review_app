@@ -20,6 +20,9 @@ class ContinuityCheckerService:
         "subtitle",
         "subtitles",
         "text",
+        "text overlay",
+        "visible text",
+        "written words",
         "watermark",
     ]
 
@@ -193,6 +196,27 @@ class ContinuityCheckerService:
                     scene_id=scene_id,
                     beat_id=beat_id,
                 )
+            if image_prompt:
+                missing_identity_terms = self._missing_character_identity_terms(
+                    image_prompt,
+                    character,
+                )
+                if missing_identity_terms:
+                    self._add_issue(
+                        issues,
+                        severity="warning",
+                        category="prompt_missing_character_detail",
+                        message=(
+                            f"Beat {beat_id} prompt omits character identity details: "
+                            f"{', '.join(missing_identity_terms)}."
+                        ),
+                        suggestion="Add stable face, hair, eyes, or body details from the character bible.",
+                        entity_type="Beat",
+                        entity_id=beat_id,
+                        episode_id=episode_id,
+                        scene_id=scene_id,
+                        beat_id=beat_id,
+                    )
 
         location_id = str(getattr(beat, "location", "") or "").strip()
         if location_id:
@@ -385,6 +409,18 @@ class ContinuityCheckerService:
         for value in [
             getattr(location, "lighting", ""),
             getattr(location, "mood", ""),
+        ]:
+            if value and not self._prompt_contains_visual_base(prompt, value):
+                missing.append(value)
+        return missing
+
+    def _missing_character_identity_terms(self, prompt: str, character: Any) -> list[str]:
+        missing: list[str] = []
+        for value in [
+            getattr(character, "face_details", ""),
+            getattr(character, "hair", ""),
+            getattr(character, "eyes", ""),
+            getattr(character, "body_type", ""),
         ]:
             if value and not self._prompt_contains_visual_base(prompt, value):
                 missing.append(value)

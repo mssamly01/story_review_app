@@ -34,6 +34,16 @@ class ProjectTab(QWidget):
         self.app_state = app_state
         self.project_controller = project_controller
         self.refresh_callback = refresh_callback
+        
+        self._tone_map = {
+            "Bí ẩn": "mysterious",
+            "Kịch tính": "dramatic",
+            "Trung lập": "neutral",
+            "Hài hước": "humorous",
+            "Nhanh": "fast-paced",
+        }
+        self._tone_reverse_map = {v: k for k, v in self._tone_map.items()}
+
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -48,9 +58,7 @@ class ProjectTab(QWidget):
         self.language_combo = QComboBox()
         self.language_combo.addItems(["vi", "en", "ja", "ko", "zh"])
         self.narration_combo = QComboBox()
-        self.narration_combo.addItems(
-            ["mysterious", "dramatic", "neutral", "humorous", "fast-paced"]
-        )
+        self.narration_combo.addItems(list(self._tone_map.keys()))
         self.art_style_edit = QLineEdit("dark fantasy webtoon")
         self.path_label = QLabel("Chưa mở dự án nào")
         self.path_label.setWordWrap(True)
@@ -102,7 +110,11 @@ class ProjectTab(QWidget):
             self.title_edit.setText(p.title)
             self.genre_edit.setText(getattr(p, "genre", "") or "")
             self.language_combo.setCurrentText(getattr(p, "language", "vi"))
-            self.narration_combo.setCurrentText(getattr(p, "default_narration_style", "neutral"))
+            
+            tone = getattr(p, "default_narration_style", "neutral")
+            display_tone = self._tone_reverse_map.get(tone, "Trung lập")
+            self.narration_combo.setCurrentText(display_tone)
+            
             self.art_style_edit.setText(getattr(p, "default_art_style", "") or "")
             self.path_label.setText(str(self.app_state.project_path or ""))
         else:
@@ -115,7 +127,10 @@ class ProjectTab(QWidget):
         p.title = self.title_edit.text()
         p.genre = self.genre_edit.text()
         p.language = self.language_combo.currentText()
-        p.default_narration_style = self.narration_combo.currentText()
+        
+        display_tone = self.narration_combo.currentText()
+        p.default_narration_style = self._tone_map.get(display_tone, "neutral")
+        
         p.default_art_style = self.art_style_edit.text()
         p.touch()
 
@@ -125,7 +140,7 @@ class ProjectTab(QWidget):
                 self.title_edit.text(),
                 genre=self.genre_edit.text(),
                 language=self.language_combo.currentText(),
-                default_narration_style=self.narration_combo.currentText(),
+                default_narration_style=self._tone_map.get(self.narration_combo.currentText(), "neutral"),
                 default_art_style=self.art_style_edit.text(),
             )
             self.refresh_callback()

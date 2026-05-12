@@ -186,12 +186,12 @@ class ReviewRewriterService:
         response = gateway.generate_json(
             "review_rewriter",
             {
-                "episode": episode.to_dict(),
-                "scene": scene.to_dict(),
-                "beat": beat.to_dict(),
+                "episode": self._compact_episode(episode),
+                "scene": self._compact_scene(scene),
+                "beat": self._compact_beat(beat),
                 "beat_id": beat.beat_id,
                 "source_chapter_context": [
-                    chapter.to_dict()
+                    self._compact_source_chapter(chapter)
                     for chapter in self._source_chapters_for_episode(project, episode)
                 ],
                 "narration_style": narration_style,
@@ -423,6 +423,67 @@ class ReviewRewriterService:
             if chapter_id in chapters_by_id
         ]
 
+    def _compact_episode(self, episode: ReviewEpisode) -> dict[str, Any]:
+        return self._drop_empty(
+            {
+                "episode_id": episode.episode_id,
+                "title": episode.title,
+                "summary": episode.summary,
+                "source_chapter_ids": list(episode.source_chapter_ids),
+                "tone": episode.tone,
+                "density": episode.density,
+            }
+        )
+
+    def _compact_scene(self, scene: Scene) -> dict[str, Any]:
+        return self._drop_empty(
+            {
+                "scene_id": scene.scene_id,
+                "title": scene.title,
+                "summary": scene.summary,
+                "characters": list(scene.characters),
+                "location": scene.location,
+                "mood": scene.mood,
+                "importance": scene.importance,
+            }
+        )
+
+    def _compact_beat(self, beat: Beat) -> dict[str, Any]:
+        return self._drop_empty(
+            {
+                "beat_id": beat.beat_id,
+                "scene_id": beat.scene_id,
+                "order_index": beat.order_index,
+                "story_function": beat.story_function,
+                "characters": list(beat.characters),
+                "location": beat.location,
+                "action": beat.action,
+                "emotion": beat.emotion,
+                "shot_type": beat.shot_type,
+                "visual_description": beat.visual_description,
+                "continuity_tags": list(beat.continuity_tags),
+            }
+        )
+
+    def _compact_source_chapter(self, chapter: SourceChapter) -> dict[str, Any]:
+        return self._drop_empty(
+            {
+                "chapter_id": chapter.chapter_id,
+                "title": chapter.title,
+                "chapter_number": chapter.chapter_number,
+                "word_count": chapter.word_count,
+                "raw_text": chapter.raw_text,
+                "notes": chapter.notes,
+            }
+        )
+
+    def _drop_empty(self, data: dict[str, Any]) -> dict[str, Any]:
+        return {
+            key: value
+            for key, value in data.items()
+            if value not in (None, "", [], {})
+        }
+
     def _require_ai_gateway(self) -> AIGateway:
         if self.ai_gateway is None:
             raise ValueError("use_ai=True requires an ai_gateway.")
@@ -440,7 +501,7 @@ class ReviewRewriterService:
             if vn_term in style_lower:
                 return en_key
 
-        return "neutral"
+        raise ValueError(f"Invalid narration_style: {narration_style}")
 
     def _normalise_density(self, retelling_density: str) -> str:
         if not retelling_density:
@@ -456,4 +517,4 @@ class ReviewRewriterService:
         if "tóm tắt" in density_lower or "condensed" in density_lower:
             return "condensed"
 
-        return "full"
+        raise ValueError(f"Invalid retelling_density: {retelling_density}")

@@ -267,12 +267,17 @@ class BeatGeneratorService:
             "style_negative": style_preset.negative_prompt if style_preset else "",
             "narration_style": narration_style or episode.tone,
             "retelling_density": retelling_density or episode.density,
-            "character_bible": [c.to_dict() for c in project.characters],
-            "location_bible": [loc.to_dict() for loc in project.locations],
+            "character_bible": [
+                self._compact_character(character)
+                for character in project.characters
+            ],
+            "location_bible": [
+                self._compact_location(location)
+                for location in project.locations
+            ],
             "episode_title": episode.title,
             "episode_summary": episode.summary,
-            "scene_title": scene.title,
-            "scene_summary": scene.summary,
+            "scene": self._compact_scene(scene),
             "source_text": "\n".join(c.raw_text for c in source_chapters),
         }
 
@@ -384,18 +389,26 @@ class BeatGeneratorService:
             {
                 "episode_id": episode_id,
                 "scene_id": scene.scene_id,
-                "scene": scene.to_dict(),
+                "scene": self._compact_scene(scene),
                 "source_chapter_context": [
                     {
                         "chapter_id": chapter.chapter_id,
                         "title": chapter.title,
+                        "chapter_number": chapter.chapter_number,
+                        "word_count": chapter.word_count,
                         "raw_text": chapter.raw_text,
                     }
                     for chapter in source_chapters
                 ],
                 "retelling_density": retelling_density,
-                "character_bible": [character.to_dict() for character in project.characters],
-                "location_bible": [location.to_dict() for location in project.locations],
+                "character_bible": [
+                    self._compact_character(character)
+                    for character in project.characters
+                ],
+                "location_bible": [
+                    self._compact_location(location)
+                    for location in project.locations
+                ],
             },
         )
         all_beats_data = self._ai_beats_data(response)
@@ -558,6 +571,77 @@ class BeatGeneratorService:
             for chapter_id in episode.source_chapter_ids
             if chapter_id in chapters_by_id
         ]
+
+    def _compact_scene(self, scene: Scene) -> dict[str, Any]:
+        return self._drop_empty(
+            {
+                "scene_id": scene.scene_id,
+                "episode_id": scene.episode_id,
+                "title": scene.title,
+                "summary": scene.summary,
+                "characters": list(scene.characters),
+                "location": scene.location,
+                "mood": scene.mood,
+                "importance": scene.importance,
+                "target_beats": scene.target_beats,
+            }
+        )
+
+    def _compact_character(self, character) -> dict[str, Any]:
+        return self._drop_empty(
+            {
+                "character_id": character.character_id,
+                "name": character.name,
+                "aliases": list(character.aliases),
+                "role": character.role,
+                "visual_prompt_base": character.visual_prompt_base,
+                "default_outfit": character.default_outfit,
+                "appearance_notes": self._join_compact(
+                    [
+                        character.appearance,
+                        character.face_details,
+                        character.hair,
+                        character.eyes,
+                        character.body_type,
+                        character.signature_features,
+                    ]
+                ),
+            }
+        )
+
+    def _compact_location(self, location) -> dict[str, Any]:
+        return self._drop_empty(
+            {
+                "location_id": location.location_id,
+                "name": location.name,
+                "aliases": list(location.aliases),
+                "visual_prompt_base": location.visual_prompt_base,
+                "mood": location.mood,
+                "lighting": location.lighting,
+                "setting_notes": self._join_compact(
+                    [
+                        location.location_type,
+                        location.description,
+                        location.architecture_style,
+                        ", ".join(location.recurring_props),
+                    ]
+                ),
+            }
+        )
+
+    def _drop_empty(self, data: dict[str, Any]) -> dict[str, Any]:
+        return {
+            key: value
+            for key, value in data.items()
+            if value not in (None, "", [], {})
+        }
+
+    def _join_compact(self, parts: list[str]) -> str:
+        return "; ".join(
+            part.strip()
+            for part in parts
+            if isinstance(part, str) and part.strip()
+        )
 
     def _require_ai_gateway(self) -> AIGateway:
         if self.ai_gateway is None:

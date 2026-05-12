@@ -32,20 +32,20 @@ class EpisodePanel(QGroupBox):
         self.episode_list = QListWidget()
         self.title_edit = QLineEdit("Tập 1")
         self.tone_combo = QComboBox()
-        self.tone_combo.addItems(["bí ẩn", "kịch tính", "trung lập", "hài hước", "nhanh"])
+        self.tone_combo.addItems(["Bí ẩn", "Kịch tính", "Trung lập", "Hài hước", "Nhanh"])
         self._tone_map = {
-            "bí ẩn": "mysterious",
-            "kịch tính": "dramatic",
-            "trung lập": "neutral",
-            "hài hước": "humorous",
-            "nhanh": "fast-paced",
+            "Bí ẩn": "mysterious",
+            "Kịch tính": "dramatic",
+            "Trung lập": "neutral",
+            "Hài hước": "humorous",
+            "Nhanh": "fast-paced",
         }
         self.density_combo = QComboBox()
-        self.density_combo.addItems(["đầy đủ", "cân bằng", "tóm gọn"])
+        self.density_combo.addItems(["Đầy đủ", "Cân bằng", "Tóm gọn"])
         self._density_map = {
-            "đầy đủ": "full",
-            "cân bằng": "balanced",
-            "tóm gọn": "condensed",
+            "Đầy đủ": "full",
+            "Cân bằng": "balanced",
+            "Tóm gọn": "condensed",
         }
         self.ai_mode_combo = QComboBox()
         self.ai_mode_combo.addItems(["quy tắc (deterministic)", "giả lập (mock)", "thật (real)"])

@@ -1,7 +1,7 @@
 """Theme loader for the Story Review Studio desktop UI.
 
-Two themes ship out of the box: a dark theme (default) inspired by Storyboard
-Pro / Boords, and a light theme. Each is a single QSS file under
+Two themes ship out of the box: a light StoryFlow-style workspace (default)
+and a dark theme. Each is a single QSS file under
 ``app/ui/qss/`` that uses ``objectName`` selectors set on specific widgets in
 the Python code to stay narrow and readable.
 
@@ -37,11 +37,11 @@ class Theme(Enum):
     @classmethod
     def from_string(cls, value: str | None) -> "Theme":
         if not value:
-            return cls.DARK
+            return cls.LIGHT
         try:
             return cls(value.lower())
         except ValueError:
-            return cls.DARK
+            return cls.LIGHT
 
 
 # Palette tokens — kept in sync with the QSS files so widgets that can't be
@@ -125,8 +125,8 @@ def _settings() -> QSettings:
 
 
 def load_persisted_theme() -> Theme:
-    """Return the user's last chosen theme, defaulting to dark."""
-    return Theme.from_string(_settings().value(_SETTINGS_KEY, Theme.DARK.value, type=str))
+    """Return the user's last chosen theme, defaulting to the simpler light shell."""
+    return Theme.from_string(_settings().value(_SETTINGS_KEY, Theme.LIGHT.value, type=str))
 
 
 def save_persisted_theme(theme: Theme) -> None:
@@ -176,7 +176,7 @@ def palette_color(theme: Theme, token: str) -> QColor:
     return QColor(table.get(token, "#ff00ff"))
 
 
-_CURRENT_THEME: Theme = Theme.DARK
+_CURRENT_THEME: Theme = Theme.LIGHT
 
 
 def current_theme() -> Theme:

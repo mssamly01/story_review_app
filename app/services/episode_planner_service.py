@@ -28,6 +28,7 @@ class EpisodePlannerService:
         "neutral",
         "dramatic",
         "mysterious",
+        "friendly",
         "humorous",
         "fast-paced",
     }
@@ -147,8 +148,14 @@ class EpisodePlannerService:
                 ],
                 "narration_style": narration_style,
                 "retelling_density": retelling_density,
-                "character_bible": [character.to_dict() for character in project.characters],
-                "location_bible": [location.to_dict() for location in project.locations],
+                "character_bible": [
+                    self._compact_character(character)
+                    for character in project.characters
+                ],
+                "location_bible": [
+                    self._compact_location(location)
+                    for location in project.locations
+                ],
             },
         )
         plan = self._normalise_ai_plan(
@@ -384,6 +391,63 @@ class EpisodePlannerService:
             raise LookupError("SourceChapter not found: " + ", ".join(missing_ids))
         return [chapters_by_id[chapter_id] for chapter_id in selected_source_chapter_ids]
 
+    def _compact_character(self, character) -> dict[str, Any]:
+        return self._drop_empty(
+            {
+                "character_id": character.character_id,
+                "name": character.name,
+                "aliases": list(character.aliases),
+                "role": character.role,
+                "visual_prompt_base": character.visual_prompt_base,
+                "default_outfit": character.default_outfit,
+                "appearance_notes": self._join_compact(
+                    [
+                        character.appearance,
+                        character.face_details,
+                        character.hair,
+                        character.eyes,
+                        character.body_type,
+                        character.personality,
+                        character.signature_features,
+                    ]
+                ),
+            }
+        )
+
+    def _compact_location(self, location) -> dict[str, Any]:
+        return self._drop_empty(
+            {
+                "location_id": location.location_id,
+                "name": location.name,
+                "aliases": list(location.aliases),
+                "visual_prompt_base": location.visual_prompt_base,
+                "mood": location.mood,
+                "lighting": location.lighting,
+                "setting_notes": self._join_compact(
+                    [
+                        location.location_type,
+                        location.description,
+                        location.architecture_style,
+                        ", ".join(location.recurring_props),
+                    ]
+                ),
+            }
+        )
+
+    def _drop_empty(self, data: dict[str, Any]) -> dict[str, Any]:
+        return {
+            key: value
+            for key, value in data.items()
+            if value not in (None, "", [], {})
+        }
+
+    def _join_compact(self, parts: list[str]) -> str:
+        return "; ".join(
+            part.strip()
+            for part in parts
+            if isinstance(part, str) and part.strip()
+        )
+
     def _require_ai_gateway(self) -> AIGateway:
         if self.ai_gateway is None:
             raise ValueError("use_ai=True requires an ai_gateway.")
@@ -401,7 +465,7 @@ class EpisodePlannerService:
             if vn_term in style_lower:
                 return en_key
 
-        return "neutral"
+        raise ValueError(f"Invalid narration_style: {narration_style}")
 
     def _normalise_density(self, retelling_density: str) -> str:
         if not retelling_density:
@@ -417,7 +481,7 @@ class EpisodePlannerService:
         if "tóm tắt" in density_lower or "condensed" in density_lower:
             return "condensed"
 
-        return "full"
+        raise ValueError(f"Invalid retelling_density: {retelling_density}")
 
     def _validate_plan_request(
         self,
